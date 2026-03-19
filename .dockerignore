@@ -1,0 +1,77 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+LICENSE
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Backend development
+backend/.env
+backend/.env.local
+backend/data/
+backend/logs/
+backend/*.db
+backend/*.sqlite
+backend/*.log
+
+# Frontend development
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+*.cover
+
+# Scripts (not needed in image)
+start.ps1
+start.sh
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+Dockerfile
+
+# Data directories (will be mounted as volumes)
+data/

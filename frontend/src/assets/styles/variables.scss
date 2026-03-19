@@ -1,0 +1,334 @@
+/**
+ * NasFusion Design System - CSS Variables
+ *
+ * Based on: design-system/MASTER.md
+ * Themes:
+ *   - Light: Tech Modern (VS Code Light inspired)
+ *   - Dark: Dracula Purple Theme
+ * Version: 1.1.0
+ */
+
+:root {
+  // ============================================
+  // 1. Brand Colors (Primary) - Shared
+  // ============================================
+  --nf-primary: #409EFF;
+  --nf-primary-light: #79BBFF;
+  --nf-primary-lighter: #A0CFFF;
+  --nf-primary-dark: #337ECC;
+  --nf-primary-darker: #2A6DB3;
+
+  // Functional Colors - Shared
+  --nf-success: #67C23A;
+  --nf-success-light: #85CE61;
+  --nf-warning: #E6A23C;
+  --nf-warning-light: #EBB563;
+  --nf-danger: #F56C6C;
+  --nf-danger-light: #F89898;
+  --nf-info: #909399;
+  --nf-info-light: #A6A9AD;
+
+  // ============================================
+  // 2. Background Colors - Light Theme (冷蓝色调)
+  // ============================================
+  --nf-bg-base: #F1F5F9; // Deepest background (slate-100)
+  --nf-bg-page: #FFFFFF; // Page background
+  --nf-bg-container: #F8FAFC; // Container/Sidebar background (slate-50)
+  --nf-bg-elevated: #FFFFFF; // Card/Dialog background
+  --nf-bg-overlay: #E2E8F0; // Hover/Overlay background (slate-200)
+  --nf-bg-hover: #CBD5E1; // Hover state (slate-300)
+
+  // ============================================
+  // 3. Border Colors - Light Theme (冷蓝色调)
+  // ============================================
+  --nf-border-base: #E2E8F0; // slate-200
+  --nf-border-light: #F1F5F9; // slate-100
+  --nf-border-lighter: #F8FAFC; // slate-50
+  --nf-border-dark: #CBD5E1; // slate-300
+
+  // ============================================
+  // 4. Text Colors - Light Theme
+  // ============================================
+  --nf-text-primary: #1F1F1F; // Headings, important content
+  --nf-text-regular: #424242; // Body text
+  --nf-text-secondary: #717171; // Secondary/Muted text
+  --nf-text-placeholder: #A0A0A0; // Placeholder text
+  --nf-text-disabled: #BDBDBD; // Disabled text
+
+  // ============================================
+  // 5. Status Colors - Shared
+  // ============================================
+  // Resource Status
+  --nf-status-seeding: #67C23A;
+  --nf-status-downloading: #409EFF;
+  --nf-status-paused: #E6A23C;
+  --nf-status-error: #F56C6C;
+  --nf-status-completed: #67C23A;
+  --nf-status-pending: #909399;
+
+  // Promo Tags
+  --nf-promo-free: #67C23A;
+  --nf-promo-2x: #E6A23C;
+  --nf-promo-50: #409EFF;
+  --nf-promo-vip: #F56C6C;
+
+  // Rating Colors
+  --nf-rating-excellent: #67C23A; // 8.0+
+  --nf-rating-good: #85CE61; // 7.0-7.9
+  --nf-rating-average: #E6A23C; // 6.0-6.9
+  --nf-rating-poor: #F56C6C; // <6.0
+  --nf-rating-none: #909399;
+
+  // Media Type Colors
+  --nf-media-movie: #7C3AED;
+  --nf-media-tv: #2563EB;
+  --nf-media-anime: #EC4899;
+  --nf-media-music: #10B981;
+  --nf-media-book: #F59E0B;
+  --nf-media-game: #EF4444;
+
+  // ============================================
+  // 6. Layout - Shared
+  // ============================================
+  --nf-sidebar-width: 220px;
+  --nf-sidebar-collapsed-width: 64px;
+  --nf-header-height: 60px;
+  --nf-content-max-width: 1400px;
+  --nf-gap-grid: 16px;
+
+  // ============================================
+  // 7. Spacing (4px based) - Shared
+  // ============================================
+  --nf-spacing-xs: 4px;
+  --nf-spacing-sm: 8px;
+  --nf-spacing-md: 12px;
+  --nf-spacing-base: 16px;
+  --nf-spacing-lg: 20px;
+  --nf-spacing-xl: 24px;
+  --nf-spacing-2xl: 32px;
+  --nf-spacing-3xl: 48px;
+
+  // ============================================
+  // 8. Border Radius - Shared
+  // ============================================
+  --nf-radius-xs: 4px;
+  --nf-radius-sm: 6px;
+  --nf-radius-base: 8px;
+  --nf-radius-md: 10px;
+  --nf-radius-lg: 12px;
+  --nf-radius-xl: 16px;
+  --nf-radius-2xl: 20px;
+  --nf-radius-full: 9999px;
+
+  // ============================================
+  // 9. Shadows - Light Theme (更轻柔)
+  // ============================================
+  --nf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --nf-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --nf-shadow-base: 0 4px 8px rgba(0, 0, 0, 0.08);
+  --nf-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+  --nf-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --nf-shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.15);
+
+  // Colored Shadows
+  --nf-shadow-primary: 0 4px 14px rgba(64, 158, 255, 0.25);
+  --nf-shadow-success: 0 4px 14px rgba(103, 194, 58, 0.25);
+  --nf-shadow-danger: 0 4px 14px rgba(245, 108, 108, 0.25);
+
+  // ============================================
+  // 10. Typography - Shared
+  // ============================================
+  --nf-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Helvetica Neue",
+    Arial, sans-serif;
+  --nf-font-family-mono: "Fira Code", "JetBrains Mono", "Source Code Pro",
+    Menlo, Monaco, Consolas, "Courier New", monospace;
+
+  // Font Sizes
+  --nf-font-size-h1: 28px;
+  --nf-font-size-h2: 24px;
+  --nf-font-size-h3: 20px;
+  --nf-font-size-h4: 18px;
+  --nf-font-size-h5: 16px;
+  --nf-font-size-base: 14px;
+  --nf-font-size-small: 13px;
+  --nf-font-size-mini: 12px;
+  --nf-font-size-stat: 32px;
+
+  // Font Weights
+  --nf-font-weight-light: 300;
+  --nf-font-weight-regular: 400;
+  --nf-font-weight-medium: 500;
+  --nf-font-weight-semibold: 600;
+  --nf-font-weight-bold: 700;
+
+  // Line Heights
+  --nf-line-height-tight: 1.3;
+  --nf-line-height-base: 1.5;
+  --nf-line-height-loose: 1.75;
+
+  // ============================================
+  // 11. Transitions - Shared
+  // ============================================
+  --nf-transition-fast: 150ms;
+  --nf-transition-base: 200ms;
+  --nf-transition-slow: 300ms;
+  --nf-transition-slower: 500ms;
+
+  // Easing Functions
+  --nf-ease-default: ease;
+  --nf-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --nf-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --nf-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --nf-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  // ============================================
+  // 12. Z-Index Scale - Shared
+  // ============================================
+  --nf-z-dropdown: 100;
+  --nf-z-sticky: 200;
+  --nf-z-fixed: 300;
+  --nf-z-sidebar: 400;
+  --nf-z-header: 500;
+  --nf-z-overlay: 600;
+  --nf-z-modal: 700;
+  --nf-z-popover: 800;
+  --nf-z-tooltip: 900;
+  --nf-z-message: 1000;
+}
+
+// ============================================
+// DARK THEME - 暗紫夜幕 (Dracula Style)
+// ============================================
+html.dark {
+  // Background Colors - 深紫色调
+  --nf-bg-base: #13111C;
+  --nf-bg-page: #1a1726;
+  --nf-bg-container: #221e30;
+  --nf-bg-elevated: #2a2540;
+  --nf-bg-overlay: #332d4a;
+  --nf-bg-hover: #3d3656;
+
+  // Border Colors - 紫色边框
+  --nf-border-base: #3d3660;
+  --nf-border-light: #4a4270;
+  --nf-border-lighter: #564e80;
+  --nf-border-dark: #2e2850;
+
+  // Text Colors - 温暖紫白
+  --nf-text-primary: #F0ECF9;
+  --nf-text-regular: #D5CEE8;
+  --nf-text-secondary: #A89DC0;
+  --nf-text-placeholder: #706590;
+  --nf-text-disabled: #504570;
+
+  // Primary color - Dracula 紫
+  --nf-primary: #BD93F9;
+  --nf-primary-light: #D4B8FF;
+  --nf-primary-lighter: #E2CEFF;
+  --nf-primary-dark: #9B6FD4;
+  --nf-primary-darker: #7C52B5;
+
+  // Shadows (Dark Theme - 紫色调阴影)
+  --nf-shadow-xs: 0 1px 2px rgba(19, 17, 28, 0.4);
+  --nf-shadow-sm: 0 2px 4px rgba(19, 17, 28, 0.5);
+  --nf-shadow-base: 0 4px 8px rgba(19, 17, 28, 0.6);
+  --nf-shadow-md: 0 4px 12px rgba(19, 17, 28, 0.6);
+  --nf-shadow-lg: 0 8px 24px rgba(19, 17, 28, 0.7);
+  --nf-shadow-xl: 0 12px 32px rgba(19, 17, 28, 0.8);
+
+  // Colored Shadows (紫色点缀)
+  --nf-shadow-primary: 0 4px 14px rgba(189, 147, 249, 0.35);
+  --nf-shadow-success: 0 4px 14px rgba(80, 250, 123, 0.35);
+  --nf-shadow-danger: 0 4px 14px rgba(255, 85, 85, 0.35);
+}
+
+// ============================================
+// OCEAN THEME - 海洋深蓝 (Deep Ocean Style)
+// ============================================
+html.ocean {
+  // Background Colors - 深海蓝色调
+  --nf-bg-base: #0a1628;
+  --nf-bg-page: #0d1f35;
+  --nf-bg-container: #132742;
+  --nf-bg-elevated: #1a3150;
+  --nf-bg-overlay: #213a5c;
+  --nf-bg-hover: #284568;
+
+  // Border Colors - 海洋边框
+  --nf-border-base: #2a4a6e;
+  --nf-border-light: #3a5a7e;
+  --nf-border-lighter: #4a6a8e;
+  --nf-border-dark: #1a3a5e;
+
+  // Text Colors - 保持良好对比度
+  --nf-text-primary: #E8F4FC;
+  --nf-text-regular: #C5DCF0;
+  --nf-text-secondary: #8EAEC8;
+  --nf-text-placeholder: #5A7A94;
+  --nf-text-disabled: #3A5A74;
+
+  // Primary color - 海洋蓝
+  --nf-primary: #38BDF8;
+  --nf-primary-light: #7DD3FC;
+  --nf-primary-dark: #0EA5E9;
+
+  // Shadows (Ocean - 蓝色阴影)
+  --nf-shadow-xs: 0 1px 2px rgba(10, 22, 40, 0.4);
+  --nf-shadow-sm: 0 2px 4px rgba(10, 22, 40, 0.5);
+  --nf-shadow-base: 0 4px 8px rgba(10, 22, 40, 0.6);
+  --nf-shadow-md: 0 4px 12px rgba(10, 22, 40, 0.6);
+  --nf-shadow-lg: 0 8px 24px rgba(10, 22, 40, 0.7);
+  --nf-shadow-xl: 0 12px 32px rgba(10, 22, 40, 0.8);
+
+  // Colored Shadows (Ocean Style)
+  --nf-shadow-primary: 0 4px 14px rgba(56, 189, 248, 0.35);
+  --nf-shadow-success: 0 4px 14px rgba(103, 194, 58, 0.35);
+  --nf-shadow-danger: 0 4px 14px rgba(245, 108, 108, 0.35);
+}
+
+// ============================================
+// WARM THEME - 暖光橙韵 (Style)
+// ============================================
+html.warm {
+  // Background Colors - 暖米色调
+  --nf-bg-base: #F0EBE3;
+  --nf-bg-page: #FAF8F5;
+  --nf-bg-container: #FFFFFF;
+  --nf-bg-elevated: #FFFFFF;
+  --nf-bg-overlay: #F2EDE6;
+  --nf-bg-hover: #E8E0D5;
+
+  // Border Colors - 暖棕色边框
+  --nf-border-base: #E4D9CE;
+  --nf-border-light: #EDE6DF;
+  --nf-border-lighter: #F5F0EB;
+  --nf-border-dark: #D4C5B8;
+
+  // Text Colors - 暖深色文字
+  --nf-text-primary: #1C1814;
+  --nf-text-regular: #3D3730;
+  --nf-text-secondary: #7A6B5E;
+  --nf-text-placeholder: #B5A9A0;
+  --nf-text-disabled: #D4C5B8;
+
+  // Primary color - 暖橙色 ( Orange)
+  --nf-primary: #F97316;
+  --nf-primary-light: #FB923C;
+  --nf-primary-lighter: #FDBA74;
+  --nf-primary-dark: #EA580C;
+  --nf-primary-darker: #C2410C;
+
+  // Shadows (Warm Theme - 暖调阴影)
+  --nf-shadow-xs: 0 1px 2px rgba(120, 80, 40, 0.06);
+  --nf-shadow-sm: 0 2px 4px rgba(120, 80, 40, 0.08);
+  --nf-shadow-base: 0 4px 8px rgba(120, 80, 40, 0.10);
+  --nf-shadow-md: 0 4px 12px rgba(120, 80, 40, 0.12);
+  --nf-shadow-lg: 0 8px 24px rgba(120, 80, 40, 0.14);
+  --nf-shadow-xl: 0 12px 32px rgba(120, 80, 40, 0.18);
+
+  // Colored Shadows (暖橙点缀)
+  --nf-shadow-primary: 0 4px 14px rgba(249, 115, 22, 0.30);
+  --nf-shadow-success: 0 4px 14px rgba(103, 194, 58, 0.25);
+  --nf-shadow-danger: 0 4px 14px rgba(245, 108, 108, 0.25);
+}

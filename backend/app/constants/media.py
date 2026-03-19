@@ -1,0 +1,79 @@
+"""
+媒体类型相关常量
+"""
+
+# 媒体类型
+MEDIA_TYPE_MOVIE = "movie"
+MEDIA_TYPE_TV = "tv"
+MEDIA_TYPE_MUSIC = "music"
+MEDIA_TYPE_BOOK = "book"
+MEDIA_TYPE_ANIME = "anime"
+MEDIA_TYPE_ADULT = "adult"
+MEDIA_TYPE_GAME = "game"
+MEDIA_TYPE_OTHER = "other"
+
+# 所有媒体类型列表
+MEDIA_TYPES = [
+    MEDIA_TYPE_MOVIE,
+    MEDIA_TYPE_TV,
+    MEDIA_TYPE_MUSIC,
+    MEDIA_TYPE_BOOK,
+    MEDIA_TYPE_ANIME,
+    MEDIA_TYPE_ADULT,
+    MEDIA_TYPE_GAME,
+    MEDIA_TYPE_OTHER,
+]
+
+# 媒体类型显示名称映射
+MEDIA_TYPE_DISPLAY_NAMES = {
+    MEDIA_TYPE_MOVIE: "电影",
+    MEDIA_TYPE_TV: "电视剧",
+    MEDIA_TYPE_MUSIC: "音乐",
+    MEDIA_TYPE_BOOK: "书籍",
+    MEDIA_TYPE_ANIME: "动漫",
+    MEDIA_TYPE_ADULT: "成人",
+    MEDIA_TYPE_GAME: "游戏",
+    MEDIA_TYPE_OTHER: "其他",
+}
+
+# 媒体类型到目录名映射（统一用于下载目录和媒体库目录）
+MEDIA_TYPE_DIRS = {
+    MEDIA_TYPE_MOVIE: "Movies",
+    MEDIA_TYPE_TV: "TV Shows",  # 统一使用 TV Shows
+    MEDIA_TYPE_MUSIC: "Music",
+    MEDIA_TYPE_BOOK: "Books",
+    MEDIA_TYPE_ANIME: "Anime",
+    MEDIA_TYPE_ADULT: "Adult",
+    MEDIA_TYPE_GAME: "Games",
+    MEDIA_TYPE_OTHER: "Other",
+}
+
+# 兼容性别名
+MEDIA_TYPE_DOWNLOAD_DIRS = MEDIA_TYPE_DIRS
+MEDIA_TYPE_LIBRARY_DIRS = MEDIA_TYPE_DIRS
+
+# 视频质量相关
+RESOLUTION_2160P = "2160p"
+RESOLUTION_1080P = "1080p"
+RESOLUTION_720P = "720p"
+RESOLUTION_480P = "480p"
+
+RESOLUTIONS = [
+    RESOLUTION_2160P,
+    RESOLUTION_1080P,
+    RESOLUTION_720P,
+    RESOLUTION_480P,
+]
+
+# 视频来源
+SOURCE_BLURAY = "BluRay"
+SOURCE_WEB_DL = "WEB-DL"
+SOURCE_HDTV = "HDTV"
+SOURCE_REMUX = "Remux"
+
+# 视频编码
+CODEC_X264 = "x264"
+CODEC_X265 = "x265"
+CODEC_H264 = "H264"
+CODEC_H265 = "H265"
+CODEC_AV1 = "AV1"

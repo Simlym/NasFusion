@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="ocean">
+  <head>
+    <meta charset="UTF-8">
+    <!-- 立即恢复主题，防止白屏闪烁 -->
+    <script>
+      (function () {
+        var t = localStorage.getItem('nf-theme');
+        if (t && t !== 'ocean') {
+          document.documentElement.className = t;
+        }
+      })();
+    </script>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NasFusion - PT站点媒体资源管理系统</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

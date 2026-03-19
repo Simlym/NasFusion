@@ -1,0 +1,327 @@
+/* ========== 页面过渡动画 ========== */
+
+/* 滑动淡入（从下往上） */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 滑动淡出（从上往下） */
+@keyframes slideOutDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+/* 淡入放大 */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 淡出缩小 */
+@keyframes fadeOutScale {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ========== 加载动画 ========== */
+
+/* 旋转加载 */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 脉冲效果 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* 弹跳效果 */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ========== 骨架屏动画 ========== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    90deg,
+    var(--bg-color-overlay) 0%,
+    var(--border-color-light) 50%,
+    var(--bg-color-overlay) 100%
+  );
+  background-size: 1000px 100%;
+  border-radius: var(--border-radius-sm);
+}
+
+/* ========== 列表项入场动画 ========== */
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 为列表项添加延迟入场效果 */
+.stagger-item {
+  animation: slideInLeft 0.3s var(--ease-out-back) forwards;
+  opacity: 0;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.stagger-item:nth-child(6) { animation-delay: 0.3s; }
+.stagger-item:nth-child(7) { animation-delay: 0.35s; }
+.stagger-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* ========== 页面路由过渡 ========== */
+
+.page-enter-active {
+  animation: slideInUp var(--transition-base) var(--ease-in-out-smooth);
+}
+
+.page-leave-active {
+  animation: slideOutDown var(--transition-base) var(--ease-in-out-smooth);
+}
+
+/* 淡入淡出（备用） */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-base) var(--ease-in-out-smooth);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ========== 特效动画 ========== */
+
+/* 闪烁效果 */
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 摇晃效果（错误提示） */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-10px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(10px);
+  }
+}
+
+/* 心跳效果 */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* ========== 工具类 ========== */
+
+/* 加载动画类 */
+.loading-spin {
+  animation: spin 1s linear infinite;
+}
+
+.loading-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-bounce {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* 错误提示摇晃 */
+.error-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* 新通知闪烁 */
+.notification-blink {
+  animation: blink 1s ease-in-out 3;
+}
+
+/* 点赞心跳 */
+.like-heartbeat {
+  animation: heartbeat 0.5s ease-in-out;
+}
+
+/* ========== 页面加载动画 ========== */
+
+/* 页面内容渐入 */
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-fade-in {
+  animation: contentFadeIn 0.4s var(--ease-out-back) forwards;
+}
+
+/* 卡片依次入场 */
+.card-stagger-item {
+  animation: slideInUp 0.35s var(--ease-out-back) forwards;
+  opacity: 0;
+}
+
+.card-stagger-item:nth-child(1) { animation-delay: 0.05s; }
+.card-stagger-item:nth-child(2) { animation-delay: 0.1s; }
+.card-stagger-item:nth-child(3) { animation-delay: 0.15s; }
+.card-stagger-item:nth-child(4) { animation-delay: 0.2s; }
+.card-stagger-item:nth-child(5) { animation-delay: 0.25s; }
+.card-stagger-item:nth-child(6) { animation-delay: 0.3s; }
+.card-stagger-item:nth-child(7) { animation-delay: 0.35s; }
+.card-stagger-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* ========== 交互微动效 ========== */
+
+/* 轻微上浮 */
+@keyframes hoverLift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-4px);
+  }
+}
+
+.hover-lift {
+  transition: all var(--transition-base) var(--ease-out-back);
+}
+
+.hover-lift:hover {
+  animation: hoverLift 0.2s var(--ease-out-back) forwards;
+}
+
+/* 轻微缩放 */
+.hover-scale {
+  transition: transform var(--transition-base) var(--ease-out-back);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* 按下效果 */
+.press-effect {
+  transition: transform 0.1s ease-out;
+}
+
+.press-effect:active {
+  transform: scale(0.97);
+}
+
+/* ========== 成功/错误反馈动画 ========== */
+
+/* 成功勾选 */
+@keyframes successCheck {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.success-check {
+  animation: successCheck 0.4s var(--ease-out-back);
+}
+
+/* 错误X标记 */
+@keyframes errorMark {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+.error-mark {
+  animation: errorMark 0.3s ease-in-out;
+}

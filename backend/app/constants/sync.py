@@ -1,0 +1,34 @@
+"""
+同步相关常量
+"""
+
+# 同步策略
+SYNC_STRATEGY_TIME_BASED = "time_based"
+SYNC_STRATEGY_PAGE_BASED = "page_based"
+SYNC_STRATEGY_ID_BASED = "id_based"
+
+SYNC_STRATEGIES = [
+    SYNC_STRATEGY_TIME_BASED,
+    SYNC_STRATEGY_PAGE_BASED,
+    SYNC_STRATEGY_ID_BASED,
+]
+
+# 同步状态
+SYNC_STATUS_SUCCESS = "success"
+SYNC_STATUS_FAILED = "failed"
+SYNC_STATUS_RUNNING = "running"
+SYNC_STATUS_PENDING = "pending"
+
+SYNC_STATUSES = [
+    SYNC_STATUS_SUCCESS,
+    SYNC_STATUS_FAILED,
+    SYNC_STATUS_RUNNING,
+    SYNC_STATUS_PENDING,
+]
+
+# 同步策略显示名称
+SYNC_STRATEGY_DISPLAY_NAMES = {
+    SYNC_STRATEGY_TIME_BASED: "基于时间同步",
+    SYNC_STRATEGY_PAGE_BASED: "基于分页同步",
+    SYNC_STRATEGY_ID_BASED: "基于ID同步",
+}

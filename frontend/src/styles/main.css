@@ -1,0 +1,1290 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 60px;
+
+  /* ========== 主色调 - 专业信任蓝 (Dashboard Style) ========== */
+  --primary-color: #3B82F6;
+  --primary-light: #60A5FA;
+  --primary-lighter: #93C5FD;
+  --primary-dark: #2563EB;
+
+  /* 辅助色 */
+  --success-color: #10b981;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --info-color: #06B6D4;
+
+  /* ========== 背景层次 - 浅色主题 ( 一体化) ========== */
+  --bg-color: #F8FAFC;
+  /* 页面背景 - 冷灰白 */
+  --bg-color-light: #FFFFFF;
+  /* 卡片背景 */
+  --bg-color-overlay: #F1F5F9;
+  /* 悬浮层/hover */
+  --bg-color-sidebar: #FFFFFF;
+  /* 侧边栏背景 */
+  --bg-color-sidebar-hover: #F1F5F9;
+  /* 菜单项悬停 */
+  --bg-color-sidebar-active: rgba(59, 130, 246, 0.08);
+  /* 菜单项选中 */
+  --bg-color-dark: #0F172A;
+
+  /* ========== 边框颜色 ========== */
+  --border-color: #E2E8F0;
+  --border-color-light: #F1F5F9;
+  --border-color-dark: #CBD5E1;
+
+  /* ========== 文字颜色 - 高对比度 ========== */
+  --text-color-primary: #1E293B;
+  /* 主要文字 - 深灰蓝 */
+  --text-color-regular: #334155;
+  /* 正文 */
+  --text-color-secondary: #64748B;
+  /* 次要文字 */
+  --text-color-muted: #94A3B8;
+  /* 更弱文字 */
+  --text-color-placeholder: #CBD5E1;
+
+  /* 渐变色 */
+  --gradient-primary: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-info: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+  --gradient-bg-light: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --gradient-bg-dark: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+
+  /* 间距扩展 */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* 圆角升级 */
+  --border-radius-xs: 6px;
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+
+  /* 阴影升级 - 浅色主题 (柔和细腻) */
+  --box-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --box-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --box-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --box-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+
+  /* 彩色阴影（用于强调） */
+  --box-shadow-primary: 0 4px 14px 0 rgba(59, 130, 246, 0.25);
+  --box-shadow-success: 0 4px 14px 0 rgba(16, 185, 129, 0.25);
+
+  /* ========== NasFusion Component Compatibility (nf- prefix) ========== */
+  --nf-text-primary: var(--text-color-primary);
+  --nf-text-secondary: var(--text-color-regular);
+  --nf-bg-elevated: var(--bg-color-light);
+  --nf-bg-container: var(--bg-color);
+  --nf-bg-overlay: var(--bg-color-overlay);
+  --nf-bg-hover: var(--bg-color-sidebar-hover);
+  --nf-border-base: var(--border-color);
+  --nf-border-light: var(--border-color-light);
+  --nf-primary: var(--primary-color);
+
+  /* Brand Gradient (Default/Light) */
+  --bg-brand-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #7c3aed 100%);
+}
+
+/* ========== 浅色主题组件覆盖 (Default) ========== */
+/* 这里处理默认主题（Light）的样式，排除 dark 和 ocean */
+
+/* 警告提示框 */
+html:not(.dark):not(.ocean) .el-alert {
+  border: 1px solid transparent;
+}
+
+html:not(.dark):not(.ocean) .el-alert__title {
+  color: var(--text-color-primary, #1E293B);
+}
+
+html:not(.dark):not(.ocean) .el-alert__description {
+  color: var(--text-color-regular, #334155);
+}
+
+html:not(.dark):not(.ocean) .el-alert__close-btn {
+  color: var(--text-color-secondary, #64748B);
+}
+
+/* Info 类型 - 浅蓝背景（默认是灰色，强制改为蓝色） */
+html:not(.dark):not(.ocean) .el-alert--info {
+  background-color: #EFF6FF !important;
+  border-color: #DBEAFE !important;
+}
+
+/* 标题统一为深色，图标保持蓝色 */
+html:not(.dark):not(.ocean) .el-alert--info .el-alert__title {
+  color: #1E293B !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--info .el-alert__icon {
+  color: #3B82F6 !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--info .el-alert__description {
+  color: #334155 !important;
+}
+
+/* Success 类型 - 浅绿背景 */
+html:not(.dark):not(.ocean) .el-alert--success {
+  background-color: #ECFDF5 !important;
+  border-color: #D1FAE5 !important;
+}
+
+/* 标题统一为深色，图标保持绿色 */
+html:not(.dark):not(.ocean) .el-alert--success .el-alert__title {
+  color: #1E293B !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--success .el-alert__icon {
+  color: #10B981 !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--success .el-alert__description {
+  color: #334155 !important;
+}
+
+/* Warning 类型 - 浅橙背景 */
+html:not(.dark):not(.ocean) .el-alert--warning {
+  background-color: #FFFBEB !important;
+  border-color: #FEF3C7 !important;
+}
+
+/* 标题统一为深色，图标保持橙色 */
+html:not(.dark):not(.ocean) .el-alert--warning .el-alert__title {
+  color: #1E293B !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--warning .el-alert__icon {
+  color: #F59E0B !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--warning .el-alert__description {
+  color: #334155 !important;
+}
+
+/* Error 类型 - 浅红背景 */
+html:not(.dark):not(.ocean) .el-alert--error {
+  background-color: #FEF2F2 !important;
+  border-color: #FEE2E2 !important;
+}
+
+/* 标题统一为深色，图标保持红色 */
+html:not(.dark):not(.ocean) .el-alert--error .el-alert__title {
+  color: #1E293B !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--error .el-alert__icon {
+  color: #EF4444 !important;
+}
+
+html:not(.dark):not(.ocean) .el-alert--error .el-alert__description {
+  color: #334155 !important;
+}
+
+/* 深色主题变量 - 暗紫夜幕 (Dracula Style) */
+html.dark {
+  /* 背景层次 - 深紫色系 */
+  --bg-color: #1a1726;
+  --bg-color-light: #221e30;
+  --bg-color-overlay: #332d4a;
+
+  /* 侧边栏背景 - 深紫色系 */
+  --bg-color-sidebar: #221e30;
+  --bg-color-sidebar-hover: #332d4a;
+  --bg-color-sidebar-active: rgba(189, 147, 249, 0.15);
+
+  /* 主色调 - Dracula 紫 */
+  --primary-color: #BD93F9;
+  --primary-light: #D4B8FF;
+  --primary-lighter: #E2CEFF;
+  --primary-dark: #9B6FD4;
+
+  /* 文字颜色 */
+  --text-color-primary: #F0ECF9;
+  --text-color-regular: #D5CEE8;
+  --text-color-secondary: #A89DC0;
+  --text-color-muted: #706590;
+  --text-color-placeholder: #706590;
+
+  /* 边框颜色 */
+  --border-color: #3d3660;
+  --border-color-light: #4a4270;
+  --border-color-dark: #2e2850;
+
+  /* 渐变色 */
+  --gradient-primary: linear-gradient(135deg, #BD93F9 0%, #D4B8FF 100%);
+
+  /* 暗色模式阴影 - 紫色调 */
+  --box-shadow-xs: 0 1px 2px 0 rgba(19, 17, 28, 0.4);
+  --box-shadow-sm: 0 2px 8px 0 rgba(19, 17, 28, 0.5);
+  --box-shadow-md: 0 4px 12px 0 rgba(19, 17, 28, 0.6);
+  --box-shadow-lg: 0 8px 24px 0 rgba(19, 17, 28, 0.7);
+  --box-shadow-xl: 0 12px 32px 0 rgba(19, 17, 28, 0.8);
+
+  /* 彩色阴影 */
+  --box-shadow-primary: 0 8px 24px rgba(189, 147, 249, 0.30);
+  --box-shadow-success: 0 8px 24px rgba(80, 250, 123, 0.30);
+
+  /* Element Plus 卡片深色覆盖 */
+  --el-card-bg-color: #221e30;
+  --el-card-border-color: #3d3660;
+
+  /* Brand Gradient (Dark - Dracula) */
+  --bg-brand-gradient: linear-gradient(135deg, #2a2540 0%, #1a1726 50%, #332d4a 100%);
+}
+
+/* 深色模式 Element Plus 卡片强制覆盖 */
+html.dark .el-card {
+  --el-card-bg-color: #221e30;
+  background-color: #221e30 !important;
+  border-color: #3d3660 !important;
+}
+
+html.dark .el-card__header {
+  background-color: #221e30 !important;
+  border-bottom-color: #3d3660 !important;
+}
+
+html.dark .el-card__body {
+  background-color: #221e30 !important;
+}
+
+/* 深色主题警告提示框 */
+/* 通用样式 */
+html.dark .el-alert .el-alert__title {
+  color: var(--text-color-primary, #F0ECF9) !important;
+}
+
+html.dark .el-alert .el-alert__description {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+html.dark .el-alert .el-alert__close-btn {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+/* Info 类型 - 紫色调 */
+html.dark .el-alert--info {
+  background-color: rgba(189, 147, 249, 0.1) !important;
+  border-color: rgba(189, 147, 249, 0.3) !important;
+}
+
+html.dark .el-alert--info .el-alert__title,
+html.dark .el-alert--info .el-alert__icon {
+  color: #D4B8FF !important;
+}
+
+html.dark .el-alert--info .el-alert__description,
+html.dark .el-alert--info .el-alert__content {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* Success 类型 - Dracula 绿 */
+html.dark .el-alert--success {
+  background-color: rgba(80, 250, 123, 0.1) !important;
+  border-color: rgba(80, 250, 123, 0.3) !important;
+}
+
+html.dark .el-alert--success .el-alert__title,
+html.dark .el-alert--success .el-alert__icon {
+  color: #50FA7B !important;
+}
+
+html.dark .el-alert--success .el-alert__description,
+html.dark .el-alert--success .el-alert__content {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* Warning 类型 - Dracula 橙 */
+html.dark .el-alert--warning {
+  background-color: rgba(255, 184, 108, 0.1) !important;
+  border-color: rgba(255, 184, 108, 0.3) !important;
+}
+
+html.dark .el-alert--warning .el-alert__title,
+html.dark .el-alert--warning .el-alert__icon {
+  color: #FFB86C !important;
+}
+
+html.dark .el-alert--warning .el-alert__description,
+html.dark .el-alert--warning .el-alert__content {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* Error 类型 - Dracula 红 */
+html.dark .el-alert--error {
+  background-color: rgba(255, 85, 85, 0.1) !important;
+  border-color: rgba(255, 85, 85, 0.3) !important;
+}
+
+html.dark .el-alert--error .el-alert__title,
+html.dark .el-alert--error .el-alert__icon {
+  color: #FF5555 !important;
+}
+
+html.dark .el-alert--error .el-alert__description,
+html.dark .el-alert--error .el-alert__content {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* 海洋深蓝主题变量 */
+html.ocean {
+  /* 背景层次 - 深海蓝色调 */
+  --bg-color: #0d1f35;
+  --bg-color-light: #132742;
+  --bg-color-overlay: #213a5c;
+
+  /* 侧边栏背景 - 海洋蓝色调 */
+  --bg-color-sidebar: #132742;
+  --bg-color-sidebar-hover: #213a5c;
+  --bg-color-sidebar-active: rgba(56, 189, 248, 0.15);
+
+  /* 文字颜色 */
+  --text-color-primary: #E8F4FC;
+  --text-color-regular: #C5DCF0;
+  --text-color-secondary: #8EAEC8;
+  --text-color-muted: #5A7A94;
+  --text-color-placeholder: #5A7A94;
+
+  /* 边框颜色 */
+  --border-color: #2a4a6e;
+  --border-color-light: #3a5a7e;
+  --border-color-dark: #1a3a5e;
+
+  /* 主色调 - 海洋蓝 */
+  --primary-color: #38BDF8;
+  --primary-light: #7DD3FC;
+  --primary-dark: #0EA5E9;
+
+  /* 渐变色 - 海洋蓝 */
+  --gradient-primary: linear-gradient(135deg, #38BDF8 0%, #7DD3FC 100%);
+
+  /* 海洋主题阴影 */
+  --box-shadow-xs: 0 1px 2px 0 rgba(10, 22, 40, 0.4);
+  --box-shadow-sm: 0 2px 8px 0 rgba(10, 22, 40, 0.5);
+  --box-shadow-md: 0 4px 12px 0 rgba(10, 22, 40, 0.6);
+  --box-shadow-lg: 0 8px 24px 0 rgba(10, 22, 40, 0.7);
+  --box-shadow-xl: 0 12px 32px 0 rgba(10, 22, 40, 0.8);
+
+  /* 彩色阴影 - 海洋蓝 */
+  --box-shadow-primary: 0 8px 24px rgba(56, 189, 248, 0.30);
+  --box-shadow-success: 0 8px 24px rgba(16, 185, 129, 0.30);
+
+  /* Element Plus 卡片覆盖 */
+  --el-card-bg-color: #132742;
+  --el-card-border-color: #2a4a6e;
+
+  /* Brand Gradient (Ocean) */
+  --bg-brand-gradient: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+}
+
+/* 海洋主题 Element Plus 卡片强制覆盖 */
+html.ocean .el-card {
+  --el-card-bg-color: #132742;
+  background-color: #132742 !important;
+  border-color: #2a4a6e !important;
+}
+
+html.ocean .el-card__header {
+  background-color: #132742 !important;
+  border-bottom-color: #2a4a6e !important;
+}
+
+html.ocean .el-card__body {
+  background-color: #132742 !important;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color-placeholder);
+}
+
+/* 通用工具类 */
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-sm {
+  margin-top: var(--spacing-sm);
+}
+
+.mt-md {
+  margin-top: var(--spacing-md);
+}
+
+.mt-lg {
+  margin-top: var(--spacing-lg);
+}
+
+.mb-sm {
+  margin-bottom: var(--spacing-sm);
+}
+
+.mb-md {
+  margin-bottom: var(--spacing-md);
+}
+
+.mb-lg {
+  margin-bottom: var(--spacing-lg);
+}
+
+.ml-sm {
+  margin-left: var(--spacing-sm);
+}
+
+.ml-md {
+  margin-left: var(--spacing-md);
+}
+
+.ml-lg {
+  margin-left: var(--spacing-lg);
+}
+
+.mr-sm {
+  margin-right: var(--spacing-sm);
+}
+
+.mr-md {
+  margin-right: var(--spacing-md);
+}
+
+.mr-lg {
+  margin-right: var(--spacing-lg);
+}
+
+.p-sm {
+  padding: var(--spacing-sm);
+}
+
+.p-md {
+  padding: var(--spacing-md);
+}
+
+.p-lg {
+  padding: var(--spacing-lg);
+}
+
+/* 卡片样式 */
+.card {
+  background: var(--bg-color-light);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--box-shadow-sm);
+}
+
+.card-header {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 页面容器 */
+.page-container {
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.page-description {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+}
+
+/* ========== 微交互动画 ========== */
+
+/* 悬浮上浮效果 */
+.hover-lift {
+  transition: transform var(--transition-base) var(--ease-in-out-smooth),
+    box-shadow var(--transition-base) var(--ease-in-out-smooth);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-lg);
+}
+
+/* 缩放效果 */
+.hover-scale {
+  transition: transform var(--transition-base) var(--ease-in-out-smooth);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* 按钮按下效果 */
+.btn-press:active {
+  transform: scale(0.98);
+}
+
+/* 平滑过渡 */
+.smooth-transition {
+  transition: all var(--transition-base) var(--ease-in-out-smooth);
+}
+
+/* ========== Loading 遮罩全局样式 ========== */
+/* 确保所有主题下 loading 遮罩与背景融合 */
+.el-loading-mask {
+  background-color: var(--bg-color-light, var(--nf-bg-elevated, #FFFFFF)) !important;
+  opacity: 0.95 !important;
+  backdrop-filter: blur(2px);
+  transition: opacity 0.15s ease-in-out;
+}
+
+.el-loading-spinner .path {
+  stroke: var(--primary-color, var(--nf-primary, #3B82F6)) !important;
+}
+
+.el-loading-spinner .el-loading-text {
+  color: var(--text-color-secondary, var(--nf-text-secondary, #64748B)) !important;
+}
+
+/* 深色主题 loading */
+html.dark .el-loading-mask {
+  background-color: var(--bg-color-light, #221e30) !important;
+}
+
+/* 海洋主题 loading */
+html.ocean .el-loading-mask {
+  background-color: var(--bg-color-light, #132742) !important;
+}
+
+/* ========== 深色主题 Element Plus 组件样式覆盖 ========== */
+
+/* 深色主题表格样式 - Dracula Purple */
+html.dark .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: #2a2540;
+  --el-table-header-text-color: var(--text-color-primary, #F0ECF9);
+  --el-table-text-color: var(--text-color-regular, #D5CEE8);
+  --el-table-border-color: var(--border-color, #3d3660);
+  --el-table-row-hover-bg-color: #332d4a;
+  background-color: transparent !important;
+}
+
+html.dark .el-table th.el-table__cell {
+  background-color: #2a2540 !important;
+  color: var(--text-color-primary, #F0ECF9) !important;
+  border-color: var(--border-color, #3d3660) !important;
+}
+
+html.dark .el-table td.el-table__cell {
+  color: var(--text-color-regular, #D5CEE8) !important;
+  border-color: var(--border-color, #3d3660) !important;
+}
+
+html.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: rgba(42, 37, 64, 0.5) !important;
+}
+
+html.dark .el-table__empty-text {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+/* 深色主题分页器样式 */
+html.dark .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--text-color-regular, #D5CEE8);
+  --el-pagination-button-disabled-color: var(--text-color-muted, #706590);
+  color: var(--text-color-regular, #D5CEE8);
+}
+
+html.dark .el-pagination .el-pager li {
+  background-color: transparent;
+  color: var(--text-color-regular, #D5CEE8);
+}
+
+html.dark .el-pagination .el-pager li:hover {
+  color: var(--primary-color, #BD93F9);
+}
+
+html.dark .el-pagination .el-pager li.is-active {
+  color: var(--primary-color, #BD93F9);
+}
+
+html.dark .el-pagination button {
+  background-color: transparent;
+  color: var(--text-color-regular, #D5CEE8);
+}
+
+html.dark .el-pagination button:disabled {
+  color: var(--text-color-muted, #706590);
+}
+
+/* 深色主题 el-page-header */
+html.dark .el-page-header {
+  --el-text-color-primary: var(--text-color-primary, #F0ECF9);
+  --el-text-color-regular: var(--text-color-regular, #D5CEE8);
+}
+
+html.dark .el-page-header__title,
+html.dark .el-page-header__content {
+  color: var(--text-color-primary, #F0ECF9) !important;
+}
+
+/* 深色主题 el-empty */
+html.dark .el-empty__description {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+/* 深色主题表单元素 */
+html.dark .el-input__inner,
+html.dark .el-input__wrapper,
+html.dark .el-textarea__inner {
+  --el-input-bg-color: #2a2540;
+  --el-input-border-color: var(--border-color, #3d3660);
+  --el-input-text-color: var(--text-color-primary, #F0ECF9);
+  --el-input-placeholder-color: var(--text-color-muted, #706590);
+}
+
+html.dark .el-select__wrapper {
+  background-color: #2a2540 !important;
+  box-shadow: 0 0 0 1px var(--border-color, #3d3660) inset !important;
+}
+
+html.dark .el-select__selected-item {
+  color: var(--text-color-primary, #F0ECF9) !important;
+}
+
+html.dark .el-select__placeholder {
+  color: var(--text-color-muted, #706590) !important;
+}
+
+/* 深色主题下拉菜单 */
+html.dark .el-select-dropdown {
+  background-color: #2a2540 !important;
+  border-color: var(--border-color, #3d3660) !important;
+}
+
+html.dark .el-select-dropdown__item {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+html.dark .el-select-dropdown__item:hover {
+  background-color: #332d4a !important;
+}
+
+html.dark .el-select-dropdown__item.selected {
+  color: var(--primary-color, #BD93F9) !important;
+}
+
+/* 深色主题弹窗对话框 */
+html.dark .el-dialog {
+  --el-dialog-bg-color: #221e30;
+  --el-dialog-title-font-size: 18px;
+  background-color: #221e30 !important;
+}
+
+html.dark .el-dialog__header {
+  color: var(--text-color-primary, #F0ECF9) !important;
+}
+
+html.dark .el-dialog__title {
+  color: var(--text-color-primary, #F0ECF9) !important;
+}
+
+html.dark .el-dialog__body {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* 深色主题分割线 */
+html.dark .el-divider__text {
+  background-color: #221e30 !important;
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+html.dark .el-divider {
+  border-color: var(--border-color, #3d3660) !important;
+}
+
+/* 深色主题表单标签 */
+html.dark .el-form-item__label {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+/* 深色主题 Tabs 标签页 */
+html.dark .el-tabs__item {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+html.dark .el-tabs__item:hover {
+  color: var(--primary-color, #BD93F9) !important;
+}
+
+html.dark .el-tabs__item.is-active {
+  color: var(--primary-color, #BD93F9) !important;
+}
+
+html.dark .el-tabs__active-bar {
+  background-color: var(--primary-color, #BD93F9) !important;
+}
+
+html.dark .el-tabs__nav-wrap::after {
+  background-color: var(--border-color, #3d3660) !important;
+}
+
+/* 深色主题描述列表 */
+html.dark .el-descriptions {
+  --el-descriptions-item-bordered-label-background: #2a2540;
+}
+
+html.dark .el-descriptions__label {
+  color: var(--text-color-secondary, #A89DC0) !important;
+  background-color: #2a2540 !important;
+}
+
+html.dark .el-descriptions__content {
+  color: var(--text-color-regular, #D5CEE8) !important;
+  background-color: transparent !important;
+}
+
+html.dark .el-descriptions__cell {
+  border-color: var(--border-color, #3d3660) !important;
+}
+
+/* 深色主题标题文字 */
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6 {
+  color: var(--text-color-primary, #F0ECF9);
+}
+
+/* 深色主题设置页面通用类 */
+html.dark .section-description {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+html.dark .form-item-tips {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+html.dark .form-item-tips a {
+  color: var(--primary-color, #BD93F9) !important;
+}
+
+/* 深色主题下覆盖 Element Plus 默认灰色文字 */
+html.dark .el-text--info {
+  color: var(--text-color-secondary, #A89DC0) !important;
+}
+
+/* ========== 海洋主题 Element Plus 组件样式覆盖 ========== */
+
+/* 海洋主题表格样式 */
+html.ocean .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: #1a3150;
+  --el-table-header-text-color: var(--text-color-primary, #E8F4FC);
+  --el-table-text-color: var(--text-color-regular, #C5DCF0);
+  --el-table-border-color: var(--border-color, #2a4a6e);
+  --el-table-row-hover-bg-color: #213a5c;
+  background-color: transparent !important;
+}
+
+html.ocean .el-table th.el-table__cell {
+  background-color: #1a3150 !important;
+  color: var(--text-color-primary, #E8F4FC) !important;
+  border-color: var(--border-color, #2a4a6e) !important;
+}
+
+html.ocean .el-table td.el-table__cell {
+  color: var(--text-color-regular, #C5DCF0) !important;
+  border-color: var(--border-color, #2a4a6e) !important;
+}
+
+html.ocean .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: rgba(26, 49, 80, 0.5) !important;
+}
+
+html.ocean .el-table__empty-text {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+/* 海洋主题分页器样式 */
+html.ocean .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--text-color-regular, #C5DCF0);
+  --el-pagination-button-disabled-color: var(--text-color-muted, #5A7A94);
+  color: var(--text-color-regular, #C5DCF0);
+}
+
+html.ocean .el-pagination .el-pager li {
+  background-color: transparent;
+  color: var(--text-color-regular, #C5DCF0);
+}
+
+html.ocean .el-pagination .el-pager li:hover {
+  color: var(--primary-color, #38BDF8);
+}
+
+html.ocean .el-pagination .el-pager li.is-active {
+  color: var(--primary-color, #38BDF8);
+}
+
+html.ocean .el-pagination button {
+  background-color: transparent;
+  color: var(--text-color-regular, #C5DCF0);
+}
+
+html.ocean .el-pagination button:disabled {
+  color: var(--text-color-muted, #5A7A94);
+}
+
+/* 海洋主题 el-page-header */
+html.ocean .el-page-header {
+  --el-text-color-primary: var(--text-color-primary, #E8F4FC);
+  --el-text-color-regular: var(--text-color-regular, #C5DCF0);
+}
+
+html.ocean .el-page-header__title,
+html.ocean .el-page-header__content {
+  color: var(--text-color-primary, #E8F4FC) !important;
+}
+
+/* 海洋主题 el-empty */
+html.ocean .el-empty__description {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+/* 海洋主题表单元素 */
+html.ocean .el-input__inner,
+html.ocean .el-input__wrapper,
+html.ocean .el-textarea__inner {
+  --el-input-bg-color: #1a3150;
+  --el-input-border-color: var(--border-color, #2a4a6e);
+  --el-input-text-color: var(--text-color-primary, #E8F4FC);
+  --el-input-placeholder-color: var(--text-color-muted, #5A7A94);
+}
+
+html.ocean .el-select__wrapper {
+  background-color: #1a3150 !important;
+  box-shadow: 0 0 0 1px var(--border-color, #2a4a6e) inset !important;
+}
+
+html.ocean .el-select__selected-item {
+  color: var(--text-color-primary, #E8F4FC) !important;
+}
+
+html.ocean .el-select__placeholder {
+  color: var(--text-color-muted, #5A7A94) !important;
+}
+
+/* 海洋主题下拉菜单 */
+html.ocean .el-select-dropdown {
+  background-color: #1a3150 !important;
+  border-color: var(--border-color, #2a4a6e) !important;
+}
+
+html.ocean .el-select-dropdown__item {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+html.ocean .el-select-dropdown__item:hover {
+  background-color: #213a5c !important;
+}
+
+html.ocean .el-select-dropdown__item.selected {
+  color: var(--primary-color, #38BDF8) !important;
+}
+
+/* 海洋主题弹窗对话框 */
+html.ocean .el-dialog {
+  --el-dialog-bg-color: #132742;
+  --el-dialog-title-font-size: 18px;
+  background-color: #132742 !important;
+}
+
+html.ocean .el-dialog__header {
+  color: var(--text-color-primary, #E8F4FC) !important;
+}
+
+html.ocean .el-dialog__title {
+  color: var(--text-color-primary, #E8F4FC) !important;
+}
+
+html.ocean .el-dialog__body {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* 海洋主题分割线 */
+html.ocean .el-divider__text {
+  background-color: #132742 !important;
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+html.ocean .el-divider {
+  border-color: var(--border-color, #2a4a6e) !important;
+}
+
+/* 海洋主题表单标签 */
+html.ocean .el-form-item__label {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* 海洋主题警告提示框 */
+/* 通用样式 */
+html.ocean .el-alert .el-alert__title {
+  color: var(--text-color-primary, #E8F4FC) !important;
+}
+
+html.ocean .el-alert .el-alert__description {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+html.ocean .el-alert .el-alert__close-btn {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+/* Info 类型 - 海洋蓝 */
+html.ocean .el-alert--info {
+  background-color: rgba(56, 189, 248, 0.1) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+}
+
+html.ocean .el-alert--info .el-alert__title,
+html.ocean .el-alert--info .el-alert__icon {
+  color: #7DD3FC !important;
+}
+
+html.ocean .el-alert--info .el-alert__description,
+html.ocean .el-alert--info .el-alert__content {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* Success 类型 - 绿色 */
+html.ocean .el-alert--success {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+html.ocean .el-alert--success .el-alert__title,
+html.ocean .el-alert--success .el-alert__icon {
+  color: #34D399 !important;
+}
+
+html.ocean .el-alert--success .el-alert__description,
+html.ocean .el-alert--success .el-alert__content {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* Warning 类型 - 橙色 */
+html.ocean .el-alert--warning {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+html.ocean .el-alert--warning .el-alert__title,
+html.ocean .el-alert--warning .el-alert__icon {
+  color: #FBBF24 !important;
+}
+
+html.ocean .el-alert--warning .el-alert__description,
+html.ocean .el-alert--warning .el-alert__content {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* Danger/Error 类型 - 红色 */
+html.ocean .el-alert--error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+html.ocean .el-alert--error .el-alert__title,
+html.ocean .el-alert--error .el-alert__icon {
+  color: #F87171 !important;
+}
+
+html.ocean .el-alert--error .el-alert__description,
+html.ocean .el-alert--error .el-alert__content {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+/* 海洋主题 Tabs 标签页 */
+html.ocean .el-tabs__item {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+html.ocean .el-tabs__item:hover {
+  color: var(--primary-color, #38BDF8) !important;
+}
+
+html.ocean .el-tabs__item.is-active {
+  color: var(--primary-color, #38BDF8) !important;
+}
+
+html.ocean .el-tabs__active-bar {
+  background-color: var(--primary-color, #38BDF8) !important;
+}
+
+html.ocean .el-tabs__nav-wrap::after {
+  background-color: var(--border-color, #2a4a6e) !important;
+}
+
+/* 海洋主题描述列表 */
+html.ocean .el-descriptions {
+  --el-descriptions-item-bordered-label-background: #1a3150;
+}
+
+html.ocean .el-descriptions__label {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+  background-color: #1a3150 !important;
+}
+
+html.ocean .el-descriptions__content {
+  color: var(--text-color-regular, #C5DCF0) !important;
+  background-color: transparent !important;
+}
+
+html.ocean .el-descriptions__cell {
+  border-color: var(--border-color, #2a4a6e) !important;
+}
+
+/* 海洋主题标题文字 */
+html.ocean h1,
+html.ocean h2,
+html.ocean h3,
+html.ocean h4,
+html.ocean h5,
+html.ocean h6 {
+  color: var(--text-color-primary, #E8F4FC);
+}
+
+/* 海洋主题设置页面通用类 */
+html.ocean .section-description {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+html.ocean .form-item-tips {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+html.ocean .form-item-tips a {
+  color: var(--primary-color, #38BDF8) !important;
+}
+
+/* 海洋主题下覆盖 Element Plus 默认灰色文字 */
+html.ocean .el-text--info {
+  color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+/* 海洋主题 el-tooltip 弹出内容 */
+html.ocean .el-tooltip__trigger {
+  color: var(--text-color-regular, #C5DCF0);
+}
+
+/* 海洋主题集数状态网格 */
+html.ocean .episode-status-grid .episode-box {
+  background: #1a3150;
+  color: var(--text-color-muted, #5A7A94);
+}
+
+html.ocean .episode-status-grid .episode-box:hover {
+  background: #213a5c;
+}
+
+/* 已下载：绿色 */
+html.ocean .episode-status-grid .episode-box.status-downloaded {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+}
+
+html.ocean .episode-status-grid .episode-box.status-downloaded:hover {
+  background-color: rgba(16, 185, 129, 0.25);
+}
+
+/* 下载中：蓝色 */
+html.ocean .episode-status-grid .episode-box.status-downloading {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60A5FA;
+}
+
+html.ocean .episode-status-grid .episode-box.status-downloading:hover {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+/* 可下载：橙色 */
+html.ocean .episode-status-grid .episode-box.status-available {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
+}
+
+html.ocean .episode-status-grid .episode-box.status-available:hover {
+  background-color: rgba(245, 158, 11, 0.25);
+}
+
+/* 等待中：灰色 */
+html.ocean .episode-status-grid .episode-box.status-waiting {
+  background-color: #1a3150;
+  color: var(--text-color-muted, #5A7A94);
+}
+
+html.ocean .episode-status-grid .episode-box.status-waiting:hover {
+  background-color: #213a5c;
+  color: var(--text-color-secondary, #8EAEC8);
+}
+
+/* 失败：红色 */
+html.ocean .episode-status-grid .episode-box.status-failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+}
+
+html.ocean .episode-status-grid .episode-box.status-failed:hover {
+  background-color: rgba(239, 68, 68, 0.25);
+}
+
+/* 海洋主题状态图例 */
+html.ocean .episode-status-grid .legend-item .count {
+  background: #1a3150;
+}
+
+/* ========== 深色主题 el-tag 样式覆盖 ========== */
+html.dark .el-tag {
+  --el-tag-bg-color: rgba(189, 147, 249, 0.15);
+  --el-tag-border-color: rgba(189, 147, 249, 0.4);
+  --el-tag-text-color: #D4B8FF;
+}
+
+html.dark .el-tag--primary {
+  --el-tag-bg-color: rgba(189, 147, 249, 0.15);
+  --el-tag-border-color: rgba(189, 147, 249, 0.4);
+  --el-tag-text-color: #D4B8FF;
+}
+
+html.dark .el-tag--success {
+  --el-tag-bg-color: rgba(80, 250, 123, 0.12);
+  --el-tag-border-color: rgba(80, 250, 123, 0.35);
+  --el-tag-text-color: #50FA7B;
+}
+
+html.dark .el-tag--warning {
+  --el-tag-bg-color: rgba(255, 184, 108, 0.12);
+  --el-tag-border-color: rgba(255, 184, 108, 0.35);
+  --el-tag-text-color: #FFB86C;
+}
+
+html.dark .el-tag--danger {
+  --el-tag-bg-color: rgba(255, 85, 85, 0.12);
+  --el-tag-border-color: rgba(255, 85, 85, 0.35);
+  --el-tag-text-color: #FF6E6E;
+}
+
+html.dark .el-tag--info {
+  --el-tag-bg-color: rgba(139, 233, 253, 0.12);
+  --el-tag-border-color: rgba(139, 233, 253, 0.35);
+  --el-tag-text-color: #8BE9FD;
+}
+
+/* ========== 海洋主题 el-tag 样式覆盖 ========== */
+html.ocean .el-tag {
+  --el-tag-bg-color: rgba(56, 189, 248, 0.15);
+  --el-tag-border-color: rgba(56, 189, 248, 0.4);
+  --el-tag-text-color: #7DD3FC;
+}
+
+html.ocean .el-tag--primary {
+  --el-tag-bg-color: rgba(56, 189, 248, 0.15);
+  --el-tag-border-color: rgba(56, 189, 248, 0.4);
+  --el-tag-text-color: #7DD3FC;
+}
+
+html.ocean .el-tag--success {
+  --el-tag-bg-color: rgba(16, 185, 129, 0.15);
+  --el-tag-border-color: rgba(16, 185, 129, 0.4);
+  --el-tag-text-color: #34D399;
+}
+
+html.ocean .el-tag--warning {
+  --el-tag-bg-color: rgba(245, 158, 11, 0.15);
+  --el-tag-border-color: rgba(245, 158, 11, 0.4);
+  --el-tag-text-color: #FBBF24;
+}
+
+html.ocean .el-tag--danger {
+  --el-tag-bg-color: rgba(99, 102, 241, 0.12);
+  --el-tag-border-color: rgba(99, 102, 241, 0.30);
+  --el-tag-text-color: #A5B4FC;
+}
+
+html.ocean .el-tag--info {
+  --el-tag-bg-color: rgba(14, 165, 233, 0.15);
+  --el-tag-border-color: rgba(14, 165, 233, 0.4);
+  --el-tag-text-color: #7DD3FC;
+}

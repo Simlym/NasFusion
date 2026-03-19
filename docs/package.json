@@ -1,0 +1,14 @@
+{
+  "name": "nasfusion-docs",
+  "version": "1.0.0",
+  "description": "NasFusion Documentation",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "type": "module",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

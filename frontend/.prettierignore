@@ -1,0 +1,8 @@
+dist
+node_modules
+*.d.ts
+*.min.js
+*.min.css
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

@@ -1,0 +1,145 @@
+# -*- coding: utf-8 -*-
+"""
+榜单相关常量定义
+"""
+
+# ========== 榜单类型 ==========
+
+# 豆瓣榜单 - 电影
+COLLECTION_TYPE_DOUBAN_HOT_MOVIE = "douban_hot_movie"  # 豆瓣热门电影
+COLLECTION_TYPE_DOUBAN_TOP250_MOVIE = "douban_top250_movie"  # 豆瓣Top250电影
+COLLECTION_TYPE_DOUBAN_SCIFI = "douban_scifi"  # 豆瓣高分科幻片
+COLLECTION_TYPE_DOUBAN_COMEDY = "douban_comedy"  # 豆瓣高分喜剧片
+COLLECTION_TYPE_DOUBAN_ACTION = "douban_action"  # 豆瓣高分动作片
+COLLECTION_TYPE_DOUBAN_LOVE = "douban_love"  # 豆瓣高分爱情片
+
+# 豆瓣榜单 - 剧集
+COLLECTION_TYPE_DOUBAN_HOT_TV = "douban_hot_tv"  # 豆瓣热门剧集
+COLLECTION_TYPE_DOUBAN_ANIMATION = "douban_animation"  # 豆瓣动画
+COLLECTION_TYPE_DOUBAN_DOMESTIC = "douban_domestic"  # 豆瓣国产剧
+COLLECTION_TYPE_DOUBAN_AMERICAN = "douban_american"  # 豆瓣美剧
+COLLECTION_TYPE_DOUBAN_JAPANESE = "douban_japanese"  # 豆瓣日剧
+COLLECTION_TYPE_DOUBAN_KOREAN = "douban_korean"  # 豆瓣韩剧
+COLLECTION_TYPE_DOUBAN_CHINESE_WEEKLY = "douban_chinese_weekly"  # 豆瓣华语口碑周榜
+COLLECTION_TYPE_DOUBAN_GLOBAL_WEEKLY = "douban_global_weekly"  # 豆瓣全球口碑周榜
+
+# TMDB榜单
+COLLECTION_TYPE_TMDB_POPULAR_MOVIE = "tmdb_popular_movie"  # TMDB热门电影
+COLLECTION_TYPE_TMDB_TOP_RATED_MOVIE = "tmdb_top_rated_movie"  # TMDB高分电影
+COLLECTION_TYPE_TMDB_POPULAR_TV = "tmdb_popular_tv"  # TMDB热门剧集
+COLLECTION_TYPE_TMDB_TOP_RATED_TV = "tmdb_top_rated_tv"  # TMDB高分剧集
+
+# 所有榜单类型
+COLLECTION_TYPES = [
+    # 豆瓣电影
+    COLLECTION_TYPE_DOUBAN_HOT_MOVIE,
+    COLLECTION_TYPE_DOUBAN_TOP250_MOVIE,
+    COLLECTION_TYPE_DOUBAN_SCIFI,
+    COLLECTION_TYPE_DOUBAN_COMEDY,
+    COLLECTION_TYPE_DOUBAN_ACTION,
+    COLLECTION_TYPE_DOUBAN_LOVE,
+    # 豆瓣剧集
+    COLLECTION_TYPE_DOUBAN_HOT_TV,
+    COLLECTION_TYPE_DOUBAN_ANIMATION,
+    COLLECTION_TYPE_DOUBAN_DOMESTIC,
+    COLLECTION_TYPE_DOUBAN_AMERICAN,
+    COLLECTION_TYPE_DOUBAN_JAPANESE,
+    COLLECTION_TYPE_DOUBAN_KOREAN,
+    COLLECTION_TYPE_DOUBAN_CHINESE_WEEKLY,
+    COLLECTION_TYPE_DOUBAN_GLOBAL_WEEKLY,
+    # TMDB
+    COLLECTION_TYPE_TMDB_POPULAR_MOVIE,
+    COLLECTION_TYPE_TMDB_TOP_RATED_MOVIE,
+    COLLECTION_TYPE_TMDB_POPULAR_TV,
+    COLLECTION_TYPE_TMDB_TOP_RATED_TV,
+]
+
+# 榜单显示名称
+COLLECTION_TYPE_DISPLAY_NAMES = {
+    # 豆瓣电影
+    COLLECTION_TYPE_DOUBAN_HOT_MOVIE: "豆瓣热门电影",
+    COLLECTION_TYPE_DOUBAN_TOP250_MOVIE: "豆瓣Top250",
+    COLLECTION_TYPE_DOUBAN_SCIFI: "豆瓣高分科幻片",
+    COLLECTION_TYPE_DOUBAN_COMEDY: "豆瓣高分喜剧片",
+    COLLECTION_TYPE_DOUBAN_ACTION: "豆瓣高分动作片",
+    COLLECTION_TYPE_DOUBAN_LOVE: "豆瓣高分爱情片",
+    # 豆瓣剧集
+    COLLECTION_TYPE_DOUBAN_HOT_TV: "豆瓣热门剧集",
+    COLLECTION_TYPE_DOUBAN_ANIMATION: "豆瓣动画",
+    COLLECTION_TYPE_DOUBAN_DOMESTIC: "豆瓣国产剧",
+    COLLECTION_TYPE_DOUBAN_AMERICAN: "豆瓣美剧",
+    COLLECTION_TYPE_DOUBAN_JAPANESE: "豆瓣日剧",
+    COLLECTION_TYPE_DOUBAN_KOREAN: "豆瓣韩剧",
+    COLLECTION_TYPE_DOUBAN_CHINESE_WEEKLY: "豆瓣华语口碑周榜",
+    COLLECTION_TYPE_DOUBAN_GLOBAL_WEEKLY: "豆瓣全球口碑周榜",
+    # TMDB
+    COLLECTION_TYPE_TMDB_POPULAR_MOVIE: "TMDB热门电影",
+    COLLECTION_TYPE_TMDB_TOP_RATED_MOVIE: "TMDB高分电影",
+    COLLECTION_TYPE_TMDB_POPULAR_TV: "TMDB热门剧集",
+    COLLECTION_TYPE_TMDB_TOP_RATED_TV: "TMDB高分剧集",
+}
+
+# ========== 适配器方法映射 ==========
+
+# 榜单类型对应的适配器和方法名
+COLLECTION_TYPE_ADAPTER_METHODS = {
+    # 豆瓣电影
+    COLLECTION_TYPE_DOUBAN_HOT_MOVIE: ("douban", "get_hot_movies"),
+    COLLECTION_TYPE_DOUBAN_TOP250_MOVIE: ("douban", "get_top250_movies"),
+    COLLECTION_TYPE_DOUBAN_SCIFI: ("douban", "get_movie_scifi"),
+    COLLECTION_TYPE_DOUBAN_COMEDY: ("douban", "get_movie_comedy"),
+    COLLECTION_TYPE_DOUBAN_ACTION: ("douban", "get_movie_action"),
+    COLLECTION_TYPE_DOUBAN_LOVE: ("douban", "get_movie_love"),
+    # 豆瓣剧集
+    COLLECTION_TYPE_DOUBAN_HOT_TV: ("douban", "get_hot_tv"),
+    COLLECTION_TYPE_DOUBAN_ANIMATION: ("douban", "get_tv_animation"),
+    COLLECTION_TYPE_DOUBAN_DOMESTIC: ("douban", "get_tv_domestic"),
+    COLLECTION_TYPE_DOUBAN_AMERICAN: ("douban", "get_tv_american"),
+    COLLECTION_TYPE_DOUBAN_JAPANESE: ("douban", "get_tv_japanese"),
+    COLLECTION_TYPE_DOUBAN_KOREAN: ("douban", "get_tv_korean"),
+    COLLECTION_TYPE_DOUBAN_CHINESE_WEEKLY: ("douban", "get_tv_chinese_weekly"),
+    COLLECTION_TYPE_DOUBAN_GLOBAL_WEEKLY: ("douban", "get_tv_global_weekly"),
+    # TMDB
+    COLLECTION_TYPE_TMDB_POPULAR_MOVIE: ("tmdb", "get_popular_movies"),
+    COLLECTION_TYPE_TMDB_TOP_RATED_MOVIE: ("tmdb", "get_top_rated_movies"),
+    COLLECTION_TYPE_TMDB_POPULAR_TV: ("tmdb", "get_popular_tv"),
+    COLLECTION_TYPE_TMDB_TOP_RATED_TV: ("tmdb", "get_top_rated_tv"),
+}
+
+# ========== 媒体类型映射 ==========
+
+# 榜单对应的媒体类型（movie/tv）
+COLLECTION_TYPE_MEDIA_TYPES = {
+    # 电影
+    COLLECTION_TYPE_DOUBAN_HOT_MOVIE: "movie",
+    COLLECTION_TYPE_DOUBAN_TOP250_MOVIE: "movie",
+    COLLECTION_TYPE_DOUBAN_SCIFI: "movie",
+    COLLECTION_TYPE_DOUBAN_COMEDY: "movie",
+    COLLECTION_TYPE_DOUBAN_ACTION: "movie",
+    COLLECTION_TYPE_DOUBAN_LOVE: "movie",
+    COLLECTION_TYPE_TMDB_POPULAR_MOVIE: "movie",
+    COLLECTION_TYPE_TMDB_TOP_RATED_MOVIE: "movie",
+    # 剧集
+    COLLECTION_TYPE_DOUBAN_HOT_TV: "tv",
+    COLLECTION_TYPE_DOUBAN_ANIMATION: "tv",
+    COLLECTION_TYPE_DOUBAN_DOMESTIC: "tv",
+    COLLECTION_TYPE_DOUBAN_AMERICAN: "tv",
+    COLLECTION_TYPE_DOUBAN_JAPANESE: "tv",
+    COLLECTION_TYPE_DOUBAN_KOREAN: "tv",
+    COLLECTION_TYPE_DOUBAN_CHINESE_WEEKLY: "tv",
+    COLLECTION_TYPE_DOUBAN_GLOBAL_WEEKLY: "tv",
+    COLLECTION_TYPE_TMDB_POPULAR_TV: "tv",
+    COLLECTION_TYPE_TMDB_TOP_RATED_TV: "tv",
+}
+
+# ========== 默认配置 ==========
+
+# 默认同步配置
+DEFAULT_TRENDING_SYNC_COUNT = 100  # 默认每榜保留100条
+DEFAULT_TRENDING_SYNC_CRON = "0 8,20 * * *"  # 每天08:00和20:00执行
+
+# 榜单特定数量配置（覆盖默认值）
+COLLECTION_TYPE_COUNT = {
+    COLLECTION_TYPE_DOUBAN_TOP250_MOVIE: 250,  # TOP250 获取完整 250 条
+    # 其他榜单使用默认值 100
+}

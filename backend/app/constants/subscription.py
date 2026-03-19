@@ -1,0 +1,240 @@
+# -*- coding: utf-8 -*-
+"""
+订阅系统相关常量
+"""
+
+# ==================== 订阅状态 ====================
+SUBSCRIPTION_STATUS_ACTIVE = "active"  # 活跃
+SUBSCRIPTION_STATUS_PAUSED = "paused"  # 暂停
+SUBSCRIPTION_STATUS_COMPLETED = "completed"  # 已完成
+SUBSCRIPTION_STATUS_CANCELLED = "cancelled"  # 已取消
+
+SUBSCRIPTION_STATUSES = [
+    SUBSCRIPTION_STATUS_ACTIVE,
+    SUBSCRIPTION_STATUS_PAUSED,
+    SUBSCRIPTION_STATUS_COMPLETED,
+    SUBSCRIPTION_STATUS_CANCELLED,
+]
+
+SUBSCRIPTION_STATUS_DISPLAY_NAMES = {
+    SUBSCRIPTION_STATUS_ACTIVE: "活跃",
+    SUBSCRIPTION_STATUS_PAUSED: "已暂停",
+    SUBSCRIPTION_STATUS_COMPLETED: "已完成",
+    SUBSCRIPTION_STATUS_CANCELLED: "已取消",
+}
+
+# ==================== 订阅类型 ====================
+SUBSCRIPTION_TYPE_TV_SEASON = "tv_season"  # 电视剧季度订阅
+SUBSCRIPTION_TYPE_MOVIE_RELEASE = "movie_release"  # 电影上映订阅
+SUBSCRIPTION_TYPE_MOVIE_UPGRADE = "movie_upgrade"  # 电影质量升级订阅
+
+SUBSCRIPTION_TYPES = [
+    SUBSCRIPTION_TYPE_TV_SEASON,
+    SUBSCRIPTION_TYPE_MOVIE_RELEASE,
+    SUBSCRIPTION_TYPE_MOVIE_UPGRADE,
+]
+
+SUBSCRIPTION_TYPE_DISPLAY_NAMES = {
+    SUBSCRIPTION_TYPE_TV_SEASON: "剧集订阅",
+    SUBSCRIPTION_TYPE_MOVIE_RELEASE: "电影上映",
+    SUBSCRIPTION_TYPE_MOVIE_UPGRADE: "质量升级",
+}
+
+# ==================== 订阅来源 ====================
+SUBSCRIPTION_SOURCE_FROM_TMDB = "from_tmdb"  # 从TMDB创建
+SUBSCRIPTION_SOURCE_FROM_PT = "from_pt_resource"  # 从PT资源创建
+SUBSCRIPTION_SOURCE_MANUAL = "manual"  # 手动创建
+
+SUBSCRIPTION_SOURCES = [
+    SUBSCRIPTION_SOURCE_FROM_TMDB,
+    SUBSCRIPTION_SOURCE_FROM_PT,
+    SUBSCRIPTION_SOURCE_MANUAL,
+]
+
+SUBSCRIPTION_SOURCE_DISPLAY_NAMES = {
+    SUBSCRIPTION_SOURCE_FROM_TMDB: "TMDB",
+    SUBSCRIPTION_SOURCE_FROM_PT: "PT资源",
+    SUBSCRIPTION_SOURCE_MANUAL: "手动创建",
+}
+
+# ==================== 检查策略 ====================
+CHECK_STRATEGY_AGGRESSIVE = "aggressive"  # 激进（每小时检查）
+CHECK_STRATEGY_NORMAL = "normal"  # 正常（每6小时检查）
+CHECK_STRATEGY_RELAXED = "relaxed"  # 宽松（每24小时检查）
+
+CHECK_STRATEGIES = [
+    CHECK_STRATEGY_AGGRESSIVE,
+    CHECK_STRATEGY_NORMAL,
+    CHECK_STRATEGY_RELAXED,
+]
+
+CHECK_STRATEGY_DISPLAY_NAMES = {
+    CHECK_STRATEGY_AGGRESSIVE: "激进",
+    CHECK_STRATEGY_NORMAL: "正常",
+    CHECK_STRATEGY_RELAXED: "宽松",
+}
+
+# 检查策略对应的间隔（分钟）
+CHECK_STRATEGY_INTERVALS = {
+    CHECK_STRATEGY_AGGRESSIVE: 60,  # 1小时
+    CHECK_STRATEGY_NORMAL: 360,  # 6小时
+    CHECK_STRATEGY_RELAXED: 1440,  # 24小时
+}
+
+# ==================== 完成条件 ====================
+COMPLETE_CONDITION_FIRST_MATCH = "first_match"  # 匹配到第一个资源就完成
+COMPLETE_CONDITION_BEST_QUALITY = "best_quality"  # 等待最佳质量
+COMPLETE_CONDITION_SEASON_COMPLETE = "season_complete"  # 本季所有集数下载完成
+COMPLETE_CONDITION_MANUAL = "manual"  # 手动标记完成
+
+COMPLETE_CONDITIONS = [
+    COMPLETE_CONDITION_FIRST_MATCH,
+    COMPLETE_CONDITION_BEST_QUALITY,
+    COMPLETE_CONDITION_SEASON_COMPLETE,
+    COMPLETE_CONDITION_MANUAL,
+]
+
+COMPLETE_CONDITION_DISPLAY_NAMES = {
+    COMPLETE_CONDITION_FIRST_MATCH: "首次匹配",
+    COMPLETE_CONDITION_BEST_QUALITY: "最佳质量",
+    COMPLETE_CONDITION_SEASON_COMPLETE: "本季完成",
+    COMPLETE_CONDITION_MANUAL: "手动完成",
+}
+
+
+
+# ==================== 质量匹配模式（已废弃，保留兼容）====================
+QUALITY_MODE_FIRST_MATCH = "first_match"  # 已废弃，映射到 AUTO_DOWNLOAD_AGGRESSIVE
+QUALITY_MODE_BEST_MATCH = "best_match"  # 已废弃，映射到 AUTO_DOWNLOAD_SMART
+
+QUALITY_MODES = [
+    QUALITY_MODE_FIRST_MATCH,
+    QUALITY_MODE_BEST_MATCH,
+]
+
+QUALITY_MODE_DISPLAY_NAMES = {
+    QUALITY_MODE_FIRST_MATCH: "首次匹配",
+    QUALITY_MODE_BEST_MATCH: "最佳匹配",
+}
+
+# 最佳匹配模式的等待时间（小时）- 已废弃
+BEST_MATCH_WAIT_HOURS = 12
+
+# ==================== 订阅检查日志 ====================
+# 检查类型
+CHECK_TYPE_PT_SEARCH = "pt_search"  # PT站点搜索
+CHECK_TYPE_TMDB_STATUS = "tmdb_status"  # TMDB状态检查
+CHECK_TYPE_BOTH = "both"  # 两者都检查
+
+CHECK_TYPES = [
+    CHECK_TYPE_PT_SEARCH,
+    CHECK_TYPE_TMDB_STATUS,
+    CHECK_TYPE_BOTH,
+]
+
+# 触发的动作
+ACTION_NOTIFICATION = "notification"  # 发送通知
+ACTION_DOWNLOAD = "download"  # 触发下载
+ACTION_NONE = "none"  # 无动作
+
+ACTIONS_TRIGGERED = [
+    ACTION_NOTIFICATION,
+    ACTION_DOWNLOAD,
+    ACTION_NONE,
+]
+
+ACTION_DISPLAY_NAMES = {
+    ACTION_NOTIFICATION: "发送通知",
+    ACTION_DOWNLOAD: "触发下载",
+    ACTION_NONE: "无动作",
+}
+
+# ==================== 默认配置 ====================
+DEFAULT_CHECK_INTERVAL = 360  # 默认检查间隔（分钟）= 6小时
+DEFAULT_CHECK_STRATEGY = CHECK_STRATEGY_NORMAL
+DEFAULT_COMPLETE_CONDITION = COMPLETE_CONDITION_MANUAL
+DEFAULT_QUALITY_MODE = QUALITY_MODE_FIRST_MATCH
+DEFAULT_START_EPISODE = 1  # 默认从第1集开始订阅
+
+# 订阅优先级范围
+SUBSCRIPTION_PRIORITY_MIN = 1
+SUBSCRIPTION_PRIORITY_MAX = 10
+SUBSCRIPTION_PRIORITY_DEFAULT = 5
+
+# ==================== 集数类型偏好 ====================
+EPISODE_TYPE_SINGLE_PREFERRED = "single_preferred"  # 单集优先（1-3集合集）
+EPISODE_TYPE_SEASON_PREFERRED = "season_preferred"  # 季包优先（完整季度）
+EPISODE_TYPE_BOTH = "both"  # 都可以
+
+EPISODE_TYPE_PREFERENCES = [
+    EPISODE_TYPE_SINGLE_PREFERRED,
+    EPISODE_TYPE_SEASON_PREFERRED,
+    EPISODE_TYPE_BOTH,
+]
+
+EPISODE_TYPE_DISPLAY_NAMES = {
+    EPISODE_TYPE_SINGLE_PREFERRED: "单集优先",
+    EPISODE_TYPE_SEASON_PREFERRED: "季包优先",
+    EPISODE_TYPE_BOTH: "都可以",
+}
+
+# 单集的最大集数定义（1-3集算单集）
+SINGLE_EPISODE_MAX_COUNT = 3
+
+# ==================== 促销类型常量（补充）====================
+PROMOTION_FREE = "free"  # 免费
+PROMOTION_2XFREE = "2xfree"  # 2X免费
+PROMOTION_2X = "2x"  # 2X上传
+PROMOTION_50 = "50%"  # 半价
+PROMOTION_30 = "30%"  # 三折
+
+PROMOTION_TYPES = [
+    PROMOTION_FREE,
+    PROMOTION_2XFREE,
+    PROMOTION_2X,
+    PROMOTION_50,
+    PROMOTION_30,
+]
+
+PROMOTION_TYPE_DISPLAY_NAMES = {
+    PROMOTION_FREE: "免费",
+    PROMOTION_2XFREE: "2X免费",
+    PROMOTION_2X: "2X上传",
+    PROMOTION_50: "半价",
+    PROMOTION_30: "三折",
+}
+
+# ==================== 最小文件大小选项（MB）====================
+MIN_FILE_SIZE_OPTIONS = [
+    0,      # 不限
+    500,    # > 500 MB
+    1024,   # > 1 GB
+    2048,   # > 2 GB
+    5120,   # > 5 GB
+]
+
+# ==================== 集数状态 ====================
+EPISODE_STATUS_DOWNLOADED = "downloaded"  # 已下载（media_files 中存在）
+EPISODE_STATUS_DOWNLOADING = "downloading"  # 下载中（download_tasks 进行中）
+EPISODE_STATUS_AVAILABLE = "available"  # 有资源（PT 站点有，未下载）
+EPISODE_STATUS_WAITING = "waiting"  # 等待中（无资源）
+EPISODE_STATUS_FAILED = "failed"  # 下载失败
+EPISODE_STATUS_IGNORED = "ignored"  # 已忽略（用户标记不需要）
+
+EPISODE_STATUSES = [
+    EPISODE_STATUS_DOWNLOADED,
+    EPISODE_STATUS_DOWNLOADING,
+    EPISODE_STATUS_AVAILABLE,
+    EPISODE_STATUS_WAITING,
+    EPISODE_STATUS_FAILED,
+    EPISODE_STATUS_IGNORED,
+]
+
+EPISODE_STATUS_DISPLAY_NAMES = {
+    EPISODE_STATUS_DOWNLOADED: "已下载",
+    EPISODE_STATUS_DOWNLOADING: "下载中",
+    EPISODE_STATUS_AVAILABLE: "有资源",
+    EPISODE_STATUS_WAITING: "等待中",
+    EPISODE_STATUS_FAILED: "失败",
+    EPISODE_STATUS_IGNORED: "已忽略",
+}

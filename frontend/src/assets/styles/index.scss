@@ -1,0 +1,567 @@
+/**
+ * NasFusion Design System - Main Entry
+ *
+ * Based on: design-system/MASTER.md
+ * Style: Dark Theme
+ * Version: 1.0.0
+ *
+ * Import Order:
+ * 1. CSS Variables (must be first)
+ * 2. Element Plus Overrides
+ * 3. Base Styles
+ * 4. Component Styles
+ * 5. Utility Classes
+ */
+
+// ============================================
+// 1. CSS Variables
+// ============================================
+@use './variables.scss';
+
+// ============================================
+// 2. Element Plus Overrides
+// ============================================
+@use './element-plus-overlay.scss';
+
+// ============================================
+// 3. Base Styles
+// ============================================
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--nf-font-family);
+  font-size: var(--nf-font-size-base);
+  line-height: var(--nf-line-height-base);
+  color: var(--nf-text-regular);
+  background-color: var(--nf-bg-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+// ============================================
+// 4. Typography
+// ============================================
+h1, h2, h3, h4, h5, h6 {
+  color: var(--nf-text-primary);
+  font-weight: var(--nf-font-weight-semibold);
+  line-height: var(--nf-line-height-tight);
+}
+
+h1 { font-size: var(--nf-font-size-h1); }
+h2 { font-size: var(--nf-font-size-h2); }
+h3 { font-size: var(--nf-font-size-h3); }
+h4 { font-size: var(--nf-font-size-h4); }
+h5 { font-size: var(--nf-font-size-h5); }
+h6 { font-size: var(--nf-font-size-base); }
+
+a {
+  color: var(--nf-primary);
+  text-decoration: none;
+  transition: color var(--nf-transition-fast) var(--nf-ease-default);
+
+  &:hover {
+    color: var(--nf-primary-light);
+  }
+}
+
+code, pre {
+  font-family: var(--nf-font-family-mono);
+}
+
+// ============================================
+// 5. NasFusion Custom Components
+// ============================================
+
+// Page Layout
+.nf-page {
+  padding: var(--nf-spacing-xl);
+  min-height: 100%;
+}
+
+.nf-page-header {
+  margin-bottom: var(--nf-spacing-xl);
+
+  .nf-page-title {
+    font-size: var(--nf-font-size-h2);
+    font-weight: var(--nf-font-weight-bold);
+    color: var(--nf-text-primary);
+    margin-bottom: var(--nf-spacing-sm);
+  }
+
+  .nf-page-description {
+    font-size: var(--nf-font-size-base);
+    color: var(--nf-text-secondary);
+  }
+}
+
+// Card Styles
+.nf-card {
+  background: var(--nf-bg-elevated);
+  border: 1px solid var(--nf-border-base);
+  border-radius: var(--nf-radius-base);
+  padding: var(--nf-spacing-base);
+  transition: all var(--nf-transition-base) var(--nf-ease-in-out);
+
+  &:hover {
+    border-color: var(--nf-border-light);
+    box-shadow: var(--nf-shadow-md);
+  }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--nf-shadow-lg);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// Media Card (Poster Display)
+.nf-media-card {
+  position: relative;
+  background: var(--nf-bg-elevated);
+  border-radius: var(--nf-radius-base);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--nf-transition-base) var(--nf-ease-in-out);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--nf-shadow-lg);
+
+    .nf-media-card__overlay {
+      opacity: 1;
+    }
+  }
+
+  &__poster {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity var(--nf-transition-base) var(--nf-ease-in-out);
+    display: flex;
+    align-items: flex-end;
+    padding: var(--nf-spacing-md);
+  }
+
+  &__info {
+    padding: var(--nf-spacing-md);
+  }
+
+  &__title {
+    font-size: var(--nf-font-size-base);
+    font-weight: var(--nf-font-weight-medium);
+    color: var(--nf-text-primary);
+    margin-bottom: var(--nf-spacing-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meta {
+    font-size: var(--nf-font-size-small);
+    color: var(--nf-text-secondary);
+  }
+
+  &__rating {
+    position: absolute;
+    top: var(--nf-spacing-sm);
+    right: var(--nf-spacing-sm);
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: var(--nf-radius-xs);
+    padding: var(--nf-spacing-xs) var(--nf-spacing-sm);
+    font-size: var(--nf-font-size-small);
+    font-weight: var(--nf-font-weight-semibold);
+
+    &--excellent { color: var(--nf-rating-excellent); }
+    &--good { color: var(--nf-rating-good); }
+    &--average { color: var(--nf-rating-average); }
+    &--poor { color: var(--nf-rating-poor); }
+  }
+}
+
+// Status Tags
+.nf-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nf-spacing-xs);
+  padding: var(--nf-spacing-xs) var(--nf-spacing-sm);
+  border-radius: var(--nf-radius-xs);
+  font-size: var(--nf-font-size-mini);
+  font-weight: var(--nf-font-weight-medium);
+
+  &--seeding {
+    background: rgba(103, 194, 58, 0.15);
+    color: var(--nf-status-seeding);
+  }
+
+  &--downloading {
+    background: rgba(64, 158, 255, 0.15);
+    color: var(--nf-status-downloading);
+  }
+
+  &--paused {
+    background: rgba(230, 162, 60, 0.15);
+    color: var(--nf-status-paused);
+  }
+
+  &--error {
+    background: rgba(245, 108, 108, 0.15);
+    color: var(--nf-status-error);
+  }
+
+  &--completed {
+    background: rgba(103, 194, 58, 0.15);
+    color: var(--nf-status-completed);
+  }
+
+  &--pending {
+    background: rgba(144, 147, 153, 0.15);
+    color: var(--nf-status-pending);
+  }
+}
+
+// Promo Tags
+.nf-promo-tag {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: var(--nf-radius-xs);
+  font-size: var(--nf-font-size-mini);
+  font-weight: var(--nf-font-weight-medium);
+
+  &--free {
+    background: rgba(103, 194, 58, 0.2);
+    color: var(--nf-promo-free);
+  }
+
+  &--2x {
+    background: rgba(230, 162, 60, 0.2);
+    color: var(--nf-promo-2x);
+  }
+
+  &--50 {
+    background: rgba(64, 158, 255, 0.2);
+    color: var(--nf-promo-50);
+  }
+
+  &--vip {
+    background: rgba(245, 108, 108, 0.2);
+    color: var(--nf-promo-vip);
+  }
+}
+
+// Media Type Tags
+.nf-media-type-tag {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: var(--nf-radius-xs);
+  font-size: var(--nf-font-size-mini);
+  font-weight: var(--nf-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #fff;
+
+  &--movie { background: var(--nf-media-movie); }
+  &--tv { background: var(--nf-media-tv); }
+  &--anime { background: var(--nf-media-anime); }
+  &--music { background: var(--nf-media-music); }
+  &--book { background: var(--nf-media-book); }
+  &--game { background: var(--nf-media-game); }
+}
+
+// Progress Bar
+.nf-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--nf-spacing-sm);
+
+  &__bar {
+    flex: 1;
+    height: 6px;
+    background: var(--nf-bg-overlay);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--nf-primary), var(--nf-primary-light));
+    border-radius: 3px;
+    transition: width var(--nf-transition-slow) var(--nf-ease-out);
+  }
+
+  &__text {
+    font-family: var(--nf-font-family-mono);
+    font-size: var(--nf-font-size-small);
+    color: var(--nf-text-secondary);
+    min-width: 40px;
+    text-align: right;
+  }
+}
+
+// Sidebar
+.nf-sidebar {
+  width: var(--nf-sidebar-width);
+  background: var(--nf-bg-container);
+  border-right: 1px solid var(--nf-border-base);
+  transition: width var(--nf-transition-slow) var(--nf-ease-in-out);
+
+  &--collapsed {
+    width: var(--nf-sidebar-collapsed-width);
+  }
+}
+
+// Header
+.nf-header {
+  height: var(--nf-header-height);
+  background: var(--nf-bg-container);
+  border-bottom: 1px solid var(--nf-border-base);
+  padding: 0 var(--nf-spacing-xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Icon Button
+.nf-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--nf-radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--nf-text-secondary);
+  cursor: pointer;
+  transition: all var(--nf-transition-fast) var(--nf-ease-default);
+
+  &:hover {
+    background: var(--nf-bg-overlay);
+    color: var(--nf-text-primary);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// ============================================
+// 6. Grid Systems
+// ============================================
+
+// Media Grid
+.nf-media-grid {
+  display: grid;
+  gap: var(--nf-gap-grid);
+  grid-template-columns: repeat(2, 1fr);
+
+  @media (min-width: 576px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+// Resource Grid
+.nf-resource-grid {
+  display: grid;
+  gap: var(--nf-gap-grid);
+  grid-template-columns: 1fr;
+
+  @media (min-width: 992px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+// ============================================
+// 7. Utility Classes
+// ============================================
+
+// Display
+.nf-flex { display: flex; }
+.nf-flex-center { display: flex; align-items: center; justify-content: center; }
+.nf-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.nf-flex-col { display: flex; flex-direction: column; }
+.nf-inline-flex { display: inline-flex; }
+
+// Text
+.nf-text-primary { color: var(--nf-text-primary); }
+.nf-text-regular { color: var(--nf-text-regular); }
+.nf-text-secondary { color: var(--nf-text-secondary); }
+.nf-text-center { text-align: center; }
+.nf-text-right { text-align: right; }
+
+// Font
+.nf-font-mono { font-family: var(--nf-font-family-mono); }
+.nf-font-medium { font-weight: var(--nf-font-weight-medium); }
+.nf-font-semibold { font-weight: var(--nf-font-weight-semibold); }
+.nf-font-bold { font-weight: var(--nf-font-weight-bold); }
+
+// Spacing - Margin
+.nf-mt-xs { margin-top: var(--nf-spacing-xs); }
+.nf-mt-sm { margin-top: var(--nf-spacing-sm); }
+.nf-mt-md { margin-top: var(--nf-spacing-md); }
+.nf-mt-base { margin-top: var(--nf-spacing-base); }
+.nf-mt-lg { margin-top: var(--nf-spacing-lg); }
+.nf-mt-xl { margin-top: var(--nf-spacing-xl); }
+
+.nf-mb-xs { margin-bottom: var(--nf-spacing-xs); }
+.nf-mb-sm { margin-bottom: var(--nf-spacing-sm); }
+.nf-mb-md { margin-bottom: var(--nf-spacing-md); }
+.nf-mb-base { margin-bottom: var(--nf-spacing-base); }
+.nf-mb-lg { margin-bottom: var(--nf-spacing-lg); }
+.nf-mb-xl { margin-bottom: var(--nf-spacing-xl); }
+
+.nf-ml-xs { margin-left: var(--nf-spacing-xs); }
+.nf-ml-sm { margin-left: var(--nf-spacing-sm); }
+.nf-ml-md { margin-left: var(--nf-spacing-md); }
+.nf-ml-base { margin-left: var(--nf-spacing-base); }
+
+.nf-mr-xs { margin-right: var(--nf-spacing-xs); }
+.nf-mr-sm { margin-right: var(--nf-spacing-sm); }
+.nf-mr-md { margin-right: var(--nf-spacing-md); }
+.nf-mr-base { margin-right: var(--nf-spacing-base); }
+
+// Spacing - Padding
+.nf-p-xs { padding: var(--nf-spacing-xs); }
+.nf-p-sm { padding: var(--nf-spacing-sm); }
+.nf-p-md { padding: var(--nf-spacing-md); }
+.nf-p-base { padding: var(--nf-spacing-base); }
+.nf-p-lg { padding: var(--nf-spacing-lg); }
+.nf-p-xl { padding: var(--nf-spacing-xl); }
+
+// Gap
+.nf-gap-xs { gap: var(--nf-spacing-xs); }
+.nf-gap-sm { gap: var(--nf-spacing-sm); }
+.nf-gap-md { gap: var(--nf-spacing-md); }
+.nf-gap-base { gap: var(--nf-spacing-base); }
+.nf-gap-lg { gap: var(--nf-spacing-lg); }
+
+// Cursor
+.nf-cursor-pointer { cursor: pointer; }
+
+// Overflow
+.nf-overflow-hidden { overflow: hidden; }
+.nf-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Transitions
+.nf-transition {
+  transition: all var(--nf-transition-base) var(--nf-ease-in-out);
+}
+
+.nf-transition-colors {
+  transition: color var(--nf-transition-base) var(--nf-ease-default),
+              background-color var(--nf-transition-base) var(--nf-ease-default),
+              border-color var(--nf-transition-base) var(--nf-ease-default);
+}
+
+// Hover Effects
+.nf-hover-lift {
+  transition: transform var(--nf-transition-base) var(--nf-ease-out),
+              box-shadow var(--nf-transition-base) var(--nf-ease-out);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--nf-shadow-lg);
+  }
+}
+
+.nf-hover-scale {
+  transition: transform var(--nf-transition-base) var(--nf-ease-out);
+
+  &:hover {
+    transform: scale(1.02);
+  }
+}
+
+// ============================================
+// 8. Animations
+// ============================================
+
+@keyframes nf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nf-slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nf-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes nf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.nf-animate-fade-in {
+  animation: nf-fade-in var(--nf-transition-slow) var(--nf-ease-out);
+}
+
+.nf-animate-slide-in-up {
+  animation: nf-slide-in-up var(--nf-transition-slow) var(--nf-ease-out);
+}
+
+.nf-animate-spin {
+  animation: nf-spin 1s linear infinite;
+}
+
+.nf-animate-pulse {
+  animation: nf-pulse 2s var(--nf-ease-in-out) infinite;
+}

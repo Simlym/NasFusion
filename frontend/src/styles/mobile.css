@@ -1,0 +1,411 @@
+/**
+ * NasFusion - Mobile Responsive Styles
+ * Global mobile overrides that apply across all pages.
+ * PC styles are unaffected (all rules inside @media max-width: 768px).
+ */
+
+/* ========================================
+   Element Plus - Dialog / MessageBox
+   ======================================== */
+@media (max-width: 768px) {
+  /* Dialog: near full-width on mobile */
+  .el-dialog {
+    width: 94% !important;
+    max-width: 94vw !important;
+    margin: 0 auto;
+    border-radius: 12px !important;
+  }
+
+  .el-message-box {
+    width: 90% !important;
+    max-width: 90vw !important;
+  }
+
+  /* Drawer: full width */
+  .el-drawer {
+    width: 90% !important;
+  }
+
+  /* Table: allow horizontal scrolling */
+  .el-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Select dropdown: better mobile sizing */
+  .el-select-dropdown {
+    max-width: 90vw;
+  }
+
+  /* Form labels: above input on small screens */
+  .el-form--label-left .el-form-item,
+  .el-form--label-right .el-form-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .el-form--label-left .el-form-item__label,
+  .el-form--label-right .el-form-item__label {
+    text-align: left;
+    width: auto !important;
+    padding-bottom: 4px;
+  }
+
+  .el-form--label-left .el-form-item__content,
+  .el-form--label-right .el-form-item__content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+}
+
+/* ========================================
+   Filter Panels (Movies / TVSeries / Anime)
+   ======================================== */
+@media (max-width: 768px) {
+  /* Header: count+toggle on first row, search full-width below */
+  .filter-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .filter-header .header-left {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .filter-header .header-right,
+  .filter-header .search-input {
+    width: 100% !important;
+  }
+
+  /* Toggle button: only shown on mobile */
+  .mobile-filter-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border: 1px solid var(--nf-border-base, #E2E8F0);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--nf-text-secondary, #64748B);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .mobile-filter-toggle:active {
+    background: var(--nf-bg-overlay, #F1F5F9);
+    color: var(--nf-primary, #409EFF);
+  }
+
+  .mobile-filter-badge {
+    background: var(--nf-primary, #409EFF);
+    color: white;
+    border-radius: 9999px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .filter-toggle-arrow {
+    font-size: 11px;
+    transition: transform 0.2s ease;
+  }
+
+  .filter-toggle-arrow.is-expanded {
+    transform: rotate(180deg);
+  }
+
+  /* Filter rows wrapper: collapsed on mobile by default */
+  .filter-rows-wrapper {
+    display: none !important;
+    margin-top: 6px;
+    border-top: 1px solid var(--nf-border-light, #F1F5F9);
+    padding-top: 4px;
+  }
+
+  .filter-rows-wrapper.is-expanded {
+    display: block !important;
+  }
+
+  /* Each row: label (fixed) + horizontal scroll strip */
+  .filter-row {
+    flex-wrap: nowrap !important;
+    padding: 5px 0 !important;
+    gap: 0 !important;
+    border-bottom: none !important;
+  }
+
+  .filter-label {
+    width: 36px !important;
+    flex-shrink: 0 !important;
+    font-size: 11px !important;
+    align-self: center !important;
+    padding-right: 2px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .filter-options {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 3px !important;
+    gap: 6px !important;
+  }
+
+  .filter-options::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .filter-tag {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 3px 10px !important;
+  }
+}
+
+/* ========================================
+   Movie / TV / Anime Grid
+   ======================================== */
+@media (max-width: 768px) {
+  /* !important needed to override Vue scoped styles */
+  .movies-grid,
+  .tv-grid,
+  .anime-grid {
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .movie-poster,
+  .tv-poster,
+  .anime-poster {
+    height: 220px !important;
+  }
+}
+
+/* ========================================
+   Dashboard Cards (scroll rows)
+   ======================================== */
+@media (max-width: 768px) {
+  /* Continue-watching cards: narrower on mobile */
+  .continue-card {
+    flex: 0 0 220px !important;
+  }
+
+  /* Poster cards: narrower on mobile */
+  .poster-card {
+    flex: 0 0 130px !important;
+  }
+
+  /* Episode cards */
+  .episode-latest-card {
+    flex: 0 0 200px !important;
+  }
+}
+
+/* ========================================
+   Dashboard section titles
+   ======================================== */
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 16px !important;
+    padding: 0 4px !important;
+  }
+}
+
+/* ========================================
+   Backtop - move above bottom nav
+   ======================================== */
+@media (max-width: 768px) {
+  .el-backtop {
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px) !important;
+    right: 16px !important;
+  }
+}
+
+/* ========================================
+   Detail pages - common fixes
+   ======================================== */
+@media (max-width: 768px) {
+  /* Page container: reduce top margin */
+  .movie-detail-container,
+  .tv-detail-container,
+  .detail-container {
+    margin-top: 12px !important;
+  }
+
+  /* PT resources table: enforce horizontal scroll */
+  .pt-resources-card .el-table,
+  .matched-resources-card .el-table,
+  .resources-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ========================================
+   el-page-header on detail pages
+   ======================================== */
+@media (max-width: 768px) {
+  /* Allow header to wrap when title + actions are too wide */
+  .el-page-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .el-page-header__header {
+    flex-wrap: wrap;
+  }
+
+  .el-page-header__extra {
+    margin-left: auto;
+  }
+
+  /* Resource title in page header - truncate long titles */
+  .el-page-header .resource-title {
+    font-size: 14px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Page title in detail pages */
+  .page-title {
+    font-size: 16px;
+  }
+}
+
+/* ========================================
+   Smooth touch scrolling
+   ======================================== */
+@media (max-width: 768px) {
+  .el-main,
+  .el-scrollbar__wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text selection on interactive elements */
+  .nav-item,
+  .filter-tag,
+  .menu-item-enhanced {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* ========================================
+   Tables with fixed right columns
+   Remove sticky positioning on mobile so tables scroll freely
+   instead of the fixed column overlapping content
+   ======================================== */
+@media (max-width: 768px) {
+  .el-table .el-table-fixed-column--right {
+    position: static !important;
+    right: auto !important;
+    box-shadow: none !important;
+  }
+
+  /* Also make the table inner wrapper scrollable */
+  .el-table__inner-wrapper {
+    overflow-x: auto !important;
+  }
+}
+
+/* ========================================
+   Downloads page
+   ======================================== */
+@media (max-width: 768px) {
+  /* Stats cards: 2x2 grid — add top gap to the second row */
+  .download-task-list .el-row .el-col:nth-child(3),
+  .download-task-list .el-row .el-col:nth-child(4) {
+    margin-top: 8px !important;
+  }
+}
+
+/* ========================================
+   Touch Target Size (iOS minimum 44px)
+   Ensure interactive elements are large enough to tap accurately
+   ======================================== */
+@media (max-width: 768px) {
+  /* Increase button touch area */
+  .el-button {
+    min-height: 36px;
+  }
+
+  /* Link buttons (text buttons) keep natural size but increase tap area via padding */
+  .el-button.is-link {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    min-height: unset;
+  }
+
+  /* Input fields */
+  .el-input__wrapper {
+    min-height: 36px;
+  }
+
+  /* Select triggers */
+  .el-select .el-input__wrapper {
+    min-height: 36px;
+  }
+
+  /* Pagination buttons */
+  .el-pagination .btn-prev,
+  .el-pagination .btn-next,
+  .el-pagination .el-pager li {
+    min-width: 32px;
+    min-height: 32px;
+  }
+}
+
+/* ========================================
+   Ultra-small screens (max-width: 360px)
+   Extra overrides for very narrow phones
+   ======================================== */
+@media (max-width: 360px) {
+  /* Reduce grid minimum card width */
+  .movies-grid,
+  .tv-grid,
+  .anime-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Poster height on ultra-small */
+  .movie-poster,
+  .tv-poster,
+  .anime-poster {
+    height: 180px !important;
+  }
+
+  /* Reduce dialog padding */
+  .el-dialog {
+    width: 98% !important;
+    max-width: 98vw !important;
+  }
+
+  /* Page header title truncation */
+  .el-page-header .resource-title {
+    max-width: 140px !important;
+  }
+
+  /* Subscriptions grid: 2 fixed columns */
+  .subscription-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

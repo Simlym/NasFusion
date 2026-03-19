@@ -1,0 +1,27 @@
+# Logs
+logs/
+*.log
+
+# Claude Code settings
+.claude/
+
+# IDE & Editor
+.VSCodeCounter
+.agent
+.shared
+
+# Database
+data/nasfusion.db
+
+# Environment variables (should never be committed)
+.env
+*.env.local
+
+# Backup files
+*.bak
+sync-github.bat
+
+# Docs build
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/

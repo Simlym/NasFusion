@@ -1,0 +1,652 @@
+豆瓣原始数据 (media_type=movie)
+================================================================================
+{
+  "rating": {
+    "count": 6917,
+    "max": 10,
+    "star_count": 3.0,
+    "value": 5.7
+  },
+  "lineticket_url": "",
+  "controversy_reason": "",
+  "pubdate": [
+    "2024-01-19(圣丹斯电影节)"
+  ],
+  "last_episode_number": null,
+  "pic": {
+    "large": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2914797725.webp",
+    "normal": "https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2914797725.webp"
+  },
+  "vendor_count": 0,
+  "body_bg_color": "f9f6f4",
+  "is_tv": false,
+  "card_subtitle": "2024 / 美国 / 剧情 惊悚 恐怖 / 史蒂文·索德伯格 / 刘玉玲 克里斯·沙利文",
+  "intro": "露丝（刘玉玲 饰）和丈夫克里斯（克里斯·苏利文 饰）带着儿子泰勒（艾迪·马代 饰）和女儿克洛伊（卡莉娜·梁 饰），一家四口一起搬进郊区一处新家。克洛伊因为失去挚友而陷入悲伤，同时又常因为和哥哥不合引发争执，加上妈妈对哥哥的偏爱，让她感到无依无靠。来到新家之后，她默默感受到这个家中， 似乎有股诡异的灵异力量存在，而这股力量从一开始就围绕在她身边，并逐渐转移至影响整个家庭，让这家人必须搞清楚，这股神秘力量究竟想要告诉他们什么。",
+  "ticket_price_info": "",
+  "pre_playable_date": null,
+  "year": "2024",
+  "head_info": null,
+  "forum_info": null,
+  "webisode": null,
+  "id": "36666493",
+  "gallery_topic_count": 0,
+  "languages": [
+    "英语"
+  ],
+  "genres": [
+    "剧情",
+    "惊悚",
+    "恐怖"
+  ],
+  "review_count": 25,
+  "title": "感应",
+  "has_linewatch": false,
+  "ugc_tabs": [
+    {
+      "source": "reviews",
+      "type": "review",
+      "title": "影评"
+    },
+    {
+      "source": "forum_topics",
+      "type": "forum",
+      "title": "讨论"
+    }
+  ],
+  "forum_topic_count": 48,
+  "ticket_promo_text": "",
+  "webview_info": {},
+  "is_released": true,
+  "vendors": [],
+  "actors": [
+    {
+      "name": "刘玉玲"
+    },
+    {
+      "name": "克里斯·沙利文"
+    },
+    {
+      "name": "卡莉娜·梁"
+    },
+    {
+      "name": "艾迪·马代"
+    },
+    {
+      "name": " 韦斯特·穆赫兰"
+    },
+    {
+      "name": "茱莉娅·福克斯"
+    },
+    {
+      "name": "本尼·埃利奇"
+    },
+    {
+      "name": "丹尼尔·丹尼尔森"
+    },
+    {
+      "name": "贾莱德·怀斯曼"
+    },
+    {
+      "name": "罗伯特·M·吉米内兹"
+    },
+    {
+      "name": "卢卡斯·帕佩利亚斯"
+    },
+    {
+      "name": "娜塔莉·伍拉姆斯-托里斯"
+    }
+  ],
+  "interest": null,
+  "episodes_count": 0,
+  "color_scheme": {
+    "is_dark": true,
+    "primary_color_light": "725042",
+    "_base_color": [
+      0.05059523809523806,
+      0.4242424242424243,
+      0.5176470588235295
+    ],
+    "secondary_color": "f9f6f4",
+    "_avg_color": [
+      0.05158730158730159,
+      0.3589743589743589,
+      0.4588235294117647
+    ],
+    "primary_color_dark": "4c352c"
+  },
+  "type": "movie",
+  "null_rating_reason": "",
+  "linewatches": [],
+  "info_url": "https://www.douban.com/doubanapp//h5/movie/36666493/desc",
+  "tags": [],
+  "durations": [
+    "84分钟"
+  ],
+  "comment_count": 2915,
+  "cover": {
+    "description": "",
+    "author": {
+      "loc": {
+        "id": "118282",
+        "name": "深圳",
+        "uid": "shenzhen"
+      },
+      "kind": "user",
+      "name": "我叫皮埃尔",
+      "reg_time": "2020-05-09 23:42:35",
+      "url": "https://www.douban.com/people/216558912/",
+      "uri": "douban://douban.com/user/216558912",
+      "avatar": "https://img9.doubanio.com/icon/up216558912-6.jpg",
+      "is_club": false,
+      "type": "user",
+      "id": "216558912",
+      "uid": "216558912"
+    },
+    "url": "https://movie.douban.com/photos/photo/2914797725/",
+    "image": {
+      "normal": {
+        "url": "https://img9.doubanio.com/view/photo/m/public/p2914797725.webp",
+        "width": 404,
+        "height": 600,
+        "size": 0
+      },
+      "large": {
+        "url": "https://img9.doubanio.com/view/photo/l/public/p2914797725.webp",
+        "width": 1079,
+        "height": 1600,
+        "size": 0
+      },
+      "raw": null,
+      "is_live": false,
+      "small": {
+        "url": "https://img9.doubanio.com/view/photo/s/public/p2914797725.webp",
+        "width": 404,
+        "height": 600,
+        "size": 0
+      },
+      "is_animated": false
+    },
+    "uri": "douban://douban.com/photo/2914797725",
+    "create_time": "2024-10-31 00:11:31",
+    "position": 1,
+    "owner_uri": "douban://douban.com/movie/36666493",
+    "type": "photo",
+    "id": "2914797725",
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/photo/2914797725/"
+  },
+  "cover_url": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2914797725.webp",
+  "restrictive_icon_url": "",
+  "header_bg_color": "4c352c",
+  "is_douban_intro": false,
+  "ticket_vendor_icons": [
+    "https://img9.doubanio.com/view/dale-online/dale_ad/public/0589a62f2f2d7c2.jpg"
+  ],
+  "honor_infos": [],
+  "sharing_url": "https://www.douban.com/doubanapp/dispatch/movie/36666493",
+  "subject_collections": [],
+  "wechat_timeline_share": "screenshot",
+  "countries": [
+    "美国"
+  ],
+  "url": "https://movie.douban.com/subject/36666493/",
+  "release_date": null,
+  "original_title": "Presence",
+  "uri": "douban://douban.com/movie/36666493",
+  "webisode_count": 0,
+  "episodes_info": "",
+  "subtype": "movie",
+  "directors": [
+    {
+      "name": "史蒂文·索德伯格"
+    }
+  ],
+  "is_show": false,
+  "in_blacklist": false,
+  "pre_release_desc": "",
+  "video": null,
+  "aka": [
+    "鬼魂",
+    "存在"
+  ],
+  "is_restrictive": false,
+  "trailer": {
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/movie/36666493/trailer%3Ftrailer_id%3D319616%26trailer_type%3DA",
+    "video_url": "https://vt1.doubanio.com/202511212010/92da9cfa457e797b17632fbc856ce4d7/view/movie/M/703190616.mp4",
+    "title": "中国台湾预告片",
+    "uri": "douban://douban.com/movie/36666493/trailer?trailer_id=319616&trailer_type=A",
+    "cover_url": "https://img3.doubanio.com/img/trailer/medium/2918287293.jpg",
+    "term_num": 0,
+    "n_comments": 4,
+    "create_time": "2025-02-11",
+    "subject_title": "感应",
+    "file_size": 35045740,
+    "runtime": "01:37",
+    "type": "A",
+    "id": "319616",
+    "desc": ""
+  },
+  "vendor_icons": []
+}
+
+
+tv:
+{
+  "rating": {
+    "count": 287,
+    "max": 10,
+    "star_count": 4.0,
+    "value": 7.8
+  },
+  "lineticket_url": "",
+  "controversy_reason": "",
+  "pubdate": [
+    "2025-10-25(韩国)"
+  ],
+  "last_episode_number": null,
+  "pic": {
+    "large": "https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2925425962.webp",
+    "normal": "https://img3.doubanio.com/view/photo/s_ratio_poster/public/p2925425962.webp"
+  },
+  "vendor_count": 0,
+  "body_bg_color": "f6f4f9",
+  "is_tv": true,
+  "card_subtitle": "2025 / 韩国 / 剧情 / 赵贤卓 / 柳承龙 明世彬",
+  "intro": "在企业担任经理职的中年男子（柳承龙 饰）意气风发，却在一夕之间跌落谷底。他踏上自我探索的旅程，重新学习什么能带来真正的快乐。",
+  "ticket_price_info": "",
+  "pre_playable_date": null,
+  "year": "2025",
+  "head_info": null,
+  "forum_info": null,
+  "webisode": null,
+  "id": "36363109",
+  "gallery_topic_count": 0,
+  "languages": [
+    "韩语"
+  ],
+  "genres": [
+    "剧情"
+  ],
+  "review_count": 3,
+  "title": "金部长的梦想人生",
+  "has_linewatch": false,
+  "ugc_tabs": [
+    {
+      "source": "reviews",
+      "type": "review",
+      "title": "剧评"
+    },
+    {
+      "source": "forum_topics",
+      "type": "forum",
+      "title": "讨论"
+    }
+  ],
+  "forum_topic_count": 10,
+  "ticket_promo_text": "",
+  "webview_info": {},
+  "is_released": true,
+  "vendors": [],
+  "actors": [
+    {
+      "name": "柳承龙"
+    },
+    {
+      "name": "明世彬"
+    },
+    {
+      "name": "车强玧"
+    },
+    {
+      "name": "郑恩彩"
+    }
+  ],
+  "interest": null,
+  "episodes_count": 12,
+  "color_scheme": {
+    "is_dark": true,
+    "primary_color_light": "9e9ba5",
+    "_base_color": [
+      0.722222222222222,
+      0.062499999999999924,
+      0.18823529411764706
+    ],
+    "secondary_color": "f6f4f9",
+    "_avg_color": [
+      0.8333333333333334,
+      0.015384615384615332,
+      0.5098039215686274
+    ],
+    "primary_color_dark": "7a777f"
+  },
+  "type": "tv",
+  "null_rating_reason": "",
+  "linewatches": [],
+  "info_url": "https://www.douban.com/doubanapp//h5/movie/36363109/desc",
+  "tags": [],
+  "durations": [],
+  "comment_count": 66,
+  "cover": {
+    "description": "",
+    "author": {
+      "loc": {
+        "id": "128363",
+        "name": "Seoul (Sŏul)",
+        "uid": "seoulsul"
+      },
+      "kind": "user",
+      "name": "젤리에이🧋",
+      "reg_time": "2019-06-12 20:29:52",
+      "url": "https://www.douban.com/people/197831695/",
+      "uri": "douban://douban.com/user/197831695",
+      "avatar": "https://img3.doubanio.com/icon/up197831695-502.jpg",
+      "type": "user",
+      "id": "197831695",
+      "uid": "197831695"
+    },
+    "url": "https://movie.douban.com/photos/photo/2925425962/",
+    "image": {
+      "normal": {
+        "url": "https://img3.doubanio.com/view/photo/m/public/p2925425962.webp",
+        "width": 420,
+        "height": 600,
+        "size": 0
+      },
+      "large": {
+        "url": "https://img3.doubanio.com/view/photo/l/public/p2925425962.webp",
+        "width": 1122,
+        "height": 1600,
+        "size": 0
+      },
+      "raw": null,
+      "is_live": false,
+      "small": {
+        "url": "https://img3.doubanio.com/view/photo/s/public/p2925425962.webp",
+        "width": 420,
+        "height": 600,
+        "size": 0
+      },
+      "is_animated": false
+    },
+    "uri": "douban://douban.com/photo/2925425962",
+    "create_time": "2025-09-22 09:12:53",
+    "position": 5,
+    "owner_uri": "douban://douban.com/tv/36363109",
+    "type": "photo",
+    "id": "2925425962",
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/photo/2925425962/"
+  },
+  "cover_url": "https://img3.doubanio.com/view/photo/m_ratio_poster/public/p2925425962.webp",
+  "restrictive_icon_url": "",
+  "header_bg_color": "7a777f",
+  "is_douban_intro": false,
+  "ticket_vendor_icons": [
+    "https://img9.doubanio.com/view/dale-online/dale_ad/public/0589a62f2f2d7c2.jpg"
+  ],
+  "honor_infos": [],
+  "sharing_url": "https://www.douban.com/doubanapp/dispatch/movie/36363109",
+  "subject_collections": [],
+  "wechat_timeline_share": "screenshot",
+  "countries": [
+    "韩国"
+  ],
+  "url": "https://movie.douban.com/subject/36363109/",
+  "release_date": null,
+  "original_title": "서울 자가에 대기업 다니는 김 부장 이야기",
+  "uri": "douban://douban.com/tv/36363109",
+  "webisode_count": 0,
+  "episodes_info": "",
+  "subtype": "tv",
+  "directors": [
+    {
+      "name": "赵贤卓"
+    }
+  ],
+  "is_show": false,
+  "in_blacklist": false,
+  "pre_release_desc": "",
+  "video": null,
+  "aka": [
+    "김부장",
+    "金部长",
+    "在首尔自家大企业工作的金部长的故事",
+    "The Dream Life of Mr. Kim"
+  ],
+  "is_restrictive": false,
+  "trailer": {
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/tv/36363109/trailer%3Ftrailer_id%3D322536%26trailer_type%3DA",
+    "video_url": "https://vt1.doubanio.com/202511252048/07e38c215b329530af73f5ef5486dce5/view/movie/M/703220536.mp4",
+    "title": "预告片 (中文字幕)",
+    "uri": "douban://douban.com/tv/36363109/trailer?trailer_id=322536&trailer_type=A",
+    "cover_url": "https://img1.doubanio.com/img/trailer/medium/2926432799.jpg",
+    "term_num": 0,
+    "n_comments": 0,
+    "create_time": "2025-10-23",
+    "subject_title": "金部长的梦想人生",
+    "file_size": 37342435,
+    "runtime": "01:51",
+    "type": "A",
+    "id": "322536",
+    "desc": ""
+  },
+  "vendor_icons": []
+}
+
+
+{
+  "rating": {
+    "count": 8655,
+    "max": 10,
+    "star_count": 4.0,
+    "value": 8.2
+  },
+  "lineticket_url": "",
+  "controversy_reason": "",
+  "pubdate": [
+    "2025-10-25(中国大陆)"
+  ],
+  "last_episode_number": 6,
+  "pic": {
+    "large": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2926188714.webp",
+    "normal": "https://img9.doubanio.com/view/photo/s_ratio_poster/public/p2926188714.webp"
+  },
+  "vendor_count": 0,
+  "body_bg_color": "f9f7f4",
+  "is_tv": true,
+  "card_subtitle": "2025 / 中国大陆 / 真人秀 / 沈腾 白敬亭",
+  "intro": "沈腾带队“出发家族”原班人马再次奔赴自然秘境，并首次出国野游，理想型旅途穿越四季奇景，掀起“欢乐洪流”。",
+  "ticket_price_info": "",
+  "pre_playable_date": null,
+  "year": "2025",
+  "head_info": null,
+  "forum_info": null,
+  "webisode": null,
+  "id": "37407388",
+  "gallery_topic_count": 0,
+  "languages": [
+    "汉语普通话"
+  ],
+  "genres": [
+    "真人秀"
+  ],
+  "review_count": 19,
+  "title": "现在就出发 第三季",
+  "has_linewatch": false,
+  "ugc_tabs": [
+    {
+      "source": "reviews",
+      "type": "review",
+      "title": "剧评"
+    },
+    {
+      "count": 679,
+      "title": "小组讨论",
+      "uri": "douban://partial.douban.com/subject/37407388/group_topic/_content?group_id=738830",
+      "source": "小组讨论",
+      "type": "custom",
+      "id": "group"
+    }
+  ],
+  "forum_topic_count": 0,
+  "ticket_promo_text": "",
+  "webview_info": {},
+  "is_released": true,
+  "vendors": [],
+  "actors": [
+    {
+      "name": "沈腾"
+    },
+    {
+      "name": "白敬亭"
+    },
+    {
+      "name": "金晨"
+    },
+    {
+      "name": "贾冰"
+    },
+    {
+      "name": "王安宇"
+    },
+    {
+      "name": "胡先煦"
+    },
+    {
+      "name": "范丞丞"
+    },
+    {
+      "name": "黄景瑜"
+    }
+  ],
+  "interest": null,
+  "episodes_count": 10,
+  "color_scheme": {
+    "is_dark": true,
+    "primary_color_light": "72604f",
+    "_base_color": [
+      0.08064516129032258,
+      0.303921568627451,
+      0.8
+    ],
+    "secondary_color": "f9f7f4",
+    "_avg_color": [
+      0.10119047619047623,
+      0.31460674157303364,
+      0.34901960784313724
+    ],
+    "primary_color_dark": "4c4035"
+  },
+  "type": "tv",
+  "null_rating_reason": "",
+  "linewatches": [],
+  "info_url": "https://www.douban.com/doubanapp//h5/movie/37407388/desc",
+  "tags": [],
+  "durations": [
+    "120分钟"
+  ],
+  "comment_count": 3382,
+  "cover": {
+    "description": "",
+    "author": {
+      "loc": {
+        "id": "108288",
+        "name": "北京",
+        "uid": "beijing"
+      },
+      "kind": "user",
+      "name": "雨落下",
+      "reg_time": "2020-08-11 16:22:48",
+      "url": "https://www.douban.com/people/221011676/",
+      "uri": "douban://douban.com/user/221011676",
+      "avatar": "https://img3.doubanio.com/icon/up221011676-2.jpg",
+      "type": "user",
+      "id": "221011676",
+      "uid": "221011676"
+    },
+    "url": "https://movie.douban.com/photos/photo/2926188714/",
+    "image": {
+      "normal": {
+        "url": "https://img9.doubanio.com/view/photo/m/public/p2926188714.webp",
+        "width": 317,
+        "height": 600,
+        "size": 0
+      },
+      "large": {
+        "url": "https://img9.doubanio.com/view/photo/l/public/p2926188714.webp",
+        "width": 846,
+        "height": 1600,
+        "size": 0
+      },
+      "raw": null,
+      "is_live": false,
+      "small": {
+        "url": "https://img9.doubanio.com/view/photo/s/public/p2926188714.webp",
+        "width": 317,
+        "height": 600,
+        "size": 0
+      },
+      "is_animated": false
+    },
+    "uri": "douban://douban.com/photo/2926188714",
+    "create_time": "2025-10-15 12:15:08",
+    "position": 2,
+    "owner_uri": "douban://douban.com/tv/37407388",
+    "type": "photo",
+    "id": "2926188714",
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/photo/2926188714/"
+  },
+  "cover_url": "https://img9.doubanio.com/view/photo/m_ratio_poster/public/p2926188714.webp",
+  "restrictive_icon_url": "",
+  "header_bg_color": "4c4035",
+  "is_douban_intro": false,
+  "ticket_vendor_icons": [
+    "https://img9.doubanio.com/view/dale-online/dale_ad/public/0589a62f2f2d7c2.jpg"
+  ],
+  "honor_infos": [
+    {
+      "kind": "show",
+      "uri": "douban://douban.com/subject_collection/show_chinese_best_weekly?type=rank&category=movie&rank_type=weekly",
+      "rank": 2,
+      "title": "一周国内口碑综艺榜"
+    }
+  ],
+  "sharing_url": "https://www.douban.com/doubanapp/dispatch/movie/37407388",
+  "subject_collections": [],
+  "wechat_timeline_share": "screenshot",
+  "countries": [
+    "中国大陆"
+  ],
+  "url": "https://movie.douban.com/subject/37407388/",
+  "release_date": null,
+  "original_title": "",
+  "uri": "douban://douban.com/tv/37407388",
+  "webisode_count": 0,
+  "episodes_info": "",
+  "subtype": "tv",
+  "directors": [],
+  "is_show": true,
+  "in_blacklist": false,
+  "pre_release_desc": "",
+  "video": null,
+  "aka": [
+    "现在就出发3",
+    "NATURAL HIGH"
+  ],
+  "is_restrictive": false,
+  "trailer": {
+    "sharing_url": "https://www.douban.com/doubanapp/dispatch?uri=/tv/37407388/trailer%3Ftrailer_id%3D322477%26trailer_type%3DA",
+    "video_url": "https://vt1.doubanio.com/202511252054/5b99837a66902408cdb29a91ae939435/view/movie/M/703220477.mp4",
+    "title": "预告片 (中文字幕)",
+    "uri": "douban://douban.com/tv/37407388/trailer?trailer_id=322477&trailer_type=A",
+    "cover_url": "https://img9.doubanio.com/img/trailer/medium/2926254884.jpg",
+    "term_num": 0,
+    "n_comments": 0,
+    "create_time": "2025-10-17",
+    "subject_title": "现在就出发 第三季",
+    "file_size": 34608950,
+    "runtime": "01:38",
+    "type": "A",
+    "id": "322477",
+    "desc": ""
+  },
+  "vendor_icons": []
+}
