@@ -16,8 +16,28 @@ export default defineConfig({
 
     nav: [
       { text: '首页', link: '/' },
-      { text: '快速开始', link: '/guide/introduction' },
-      { text: '功能特性', link: '/features/pt-sites' },
+      {
+        text: '指南',
+        items: [
+          { text: '项目介绍', link: '/guide/introduction' },
+          { text: '快速开始', link: '/guide/quick-start' },
+          { text: '系统架构', link: '/guide/architecture' },
+          { text: '配置说明', link: '/guide/configuration' },
+        ]
+      },
+      {
+        text: '功能特性',
+        items: [
+          { text: 'PT 站点管理', link: '/features/pt-sites' },
+          { text: '资源同步与搜索', link: '/features/resource-sync' },
+          { text: '资源识别', link: '/features/identification' },
+          { text: '订阅与自动下载', link: '/features/subscription' },
+          { text: '下载管理', link: '/features/download' },
+          { text: '媒体库管理', link: '/features/media-library' },
+          { text: '任务调度', link: '/features/scheduler' },
+          { text: '通知系统', link: '/features/notification' },
+        ]
+      },
       {
         text: '部署',
         items: [
@@ -25,6 +45,7 @@ export default defineConfig({
           { text: '手动部署', link: '/deploy/manual' },
         ]
       },
+      { text: '常见问题', link: '/faq' },
     ],
 
     sidebar: {
@@ -34,18 +55,36 @@ export default defineConfig({
           items: [
             { text: '项目介绍', link: '/guide/introduction' },
             { text: '快速开始', link: '/guide/quick-start' },
+            { text: '系统架构', link: '/guide/architecture' },
             { text: '配置说明', link: '/guide/configuration' },
           ]
         }
       ],
       '/features/': [
         {
-          text: '功能特性',
+          text: '数据采集',
           items: [
             { text: 'PT 站点管理', link: '/features/pt-sites' },
             { text: '资源同步与搜索', link: '/features/resource-sync' },
+            { text: '资源识别', link: '/features/identification' },
+          ]
+        },
+        {
+          text: '自动化下载',
+          items: [
             { text: '订阅与自动下载', link: '/features/subscription' },
+            { text: '下载管理', link: '/features/download' },
+          ]
+        },
+        {
+          text: '媒体库',
+          items: [
             { text: '媒体库管理', link: '/features/media-library' },
+          ]
+        },
+        {
+          text: '系统运维',
+          items: [
             { text: '任务调度', link: '/features/scheduler' },
             { text: '通知系统', link: '/features/notification' },
           ]
@@ -87,6 +126,11 @@ export default defineConfig({
 
     lastUpdated: {
       text: '最后更新于'
+    },
+
+    editLink: {
+      pattern: 'https://github.com/Simlym/NasFusion/edit/main/docs/:path',
+      text: '在 GitHub 上编辑此页'
     }
   },
 
