@@ -18,11 +18,31 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+async def _is_fresh_database(backend_path: Path) -> bool:
+    """检测是否为全新数据库（alembic_version 表不存在）"""
+    try:
+        from app.core.config import settings
+        from sqlalchemy import create_engine, inspect
+
+        db_url = settings.database.DATABASE_URL
+        # 将异步驱动替换为同步驱动
+        sync_url = db_url.replace("sqlite+aiosqlite", "sqlite").replace("postgresql+asyncpg", "postgresql+psycopg2")
+        sync_engine = create_engine(sync_url)
+        with sync_engine.connect():
+            inspector = inspect(sync_engine)
+            tables = inspector.get_table_names()
+            return "alembic_version" not in tables
+    except Exception:
+        return False
+
+
 async def run_alembic_migrations():
     """
     执行 Alembic 数据库迁移
 
     使用 subprocess 调用 alembic 命令，确保迁移在独立的进程中执行。
+    新项目（全新数据库）直接 stamp head，跳过历史迁移，由 create_all 建表。
+    老项目（已有 alembic_version）正常执行 upgrade head。
     """
     try:
         import asyncio
@@ -37,26 +57,47 @@ async def run_alembic_migrations():
             logger.warning(f"alembic.ini 不存在于 {alembic_ini_path}，跳过迁移")
             return
 
-        # 在独立的线程中执行 alembic 命令
-        def run_migration():
-            result = subprocess.run(
-                ["alembic", "upgrade", "head"],
-                cwd=str(backend_path),
-                capture_output=True,
-                text=True,
-            )
-            return result
+        # 检测是否为全新数据库
+        is_fresh = await _is_fresh_database(backend_path)
 
-        # 使用 asyncio.to_thread 在独立线程中执行同步命令
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, run_migration)
+        if is_fresh:
+            # 新项目：直接 stamp head，跳过所有历史迁移，由后续 create_all 建表
+            logger.info("检测到全新数据库，跳过历史迁移，直接标记为最新版本...")
 
-        if result.returncode != 0:
-            logger.warning(f"数据库迁移执行失败: {result.stderr}")
+            def stamp_head():
+                return subprocess.run(
+                    ["alembic", "stamp", "head"],
+                    cwd=str(backend_path),
+                    capture_output=True,
+                    text=True,
+                )
+
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, stamp_head)
+
+            if result.returncode != 0:
+                logger.warning(f"alembic stamp head 失败: {result.stderr}")
+            else:
+                logger.info("新数据库已标记为最新迁移版本，将由 create_all 创建所有表")
         else:
-            logger.info("数据库迁移完成")
-            if result.stdout:
-                logger.debug(f"Alembic 输出: {result.stdout}")
+            # 老项目：正常执行迁移链
+            def run_migration():
+                return subprocess.run(
+                    ["alembic", "upgrade", "head"],
+                    cwd=str(backend_path),
+                    capture_output=True,
+                    text=True,
+                )
+
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, run_migration)
+
+            if result.returncode != 0:
+                logger.warning(f"数据库迁移执行失败: {result.stderr}")
+            else:
+                logger.info("数据库迁移完成")
+                if result.stdout:
+                    logger.debug(f"Alembic 输出: {result.stdout}")
 
     except FileNotFoundError:
         logger.warning("Alembic 命令未找到，跳过数据库迁移")

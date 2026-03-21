@@ -195,7 +195,8 @@ class Settings(BaseSettings):
         return utc_datetime.astimezone(self.get_timezone())
 
     model_config = SettingsConfigDict(
-        env_file=None,  # 优先使用环境变量
+        env_file=".env",
+        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore"
     )
@@ -209,4 +210,20 @@ def get_settings() -> Settings:
     return Settings()
 
 # 直接初始化 - Pydantic 会自动读取环境变量
-settings = Settings()
+try:
+    settings = Settings()
+except Exception as e:
+    import sys
+    print("\n" + "=" * 60)
+    print("❌ 配置初始化失败，请检查环境变量或 .env 文件")
+    print("=" * 60)
+    print(f"\n错误详情：{e}")
+    print("\n解决方案：")
+    print("  1. 复制 .env.example 为 .env：")
+    print("       cp .env.example .env")
+    print("  2. 编辑 .env，至少设置以下必填项：")
+    print("       SECRET_KEY=<32位以上的随机字符串>")
+    print("\n  快速生成 SECRET_KEY：")
+    print("       python -c \"import secrets; print(secrets.token_hex(32))\"")
+    print("=" * 60 + "\n")
+    sys.exit(1)
