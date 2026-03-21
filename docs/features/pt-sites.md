@@ -179,4 +179,4 @@ class MyPTSiteAdapter(BasePTSiteAdapter):
         ...
 ```
 
-详见：[开发者文档 - 适配器开发](../dev/adapter-guide)（即将上线）
+详见：开发者文档 - 适配器开发（即将上线）
