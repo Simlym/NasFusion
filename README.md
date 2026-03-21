@@ -102,6 +102,7 @@ npm run dev
 
 ## 文档
 
+- [在线文档](https://simlym.github.io/NasFusion/)
 - [Docker 部署指南](README.docker.md)
 - [快速入门](QUICKSTART.md)
 - [项目开发指南](CLAUDE.md)
