@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 from app.constants import (
     FILE_TYPES,
@@ -47,7 +47,7 @@ class MediaFile(Base):
         String(20), nullable=False, index=True, comment="文件类型：video/audio/subtitle/other"
     )
     extension = Column(String(20), nullable=False, comment="文件扩展名（如 .mkv, .mp4）")
-    modified_at = Column(DateTime(timezone=True), nullable=False, comment="文件最后修改时间")
+    modified_at = Column(TZDateTime(), nullable=False, comment="文件最后修改时间")
 
     # ==================== 媒体关联 ====================
     media_type = Column(
@@ -98,7 +98,7 @@ class MediaFile(Base):
     sub_status = Column(JSON, nullable=True, comment="子状态详情（JSON对象，存储当前处理阶段的详细信息）")
     organized = Column(Boolean, default=False, nullable=False, index=True, comment="是否已整理")
     organized_path = Column(Text, nullable=True, comment="整理后的文件路径")
-    organized_at = Column(DateTime(timezone=True), nullable=True, comment="整理时间")
+    organized_at = Column(TZDateTime(), nullable=True, comment="整理时间")
     organize_mode = Column(String(20), nullable=True, comment="整理模式：hardlink/reflink/symlink/move/copy")
 
     # ==================== 技术信息 ====================
@@ -113,14 +113,14 @@ class MediaFile(Base):
 
     # ==================== 错误追踪 ====================
     error_message = Column(Text, nullable=True, comment="错误信息")
-    error_at = Column(DateTime(timezone=True), nullable=True, comment="错误发生时间")
+    error_at = Column(TZDateTime(), nullable=True, comment="错误发生时间")
     error_step = Column(String(50), nullable=True, comment="错误发生阶段")
 
     # ==================== 时间信息 ====================
-    discovered_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="发现时间")
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    discovered_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="发现时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # ==================== 关系 ====================

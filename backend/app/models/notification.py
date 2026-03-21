@@ -1,11 +1,11 @@
 """
 通知相关数据模型
 """
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 from app.utils.timezone import now
 
 
@@ -24,7 +24,7 @@ class NotificationChannel(BaseModel):
     config = Column(JSON, nullable=False, comment="渠道特定配置")
     enabled = Column(Boolean, default=True, nullable=False, comment="是否启用")
     status = Column(String(20), default="healthy", nullable=False, comment="状态: healthy/error")
-    last_test_at = Column(DateTime(timezone=True), nullable=True, comment="最后测试时间")
+    last_test_at = Column(TZDateTime(), nullable=True, comment="最后测试时间")
     last_test_result = Column(Text, nullable=True, comment="最后测试结果")
     subscribed_events = Column(JSON, nullable=True, comment="订阅的事件类型")
     priority = Column(Integer, default=5, nullable=False, comment="渠道优先级(1-10)")
@@ -34,7 +34,7 @@ class NotificationChannel(BaseModel):
     max_message_length = Column(Integer, default=1000, nullable=False, comment="最大消息长度")
     message_templates = Column(JSON, nullable=True, comment="消息模板")
     failure_handling = Column(JSON, nullable=True, comment="失败处理策略")
-    last_success_at = Column(DateTime(timezone=True), nullable=True, comment="最后成功时间")
+    last_success_at = Column(TZDateTime(), nullable=True, comment="最后成功时间")
     consecutive_failures = Column(Integer, default=0, nullable=False, comment="连续失败次数")
     health_check_url = Column(Text, nullable=True, comment="健康检查URL")
     description = Column(Text, nullable=True, comment="渠道描述")
@@ -71,8 +71,8 @@ class NotificationInternal(BaseModel):
     )
     related_id = Column(Integer, nullable=True, comment="关联资源ID")
     extra_data = Column(JSON, nullable=True, comment="扩展数据(JSON)")
-    read_at = Column(DateTime(timezone=True), nullable=True, comment="阅读时间")
-    expires_at = Column(DateTime(timezone=True), nullable=True, index=True, comment="过期时间")
+    read_at = Column(TZDateTime(), nullable=True, comment="阅读时间")
+    expires_at = Column(TZDateTime(), nullable=True, index=True, comment="过期时间")
 
     # 关系
     user = relationship("User", back_populates="notification_internal")
@@ -157,7 +157,7 @@ class NotificationExternal(BaseModel):
     status = Column(String(20), nullable=False, index=True, comment="状态: pending/sent/failed")
     retry_count = Column(Integer, nullable=False, default=0, comment="重试次数")
     error_message = Column(Text, nullable=True, comment="错误信息")
-    sent_at = Column(DateTime(timezone=True), nullable=True, comment="发送时间")
+    sent_at = Column(TZDateTime(), nullable=True, comment="发送时间")
     response_data = Column(JSON, nullable=True, comment="渠道返回数据(JSON)")
     extra_data = Column(JSON, nullable=True, comment="扩展数据(JSON)")
 

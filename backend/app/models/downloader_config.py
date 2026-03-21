@@ -2,11 +2,11 @@
 """
 下载器配置模型
 """
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, Index, CheckConstraint
+from sqlalchemy import Boolean, Column, Integer, String, Text, Index, CheckConstraint
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class DownloaderConfig(Base):
@@ -51,13 +51,13 @@ class DownloaderConfig(Base):
 
     # 状态信息
     status = Column(String(50), default="offline", nullable=False, index=True, comment="状态：online/offline/error")
-    last_check_at = Column(DateTime(timezone=True), nullable=True, comment="最后检查时间")
+    last_check_at = Column(TZDateTime(), nullable=True, comment="最后检查时间")
     last_error = Column(Text, nullable=True, comment="最后错误信息")
 
     # 创建和更新时间
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 索引和约束

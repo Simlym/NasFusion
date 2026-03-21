@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 from app.constants import (
     MEDIA_TYPES,
@@ -134,12 +134,12 @@ class OrganizeConfig(Base):
 
     # ==================== 统计信息 ====================
     total_organized_count = Column(Integer, default=0, nullable=False, comment="已整理文件数")
-    last_organized_at = Column(DateTime(timezone=True), nullable=True, comment="最后一次整理时间")
+    last_organized_at = Column(TZDateTime(), nullable=True, comment="最后一次整理时间")
 
     # ==================== 时间信息 ====================
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # ==================== 约束 ====================

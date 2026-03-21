@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class UnifiedTVSeries(BaseModel):
@@ -99,7 +99,7 @@ class UnifiedTVSeries(BaseModel):
     has_free_resource = Column(Boolean, default=False, nullable=False, index=True, comment="是否有Free资源")
     best_quality = Column(String(20), nullable=True, comment="最佳质量：4K/1080P等")
     best_seeder_count = Column(Integer, default=0, nullable=False, comment="最高做种数")
-    last_resource_updated_at = Column(DateTime(timezone=True), nullable=True, comment="PT资源最后更新时间")
+    last_resource_updated_at = Column(TZDateTime(), nullable=True, comment="PT资源最后更新时间")
 
     # ============ 本地文件统计 ============
     local_file_count = Column(Integer, default=0, nullable=False, comment="本地文件数量")
@@ -112,7 +112,7 @@ class UnifiedTVSeries(BaseModel):
 
     # ============ 元数据管理 ============
     detail_loaded = Column(Boolean, default=False, nullable=False, comment="详情是否已加载")
-    detail_loaded_at = Column(DateTime(timezone=True), nullable=True, comment="详情加载时间")
+    detail_loaded_at = Column(TZDateTime(), nullable=True, comment="详情加载时间")
     metadata_source = Column(String(20), nullable=True, comment="元数据来源：douban/tmdb/tvdb")
 
     # ============ 约束 ============

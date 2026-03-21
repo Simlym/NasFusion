@@ -2,11 +2,11 @@
 """
 媒体服务器媒体库统计缓存模型
 """
-from sqlalchemy import Column, DateTime, Integer, ForeignKey, Index
+from sqlalchemy import Column, Integer, ForeignKey, Index
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class MediaServerLibraryStats(Base):
@@ -55,9 +55,9 @@ class MediaServerLibraryStats(Base):
     )
 
     # 时间戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 索引

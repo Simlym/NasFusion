@@ -4,7 +4,9 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+
+from app.core.json_types import TZDateTime
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
@@ -22,16 +24,16 @@ class User(BaseModel):
     role = Column(String(20), default="user", nullable=False, comment="角色: admin/user")
     is_active = Column(Boolean, default=True, nullable=False, comment="是否激活")
     is_verified = Column(Boolean, default=False, nullable=False, comment="是否已验证")
-    last_login_at = Column(DateTime(timezone=True), nullable=True, comment="最后登录时间")
+    last_login_at = Column(TZDateTime(), nullable=True, comment="最后登录时间")
     display_name = Column(String(100), nullable=True, comment="显示名称")
     avatar_url = Column(Text, nullable=True, comment="头像URL")
     timezone = Column(String(50), default="UTC", nullable=False, comment="时区")
     language = Column(String(10), default="zh-CN", nullable=False, comment="语言")
     password_changed_at = Column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False, comment="密码修改时间"
+        TZDateTime(), default=datetime.utcnow, nullable=False, comment="密码修改时间"
     )
     login_attempts = Column(Integer, default=0, nullable=False, comment="登录尝试次数")
-    locked_until = Column(DateTime(timezone=True), nullable=True, comment="锁定到期时间")
+    locked_until = Column(TZDateTime(), nullable=True, comment="锁定到期时间")
 
     # 关系
     profile = relationship(

@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 from app.constants.media import MEDIA_TYPES
 from app.constants.media_server import MEDIA_SERVER_TYPES
 from app.constants import UNIFIED_TABLES
@@ -67,8 +67,8 @@ class MediaServerItem(Base):
 
     # ==================== 年份和日期 ====================
     year = Column(Integer, nullable=True, index=True, comment="年份")
-    premiere_date = Column(DateTime(timezone=True), nullable=True, comment="首映日期")
-    date_created = Column(DateTime(timezone=True), nullable=True, index=True, comment="加入媒体库时间（对应 Jellyfin DateCreated）")
+    premiere_date = Column(TZDateTime(), nullable=True, comment="首映日期")
+    date_created = Column(TZDateTime(), nullable=True, index=True, comment="加入媒体库时间（对应 Jellyfin DateCreated）")
 
     # ==================== 电视剧特定字段 ====================
     series_id = Column(String(100), nullable=True, index=True, comment="剧集ID（仅 Episode 类型）")
@@ -99,7 +99,7 @@ class MediaServerItem(Base):
 
     # ==================== 播放统计 ====================
     play_count = Column(Integer, default=0, nullable=False, comment="播放次数")
-    last_played_at = Column(DateTime(timezone=True), nullable=True, comment="最后播放时间")
+    last_played_at = Column(TZDateTime(), nullable=True, comment="最后播放时间")
     is_favorite = Column(Boolean, default=False, nullable=False, comment="是否收藏")
 
     # ==================== 技术信息 ====================
@@ -169,12 +169,12 @@ class MediaServerItem(Base):
 
     # ==================== 同步状态 ====================
     is_active = Column(Boolean, default=True, nullable=False, index=True, comment="是否存在于媒体服务器（软删除标记）")
-    synced_at = Column(DateTime(timezone=True), nullable=False, comment="最后同步时间")
+    synced_at = Column(TZDateTime(), nullable=False, comment="最后同步时间")
 
     # ==================== 时间戳 ====================
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # ==================== 关系 ====================

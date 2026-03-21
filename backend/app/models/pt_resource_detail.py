@@ -2,11 +2,11 @@
 """
 PT资源详情表（存储从MTeam API获取的完整信息）
 """
-from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, String, Text, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class PTResourceDetail(BaseModel):
@@ -50,7 +50,7 @@ class PTResourceDetail(BaseModel):
 
     # ============ 状态管理 ============
     detail_loaded = Column(Boolean, default=False, nullable=False, comment="详情是否已加载")
-    detail_loaded_at = Column(DateTime(timezone=True), nullable=True, comment="详情加载时间")
+    detail_loaded_at = Column(TZDateTime(), nullable=True, comment="详情加载时间")
 
     # ============ 关系 ============
     pt_resource = relationship("PTResource", back_populates="resource_detail")

@@ -2,7 +2,9 @@
 """
 榜单收藏模型
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Index, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Index, JSON
+
+from app.core.json_types import TZDateTime
 
 from app.models.base import BaseModel
 
@@ -62,7 +64,7 @@ class TrendingCollection(BaseModel):
     )
 
     # 同步信息
-    synced_at = Column(DateTime(timezone=True), nullable=False, comment="同步时间")
+    synced_at = Column(TZDateTime(), nullable=False, comment="同步时间")
 
     __table_args__ = (
         # 联合唯一索引：同一榜单类型下，同一来源ID只能出现一次

@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 from app.constants.subscription import (
     DEFAULT_CHECK_INTERVAL,
@@ -165,7 +165,7 @@ class Subscription(BaseModel):
         default=DEFAULT_CHECK_STRATEGY,
         comment="检查策略: aggressive/normal/relaxed（允许用户选择，实际调度由全局任务控制）",
     )
-    last_check_at = Column(DateTime(timezone=True), nullable=True, comment="最后检查时间")
+    last_check_at = Column(TZDateTime(), nullable=True, comment="最后检查时间")
 
     # 完成条件
     complete_condition = Column(
@@ -181,7 +181,7 @@ class Subscription(BaseModel):
     # 资源状态
     has_resources = Column(Boolean, nullable=False, default=False, comment="当前是否有PT资源（用于列表过滤）")
     first_resource_found_at = Column(
-        DateTime(timezone=True), nullable=True, comment="首次发现资源时间"
+        TZDateTime(), nullable=True, comment="首次发现资源时间"
     )
 
     # 通知设置
@@ -222,7 +222,7 @@ class Subscription(BaseModel):
     total_downloads = Column(Integer, nullable=False, default=0, comment="总下载数")
 
     # 完成时间
-    completed_at = Column(DateTime(timezone=True), nullable=True, comment="完成时间")
+    completed_at = Column(TZDateTime(), nullable=True, comment="完成时间")
 
     # 关系
     user = relationship("User", backref="subscriptions")

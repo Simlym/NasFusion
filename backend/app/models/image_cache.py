@@ -4,7 +4,9 @@
 用于存储外部图片的本地缓存元数据
 """
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Text, BigInteger, Index, DateTime
+from sqlalchemy import Column, String, Integer, Text, BigInteger, Index
+
+from app.core.json_types import TZDateTime
 
 from app.models.base import BaseModel
 
@@ -29,7 +31,7 @@ class ImageCache(BaseModel):
 
     # 访问统计
     access_count = Column(Integer, nullable=False, default=0, comment="访问次数")
-    last_accessed_at = Column(DateTime(timezone=True), nullable=False, default=datetime.now, comment="最后访问时间")
+    last_accessed_at = Column(TZDateTime(), nullable=False, default=datetime.now, comment="最后访问时间")
 
     # 来源信息
     source_type = Column(String(50), nullable=True, comment="来源类型: tmdb, douban, pt_site等")

@@ -2,7 +2,9 @@
 登录历史记录模型
 记录所有登录尝试（成功和失败），包含 IP、User-Agent 和地理位置信息
 """
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
+
+from app.core.json_types import TZDateTime
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
@@ -22,7 +24,7 @@ class LoginHistory(BaseModel):
     location = Column(String(255), nullable=True, comment="IP所在地（国家/省/市）")
     login_status = Column(String(20), nullable=False, default="success", comment="登录状态: success/failed/locked")
     failure_reason = Column(String(100), nullable=True, comment="失败原因")
-    login_at = Column(DateTime(timezone=True), default=now, nullable=False, index=True, comment="登录时间")
+    login_at = Column(TZDateTime(), default=now, nullable=False, index=True, comment="登录时间")
 
     # 关系
     user = relationship("User", back_populates="login_histories")

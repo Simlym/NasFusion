@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
 )
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 from app.models.base import BaseModel
 
@@ -61,15 +61,15 @@ class TaskExecution(BaseModel):
     handler_params = Column(JSON, nullable=True, comment="处理器参数，JSON格式")
 
     # 时间信息
-    scheduled_at = Column(DateTime(timezone=True), nullable=True, comment="计划执行时间")
-    started_at = Column(DateTime(timezone=True), nullable=True, comment="实际开始执行时间")
-    completed_at = Column(DateTime(timezone=True), nullable=True, comment="完成时间")
+    scheduled_at = Column(TZDateTime(), nullable=True, comment="计划执行时间")
+    started_at = Column(TZDateTime(), nullable=True, comment="实际开始执行时间")
+    completed_at = Column(TZDateTime(), nullable=True, comment="完成时间")
     duration = Column(Integer, nullable=True, comment="执行耗时，秒")
 
     # 重试控制
     retry_count = Column(Integer, default=0, nullable=False, comment="当前重试次数")
     max_retries = Column(Integer, default=3, nullable=False, comment="最大重试次数")
-    next_retry_at = Column(DateTime(timezone=True), nullable=True, comment="下次重试时间")
+    next_retry_at = Column(TZDateTime(), nullable=True, comment="下次重试时间")
 
     # 执行信息
     worker_id = Column(String(100), nullable=True, comment="执行该任务的工作进程ID")

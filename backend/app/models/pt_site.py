@@ -1,10 +1,10 @@
 """
 PT站点相关数据模型
 """
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class PTSite(BaseModel):
@@ -28,7 +28,7 @@ class PTSite(BaseModel):
     auth_passkey = Column(String(255), nullable=True, comment="Passkey（加密存储）")
     auth_username = Column(String(255), nullable=True, comment="用户名（加密存储）")
     auth_password = Column(String(255), nullable=True, comment="密码（加密存储）")
-    cookie_expire_at = Column(DateTime(timezone=True), nullable=True, comment="Cookie过期时间")
+    cookie_expire_at = Column(TZDateTime(), nullable=True, comment="Cookie过期时间")
 
     # 代理和能力配置
     proxy_config = Column(JSON, nullable=True, comment="代理配置")
@@ -41,7 +41,7 @@ class PTSite(BaseModel):
     )
     sync_interval = Column(Integer, nullable=True, comment="同步间隔（分钟）")
     sync_config = Column(JSON, nullable=True, comment="同步详细配置")
-    last_sync_at = Column(DateTime(timezone=True), nullable=True, comment="最后同步时间")
+    last_sync_at = Column(TZDateTime(), nullable=True, comment="最后同步时间")
     last_sync_status = Column(
         String(50), nullable=True, comment="最后同步状态: success/failed/running"
     )
@@ -54,7 +54,7 @@ class PTSite(BaseModel):
 
     # 站点状态
     status = Column(String(50), default="active", nullable=False, comment="站点状态: active/inactive/error")
-    health_check_at = Column(DateTime(timezone=True), nullable=True, comment="最后健康检查时间")
+    health_check_at = Column(TZDateTime(), nullable=True, comment="最后健康检查时间")
     health_status = Column(String(50), nullable=True, comment="健康状态: healthy/unhealthy")
 
     # 站点用户信息（JSON格式存储用户名、等级、数据量等）

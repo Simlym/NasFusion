@@ -19,7 +19,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class DownloadTask(Base):
@@ -105,19 +105,19 @@ class DownloadTask(Base):
     hr_ratio = Column(Numeric(5, 2), nullable=True, comment="需要分享率")
 
     # 时间信息
-    added_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="添加时间")
-    started_at = Column(DateTime(timezone=True), nullable=True, comment="开始下载时间")
-    completed_at = Column(DateTime(timezone=True), nullable=True, comment="下载完成时间")
+    added_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="添加时间")
+    started_at = Column(TZDateTime(), nullable=True, comment="开始下载时间")
+    completed_at = Column(TZDateTime(), nullable=True, comment="下载完成时间")
 
     # 错误信息
     error_message = Column(Text, nullable=True, comment="错误信息")
-    error_at = Column(DateTime(timezone=True), nullable=True, comment="错误发生时间")
+    error_at = Column(TZDateTime(), nullable=True, comment="错误发生时间")
     retry_count = Column(Integer, default=0, nullable=False, comment="重试次数")
 
     # 创建和更新时间
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 关系

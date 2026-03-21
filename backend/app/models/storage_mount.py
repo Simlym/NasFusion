@@ -3,7 +3,9 @@
 存储挂载点模型
 用于管理下载目录和媒体库目录的挂载点配置
 """
-from sqlalchemy import Column, Integer, String, BigInteger, Boolean, DateTime, Text, Index, CheckConstraint
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, Text, Index, CheckConstraint
+
+from app.core.json_types import TZDateTime
 from app.models.base import Base
 from app.utils.timezone import now
 from app.constants import MEDIA_TYPES
@@ -47,11 +49,11 @@ class StorageMount(Base):
     description = Column(Text, nullable=True, comment="备注说明")
     
     # 扫描信息
-    last_scan_at = Column(DateTime(timezone=True), nullable=True, comment="最后扫描时间")
+    last_scan_at = Column(TZDateTime(), nullable=True, comment="最后扫描时间")
     
     # 时间戳
-    created_at = Column(DateTime(timezone=True), default=now, nullable=False, comment="创建时间")
-    updated_at = Column(DateTime(timezone=True), default=now, onupdate=now, nullable=False, comment="更新时间")
+    created_at = Column(TZDateTime(), default=now, nullable=False, comment="创建时间")
+    updated_at = Column(TZDateTime(), default=now, onupdate=now, nullable=False, comment="更新时间")
 
     # 约束和索引
     __table_args__ = (

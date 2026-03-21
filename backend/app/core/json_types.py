@@ -3,8 +3,9 @@
 数据库自定义类型定义
 """
 import json
-from datetime import date, datetime
-from sqlalchemy import TypeDecorator, Text
+from datetime import date, datetime, timezone
+
+from sqlalchemy import DateTime, TypeDecorator, Text
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -64,3 +65,41 @@ class JSON(TypeDecorator):
             if isinstance(value, str):
                 return json.loads(value)
             return value
+
+
+class TZDateTime(TypeDecorator):
+    """
+    时区感知的 DateTime 类型
+
+    解决 SQLAlchemy + SQLite 的时区问题：
+    - SQLite 没有原生时区支持，存储 aware datetime 时只保留数值部分，丢失时区信息
+    - 本类型在写入 SQLite 前将 aware datetime 统一转为 UTC，读取时标记为 UTC
+    - PostgreSQL 原生支持时区，直接透传
+
+    这样 to_system_tz() 中 "naive datetime 视为 UTC" 的假设就始终成立。
+    """
+    impl = DateTime
+    cache_ok = True
+
+    def __init__(self):
+        super().__init__(timezone=True)
+
+    def process_bind_param(self, value, dialect):
+        """写入前：SQLite 统一转为 UTC"""
+        if value is None:
+            return value
+        if dialect.name == 'sqlite':
+            if value.tzinfo is not None:
+                # 有时区信息：转为 UTC
+                value = value.astimezone(timezone.utc)
+            # naive datetime 假定已经是 UTC，不处理
+        return value
+
+    def process_result_value(self, value, dialect):
+        """读取后：SQLite 返回的 naive datetime 标记为 UTC"""
+        if value is None:
+            return value
+        if dialect.name == 'sqlite':
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+        return value

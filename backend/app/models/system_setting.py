@@ -2,7 +2,9 @@
 """
 系统设置模型
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Index
+from sqlalchemy import Column, Integer, String, Text, Boolean, Index
+
+from app.core.json_types import TZDateTime
 from sqlalchemy.sql import func
 
 from app.models.base import Base
@@ -34,9 +36,9 @@ class SystemSetting(Base):
     is_encrypted = Column(Boolean, default=False, nullable=False, comment="值是否加密存储")
 
     # 创建和更新时间
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 索引

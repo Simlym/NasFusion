@@ -2,11 +2,11 @@
 """
 订阅检查日志数据模型
 """
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class SubscriptionCheckLog(BaseModel):
@@ -24,7 +24,7 @@ class SubscriptionCheckLog(BaseModel):
     )
 
     # 检查基础信息
-    check_at = Column(DateTime(timezone=True), nullable=False, index=True, comment="检查时间")
+    check_at = Column(TZDateTime(), nullable=False, index=True, comment="检查时间")
 
     # PT搜索结果
     sites_searched = Column(Integer, nullable=True, comment="搜索的站点数")

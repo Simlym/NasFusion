@@ -53,9 +53,9 @@ def to_system_tz(dt: datetime) -> datetime:
     tz = get_system_timezone()
 
     if dt.tzinfo is None:
-        # SQLAlchemy 对 DateTime(timezone=True) + SQLite：
-        # 写入 aware datetime 时转为 UTC 字符串存储，读出来是 naive UTC。
-        # 因此 naive datetime 应视为 UTC，再转换为系统时区。
+        # naive datetime 视为 UTC，再转换为系统时区。
+        # TZDateTime 类型会确保 SQLite 读取的 naive datetime 已标记为 UTC，
+        # 正常情况下不会走到这个分支，此处作为兜底。
         dt = dt.replace(tzinfo=timezone.utc).astimezone(tz)
     else:
         # 如果有时区信息，转换为系统时区

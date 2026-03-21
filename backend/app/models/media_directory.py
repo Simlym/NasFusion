@@ -2,7 +2,9 @@
 """
 媒体目录模型
 """
-from sqlalchemy import Column, Integer, String, BigInteger, Boolean, DateTime, ForeignKey, JSON, Index, CheckConstraint
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, ForeignKey, JSON, Index, CheckConstraint
+
+from app.core.json_types import TZDateTime
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 from app.utils.timezone import now
@@ -51,10 +53,10 @@ class MediaDirectory(Base):
     total_size = Column(BigInteger, default=0, comment="总大小 (字节)")
 
     # 时间戳
-    scanned_at = Column(DateTime(timezone=True), nullable=True, comment="最后扫描时间")
+    scanned_at = Column(TZDateTime(), nullable=True, comment="最后扫描时间")
     source_mtime = Column(BigInteger, default=0, nullable=True, comment="源目录最后修改时间(mtime)")
-    created_at = Column(DateTime(timezone=True), default=now, nullable=False, comment="创建时间")
-    updated_at = Column(DateTime(timezone=True), default=now, onupdate=now, nullable=False, comment="更新时间")
+    created_at = Column(TZDateTime(), default=now, nullable=False, comment="创建时间")
+    updated_at = Column(TZDateTime(), default=now, onupdate=now, nullable=False, comment="更新时间")
 
     # 关系
     children = relationship(

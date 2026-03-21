@@ -2,11 +2,11 @@
 """
 观看历史模型（从媒体服务器同步）
 """
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, ForeignKey, Index
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, Index
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class MediaServerWatchHistory(Base):
@@ -42,7 +42,7 @@ class MediaServerWatchHistory(Base):
 
     # 播放信息
     play_count = Column(Integer, default=1, nullable=False, comment="播放次数")
-    last_played_at = Column(DateTime(timezone=True), nullable=False, comment="最后播放时间")
+    last_played_at = Column(TZDateTime(), nullable=False, comment="最后播放时间")
     play_duration_seconds = Column(Integer, nullable=True, comment="播放时长（秒）")
     runtime_seconds = Column(Integer, nullable=True, comment="总时长（秒）")
     is_completed = Column(Boolean, default=False, nullable=False, comment="是否看完（>90%）")
@@ -72,9 +72,9 @@ class MediaServerWatchHistory(Base):
     )
 
     # 时间戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 索引和约束

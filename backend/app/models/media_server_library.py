@@ -2,11 +2,11 @@
 """
 媒体服务器媒体库模型
 """
-from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, ForeignKey, Index
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class MediaServerLibrary(Base):
@@ -47,12 +47,12 @@ class MediaServerLibrary(Base):
     item_count = Column(Integer, default=0, comment="媒体库条目数量")
 
     # 最后扫描时间
-    last_scan_at = Column(DateTime(timezone=True), nullable=True, comment="最后扫描时间")
+    last_scan_at = Column(TZDateTime(), nullable=True, comment="最后扫描时间")
 
     # 时间戳
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
+        TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )
 
     # 索引

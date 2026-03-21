@@ -13,7 +13,7 @@ from sqlalchemy import (
     DECIMAL,
 )
 
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
@@ -44,11 +44,11 @@ class PTResource(BaseModel):
     seeders = Column(Integer, default=0, nullable=False, comment="做种数")
     leechers = Column(Integer, default=0, nullable=False, comment="下载数")
     completions = Column(Integer, default=0, nullable=False, comment="完成数")
-    last_seeder_update_at = Column(DateTime(timezone=True), nullable=True, comment="做种数最后更新时间")
+    last_seeder_update_at = Column(TZDateTime(), nullable=True, comment="做种数最后更新时间")
 
     # 促销信息
     promotion_type = Column(String(20), nullable=True, comment="促销类型: free/50%/2x/2x50%/none")
-    promotion_expire_at = Column(DateTime(timezone=True), nullable=True, comment="促销结束时间")
+    promotion_expire_at = Column(TZDateTime(), nullable=True, comment="促销结束时间")
     is_free = Column(Boolean, default=False, nullable=False, index=True, comment="是否免费")
     is_discount = Column(Boolean, default=False, nullable=False, comment="是否折扣")
     is_double_upload = Column(Boolean, default=False, nullable=False, comment="是否双倍上传")
@@ -87,12 +87,12 @@ class PTResource(BaseModel):
     origin_file_name = Column(String(500), nullable=True, comment="原始种子文件名")
     image_list = Column(JSON, nullable=True, comment="图片列表JSON数组")
     detail_fetched = Column(Boolean, default=False, nullable=False, comment="是否已获取详情")
-    detail_fetched_at = Column(DateTime(timezone=True), nullable=True, comment="详情获取时间")
+    detail_fetched_at = Column(TZDateTime(), nullable=True, comment="详情获取时间")
 
     # 豆瓣详细信息（通过豆瓣API获取）
     douban_info = Column(JSON, nullable=True, comment="豆瓣详细信息JSON")
     douban_fetched = Column(Boolean, default=False, nullable=False, comment="是否已获取豆瓣信息")
-    douban_fetched_at = Column(DateTime(timezone=True), nullable=True, comment="豆瓣信息获取时间")
+    douban_fetched_at = Column(TZDateTime(), nullable=True, comment="豆瓣信息获取时间")
 
     # 识别状态
     identification_status = Column(
@@ -109,8 +109,8 @@ class PTResource(BaseModel):
 
     # 状态和时间
     is_active = Column(Boolean, default=True, nullable=False, index=True, comment="是否有效")
-    last_check_at = Column(DateTime(timezone=True), nullable=True, comment="最后检查时间")
-    published_at = Column(DateTime(timezone=True), nullable=True, index=True, comment="发布时间")
+    last_check_at = Column(TZDateTime(), nullable=True, comment="最后检查时间")
+    published_at = Column(TZDateTime(), nullable=True, index=True, comment="发布时间")
 
     # 关系
     site = relationship("PTSite", backref="resources")

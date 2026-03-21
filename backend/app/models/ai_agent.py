@@ -5,12 +5,13 @@ AI Agent 相关数据库模型
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
 )
+
+from app.core.json_types import TZDateTime
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 
@@ -113,7 +114,7 @@ class AIAgentConfig(BaseModel):
         comment="状态: enabled, disabled, error",
     )
     last_test_at = Column(
-        DateTime(timezone=True),
+        TZDateTime(),
         nullable=True,
         comment="最后测试时间",
     )
@@ -187,7 +188,7 @@ class AIConversation(BaseModel):
         comment="消息数量",
     )
     last_message_at = Column(
-        DateTime(timezone=True),
+        TZDateTime(),
         nullable=True,
         comment="最后消息时间",
     )

@@ -2,10 +2,10 @@
 """
 调度任务数据模型
 """
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class ScheduledTask(BaseModel):
@@ -47,8 +47,8 @@ class ScheduledTask(BaseModel):
     retry_delay = Column(Integer, default=60, nullable=False, comment="重试延迟，秒")
 
     # 执行状态
-    next_run_at = Column(DateTime(timezone=True), nullable=True, comment="下次计划执行时间")
-    last_run_at = Column(DateTime(timezone=True), nullable=True, comment="最后执行时间")
+    next_run_at = Column(TZDateTime(), nullable=True, comment="下次计划执行时间")
+    last_run_at = Column(TZDateTime(), nullable=True, comment="最后执行时间")
     last_run_status = Column(String(20), nullable=True, comment="最后执行状态：success/failed/running")
     last_run_duration = Column(Integer, nullable=True, comment="最后执行耗时，秒")
 

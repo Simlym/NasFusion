@@ -2,11 +2,11 @@
 """
 统一人员（演员/导演/编剧）模型
 """
-from sqlalchemy import Column, Integer, String, Date, Boolean, DateTime, Text, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Date, Boolean, Text, ForeignKey, Float
 from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class UnifiedPerson(BaseModel):
@@ -37,7 +37,7 @@ class UnifiedPerson(BaseModel):
 
     # ============ 状态/元数据 ============
     detail_loaded = Column(Boolean, default=False, nullable=False, comment="详情是否已加载")
-    detail_loaded_at = Column(DateTime(timezone=True), nullable=True, comment="详情加载时间")
+    detail_loaded_at = Column(TZDateTime(), nullable=True, comment="详情加载时间")
     metadata_source = Column(String(20), nullable=True, comment="元数据来源")
     raw_data = Column(JSON, nullable=True, comment="原始API数据")
 

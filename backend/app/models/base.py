@@ -4,9 +4,10 @@ ORM基础模型
 """
 from typing import Any
 
-from sqlalchemy import Column, DateTime, Integer
+from sqlalchemy import Column, Integer
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 
+from app.core.json_types import TZDateTime
 from app.utils.timezone import now
 
 
@@ -20,13 +21,13 @@ class TimestampMixin:
     """时间戳Mixin"""
 
     created_at = Column(
-        DateTime(timezone=True),
+        TZDateTime(),
         default=now,
         nullable=False,
         comment="创建时间"
     )
     updated_at = Column(
-        DateTime(timezone=True),
+        TZDateTime(),
         default=now,
         onupdate=now,
         nullable=False,

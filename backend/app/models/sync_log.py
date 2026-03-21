@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.json_types import JSON, TZDateTime
 
 
 class SyncLog(BaseModel):
@@ -39,8 +39,8 @@ class SyncLog(BaseModel):
     )
 
     # 时间信息
-    started_at = Column(DateTime(timezone=True), nullable=False, comment="开始时间")
-    completed_at = Column(DateTime(timezone=True), nullable=True, comment="完成时间")
+    started_at = Column(TZDateTime(), nullable=False, comment="开始时间")
+    completed_at = Column(TZDateTime(), nullable=True, comment="完成时间")
     duration = Column(Integer, nullable=True, comment="耗时，秒")
 
     # 资源统计
