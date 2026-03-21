@@ -53,10 +53,10 @@ def to_system_tz(dt: datetime) -> datetime:
     tz = get_system_timezone()
 
     if dt.tzinfo is None:
-        # 如果是 naive datetime，直接假设为系统时区
-        # 注意：SQLite 存储的 datetime 没有时区信息，读取时是 naive datetime
-        # 但这些时间实际上是按系统时区存储的，所以直接 localize 即可
-        dt = tz.localize(dt)
+        # SQLAlchemy 对 DateTime(timezone=True) + SQLite：
+        # 写入 aware datetime 时转为 UTC 字符串存储，读出来是 naive UTC。
+        # 因此 naive datetime 应视为 UTC，再转换为系统时区。
+        dt = dt.replace(tzinfo=timezone.utc).astimezone(tz)
     else:
         # 如果有时区信息，转换为系统时区
         dt = dt.astimezone(tz)
@@ -136,12 +136,7 @@ def format_datetime(dt: Optional[datetime], format_str: str = "%Y-%m-%d %H:%M:%S
         return ""
 
     # 确保时间是本地时间
-    if dt.tzinfo is None:
-        # 假设数据库存储的是本地时间
-        local_dt = dt
-    else:
-        # 如果有时区信息，转换为本地时间
-        local_dt = dt.astimezone(get_system_timezone())
+    local_dt = to_system_tz(dt)
 
     return local_dt.strftime(format_str)
 
@@ -160,11 +155,7 @@ def format_iso_datetime(dt: Optional[datetime]) -> str:
         return ""
 
     # 确保时间是本地时间
-    if dt.tzinfo is None:
-        # 假设数据库存储的是本地时间
-        local_dt = dt
-    else:
-        local_dt = dt.astimezone(get_system_timezone())
+    local_dt = to_system_tz(dt)
 
     return local_dt.isoformat()
 
