@@ -261,6 +261,37 @@ async def delete_pt_site(
     return None
 
 
+@router.post("/{site_id}/refresh-profile", summary="刷新站点用户信息")
+async def refresh_site_user_profile(
+    site_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user),
+):
+    """
+    从站点获取最新的用户信息
+
+    包括：用户名、等级、上传量、下载量、分享率、做种数、做种量、积分、入站时间等
+    """
+    site = await PTSiteService.get_by_id(db, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="站点不存在")
+
+    profile = await PTSiteService.refresh_user_profile(db, site_id)
+
+    if profile is None:
+        return {
+            "success": False,
+            "message": "获取用户信息失败，请检查站点配置和连接",
+            "profile": None,
+        }
+
+    return {
+        "success": True,
+        "message": "用户信息已更新",
+        "profile": profile,
+    }
+
+
 @router.post("/{site_id}/test", summary="测试PT站点连接")
 async def test_pt_site_connection(
     site_id: int,

@@ -500,6 +500,66 @@ class PTSiteService:
             return False, f"连接测试失败: {str(e)}"
 
     @staticmethod
+    async def refresh_user_profile(
+        db: AsyncSession, site_id: int
+    ) -> Optional[dict]:
+        """
+        刷新站点用户信息
+
+        从站点获取最新的用户信息并保存到数据库
+
+        Args:
+            db: 数据库会话
+            site_id: 站点ID
+
+        Returns:
+            用户信息字典，失败返回 None
+        """
+        site = await PTSiteService.get_by_id(db, site_id)
+        if not site:
+            return None
+
+        try:
+            # 准备适配器配置
+            config = {
+                "name": site.name,
+                "base_url": site.base_url,
+                "domain": site.domain,
+                "proxy_config": site.proxy_config,
+                "request_interval": site.request_interval or 2,
+            }
+
+            # 解密认证信息
+            if site.auth_type == AUTH_TYPE_COOKIE and site.auth_cookie:
+                config["auth_cookie"] = encryption_util.decrypt(site.auth_cookie)
+            elif site.auth_type == AUTH_TYPE_PASSKEY and site.auth_passkey:
+                config["auth_passkey"] = encryption_util.decrypt(site.auth_passkey)
+            elif site.auth_type == AUTH_TYPE_USER_PASS:
+                if site.auth_username:
+                    config["auth_username"] = encryption_util.decrypt(site.auth_username)
+                if site.auth_password:
+                    config["auth_password"] = encryption_util.decrypt(site.auth_password)
+
+            adapter = get_adapter(site.type, config)
+            profile = await adapter.fetch_user_profile()
+
+            if profile:
+                # 处理无穷大值（JSON不支持Infinity）
+                if profile.get("ratio") == float("inf"):
+                    profile["ratio"] = -1  # 用 -1 表示无限
+
+                site.user_profile = profile
+                await db.commit()
+                await db.refresh(site)
+                logger.info(f"Refreshed user profile for site {site.name}")
+
+            return profile
+
+        except Exception as e:
+            logger.error(f"Failed to refresh user profile for site {site.name}: {str(e)}")
+            return None
+
+    @staticmethod
     def decrypt_auth_info(site: PTSite) -> dict:
         """
         解密站点认证信息

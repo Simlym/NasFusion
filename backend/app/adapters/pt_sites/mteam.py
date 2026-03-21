@@ -28,6 +28,29 @@ from app.constants import (
 logger = logging.getLogger(__name__)
 
 
+
+
+# MTeam 用户等级 role ID -> 等级名称映射
+MTEAM_ROLE_MAP = {
+    "1": "User",
+    "2": "Power User",
+    "3": "Elite User",
+    "4": "Crazy User",
+    "5": "Insane User",
+    "6": "Veteran User",
+    "7": "Extreme User",
+    "8": "Ultimate User",
+    "9": "Nexus Master",
+    "10": "VIP",
+    "11": "Retiree",
+    "12": "Uploader",
+    "13": "Moderator",
+    "14": "Administrator",
+    "15": "SysOp",
+    "16": "Staff Leader",
+}
+
+
 class MTeamAdapter(BasePTSiteAdapter):
     """MTeam站点适配器"""
 
@@ -884,6 +907,47 @@ class MTeamAdapter(BasePTSiteAdapter):
             error_msg = f"Error downloading torrent {resource_id}: {type(e).__name__} - {str(e) or 'Unknown error'}"
             logger.error(error_msg)
             raise Exception(error_msg)
+
+    async def fetch_user_profile(self) -> Optional[Dict[str, Any]]:
+        """
+        获取MTeam站点用户信息
+
+        Returns:
+            用户信息字典
+        """
+        try:
+            logger.info(f"Fetching user profile from {self.site_name}")
+
+            result = await self._make_request("/api/member/profile", method="POST", json_data={})
+            data = result.get("data", {})
+
+            if not data:
+                logger.warning(f"Empty user profile data from {self.site_name}")
+                return None
+
+            # 解析用户信息
+            member_count = data.get("memberCount", {})
+            profile = {
+                "id": str(data.get("id", "")),
+                "email": data.get("email", ""),
+                "username": data.get("username", ""),
+                "user_class": MTEAM_ROLE_MAP.get(str(data.get("role", "")), str(data.get("role", ""))),
+                "uploaded": int(member_count.get("uploaded", 0)),
+                "downloaded": int(member_count.get("downloaded", 0)),
+                "ratio": float(member_count.get("shareRate", 0)),
+                "seeding_count": int(member_count.get("seedingCount", 0) or 0),
+                "seeding_size": int(member_count.get("seedingSize", 0) or 0),
+                "bonus": float(member_count.get("bonus", 0)),
+                "publish_count": int(member_count.get("publishCount", 0) or 0),
+                "join_date": data.get("createdDate", ""),
+            }
+
+            logger.info(f"Fetched user profile for {profile['username']} from {self.site_name}")
+            return profile
+
+        except Exception as e:
+            logger.error(f"Error fetching user profile from {self.site_name}: {str(e)}")
+            return None
 
     async def health_check(self) -> bool:
         """

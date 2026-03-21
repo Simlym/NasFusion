@@ -1400,6 +1400,230 @@ class NexusPHPAdapter(BasePTSiteAdapter):
             logger.warning(f"[{self.site_name}] 处理首次下载确认失败: {e}")
             return content
 
+    async def fetch_user_profile(self) -> Optional[Dict[str, Any]]:
+        """
+        获取NexusPHP站点用户信息
+
+        搜索并参考 github 的解析策略：
+        1. 从首页 HTML 全文正则匹配用户ID、上传/下载量等（不依赖特定容器）
+        2. 从 userdetails.php 详情页获取等级、加入时间等
+
+        Returns:
+            用户信息字典
+        """
+        try:
+            logger.info(f"[{self.site_name}] Fetching user profile")
+
+            url = f"{self.base_url}/index.php"
+            response = await self._make_request(url)
+            html = response.text
+            soup = BeautifulSoup(html, "html.parser")
+
+            profile: Dict[str, Any] = {}
+
+            # --- 第一步：从首页提取用户ID和用户名 ---
+            # 直接在整个 HTML 中搜索 userdetails 链接
+            user_detail_match = re.search(r"userdetails\.php\?id=(\d+)", html)
+            if user_detail_match:
+                profile["id"] = user_detail_match.group(1)
+
+                # 用户名：查找包含 userdetails 链接中的文本
+                user_link = soup.find("a", href=lambda h: h and "userdetails.php" in h and f"id={profile['id']}" in h)
+                if user_link:
+                    # 优先取 <b> 标签中的文本（NexusPHP 常见格式）
+                    b_tag = user_link.find("b")
+                    if b_tag:
+                        profile["username"] = b_tag.get_text(strip=True)
+                    else:
+                        username_text = user_link.get_text(strip=True)
+                        if username_text:
+                            profile["username"] = username_text
+
+            if not profile.get("id"):
+                # Fallback: 查找任何 userdetails 链接
+                user_link = soup.find("a", href=lambda h: h and "userdetails.php" in h)
+                if user_link:
+                    href = user_link.get("href", "")
+                    id_match = re.search(r"id=(\d+)", href)
+                    if id_match:
+                        profile["id"] = id_match.group(1)
+                    profile["username"] = user_link.get_text(strip=True)
+
+            # --- 第二步：从首页 HTML 全文解析流量信息 ---
+            # 先清理干扰文本（如 #123, 100px 等），再用正则在全文匹配
+            cleaned_html = re.sub(r"#\d+", "", re.sub(r"\d+px", "", html))
+
+            # 上传量 - 排除"总上传"等前缀
+            upload_match = re.search(
+                r"[^总]上[传傳]量?[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                cleaned_html, re.IGNORECASE
+            )
+            if upload_match:
+                profile["uploaded_text"] = upload_match.group(1).strip()
+                profile["uploaded"] = self._parse_size_text(profile["uploaded_text"])
+
+            # 下载量 - 排除"总/子/影/力下载"等前缀
+            download_match = re.search(
+                r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                cleaned_html, re.IGNORECASE
+            )
+            if download_match:
+                profile["downloaded_text"] = download_match.group(1).strip()
+                profile["downloaded"] = self._parse_size_text(profile["downloaded_text"])
+
+            # 分享率
+            ratio_match = re.search(
+                r"分享率[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.]+|∞|inf|Inf|無限|无限)",
+                cleaned_html
+            )
+            if ratio_match:
+                ratio_str = ratio_match.group(1).strip()
+                if ratio_str in ("∞", "inf", "Inf", "無限", "无限"):
+                    profile["ratio"] = float("inf")
+                else:
+                    try:
+                        profile["ratio"] = float(ratio_str.replace(",", ""))
+                    except ValueError:
+                        pass
+
+            # 做种数
+            seeding_match = re.search(r"(?:做种|做種|Torrents seeding)\D*(\d+)", cleaned_html, re.IGNORECASE)
+            if seeding_match:
+                profile["seeding_count"] = int(seeding_match.group(1))
+
+            # 魔力值/积分 多层 fallback
+            bonus_link = soup.find("a", href=lambda h: h and "mybonus" in h)
+            if bonus_link:
+                bonus_text = bonus_link.get_text(strip=True)
+                bonus_num_match = re.search(r"([\d,.]+)", bonus_text)
+                if bonus_num_match:
+                    profile["bonus"] = float(bonus_num_match.group(1).replace(",", ""))
+            if not profile.get("bonus"):
+                bonus_match = re.search(
+                    r"mybonus[\[\]:：<>/a-zA-Z_\-=\"'\s#;.(使用魔力值豆]+\s*([\d,.]+)[<()&\s]",
+                    cleaned_html
+                )
+                if bonus_match:
+                    profile["bonus"] = float(bonus_match.group(1).replace(",", ""))
+            if not profile.get("bonus"):
+                bonus_match = re.search(
+                    r"(?:积分|魔力|魔力值|Bonus)[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.]+)",
+                    cleaned_html, re.IGNORECASE
+                )
+                if bonus_match:
+                    profile["bonus"] = float(bonus_match.group(1).replace(",", ""))
+
+            # --- 第三步：从 userdetails.php 详情页获取更多信息 ---
+            if profile.get("id"):
+                user_detail_url = f"{self.base_url}/userdetails.php?id={profile['id']}"
+                try:
+                    detail_resp = await self._make_request(user_detail_url)
+                    detail_html = detail_resp.text
+                    detail_soup = BeautifulSoup(detail_html, "html.parser")
+
+                    # 等级: 从表格行中查找
+                    # 查找 <td>等级</td> 或 <td>等級</td> 同行的下一个 <td>
+                    level_td = detail_soup.find("td", string=re.compile(r"^(等[级級])$"))
+                    if level_td:
+                        next_td = level_td.find_next_sibling("td")
+                        if next_td:
+                            # 优先取 img title（图片格式等级）
+                            level_img = next_td.find("img")
+                            if level_img and level_img.get("title"):
+                                profile["user_class"] = level_img["title"].strip()
+                            else:
+                                profile["user_class"] = next_td.get_text(strip=True)
+
+                    # 加入日期
+                    join_td = detail_soup.find("td", string=re.compile(r"^(加入日期|注册日期)$"))
+                    if join_td:
+                        next_td = join_td.find_next_sibling("td")
+                        if next_td:
+                            join_text = next_td.get_text(strip=True)
+                            # 提取日期部分（去掉括号中的时间描述）
+                            join_date_match = re.search(r"(\d{4}-\d{2}-\d{2})", join_text)
+                            if join_date_match:
+                                profile["join_date"] = join_date_match.group(1)
+
+                    # 邮箱
+                    detail_text = detail_soup.get_text()
+                    email_match = re.search(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", detail_text)
+                    if email_match:
+                        profile["email"] = email_match.group(0)
+
+                    # 如果首页没有获取到上传/下载量，从详情页补充
+                    if not profile.get("uploaded"):
+                        detail_cleaned = re.sub(r"#\d+", "", re.sub(r"\d+px", "", detail_html))
+                        up_match = re.search(
+                            r"[^总]上[传傳]量?[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                            detail_cleaned, re.IGNORECASE
+                        )
+                        if up_match:
+                            profile["uploaded_text"] = up_match.group(1).strip()
+                            profile["uploaded"] = self._parse_size_text(profile["uploaded_text"])
+
+                    if not profile.get("downloaded"):
+                        detail_cleaned = re.sub(r"#\d+", "", re.sub(r"\d+px", "", detail_html))
+                        dl_match = re.search(
+                            r"[^总子影力]下[载載]量?[:：_<>/a-zA-Z\-=\"'\s#;]+([\d,.\s]+[KMGTPI]*B)",
+                            detail_cleaned, re.IGNORECASE
+                        )
+                        if dl_match:
+                            profile["downloaded_text"] = dl_match.group(1).strip()
+                            profile["downloaded"] = self._parse_size_text(profile["downloaded_text"])
+
+                    # 魔力值补充（详情页中可能有更精确的值）
+                    if not profile.get("bonus"):
+                        bonus_td = detail_soup.find("td", string=re.compile(r"^(魔力值|猫粮|积分)$"))
+                        if bonus_td:
+                            next_td = bonus_td.find_next_sibling("td")
+                            if next_td:
+                                bonus_text = next_td.get_text(strip=True)
+                                bonus_num = re.search(r"([\d,.]+)", bonus_text)
+                                if bonus_num:
+                                    profile["bonus"] = float(bonus_num.group(1).replace(",", ""))
+
+                except Exception as e:
+                    logger.warning(f"[{self.site_name}] 获取用户详情页失败: {e}")
+
+            if not profile:
+                logger.warning(f"[{self.site_name}] 无法解析用户信息")
+                return None
+
+            logger.info(f"[{self.site_name}] Fetched user profile: {profile.get('username', 'Unknown')}")
+            return profile
+
+        except Exception as e:
+            logger.error(f"[{self.site_name}] 获取用户信息失败: {e}")
+            return None
+
+    @staticmethod
+    def _parse_size_text(size_text: str) -> int:
+        """
+        解析大小文本为字节数
+
+        Args:
+            size_text: 如 "1.5 TB", "500 GB"
+
+        Returns:
+            字节数
+        """
+        # 去掉逗号和多余空格
+        size_text = size_text.replace(",", "").strip()
+        match = re.match(r"([\d.]+)\s*([TGMKPI]+B)", size_text, re.IGNORECASE)
+        if not match:
+            # Fallback: 尝试旧格式
+            match = re.match(r"([\d.]+)\s*([TGMKB]+)", size_text, re.IGNORECASE)
+        if not match:
+            return 0
+
+        value = float(match.group(1))
+        # 统一处理 TiB/GiB 等格式（去掉 i）
+        unit = match.group(2).upper().replace("I", "")
+
+        units = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4, "PB": 1024**5}
+        return int(value * units.get(unit, 1))
+
     async def health_check(self) -> bool:
         """
         健康检查

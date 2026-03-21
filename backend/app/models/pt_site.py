@@ -57,6 +57,9 @@ class PTSite(BaseModel):
     health_check_at = Column(DateTime(timezone=True), nullable=True, comment="最后健康检查时间")
     health_status = Column(String(50), nullable=True, comment="健康状态: healthy/unhealthy")
 
+    # 站点用户信息（JSON格式存储用户名、等级、数据量等）
+    user_profile = Column(JSON, nullable=True, comment="站点用户信息")
+
     # 统计信息
     total_resources = Column(Integer, default=0, nullable=False, comment="总资源数")
     total_synced = Column(Integer, default=0, nullable=False, comment="已同步数")

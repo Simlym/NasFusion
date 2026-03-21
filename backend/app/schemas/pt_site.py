@@ -142,6 +142,7 @@ class PTSiteResponse(PTSiteBase):
     status: str
     health_check_at: Optional[datetime]
     health_status: Optional[str]
+    user_profile: Optional[Dict[str, Any]] = Field(None, description="站点用户信息")
     total_resources: int
     total_synced: int
     created_at: datetime

@@ -83,6 +83,27 @@ class BasePTSiteAdapter(ABC):
         """
         pass
 
+    async def fetch_user_profile(self) -> Optional[Dict[str, Any]]:
+        """
+        获取站点用户信息
+
+        Returns:
+            用户信息字典，包含字段如：
+            - username: 用户名
+            - user_class: 等级
+            - uploaded: 上传量（字节）
+            - downloaded: 下载量（字节）
+            - ratio: 分享率
+            - seeding_count: 做种数
+            - seeding_size: 做种量（字节）
+            - bonus: 积分/魔力值
+            - join_date: 入站时间
+            - publish_count: 发布数
+
+            未实现时返回 None
+        """
+        return None
+
 
 class BaseDownloaderAdapter(ABC):
     """下载器适配器基类"""

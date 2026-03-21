@@ -77,6 +77,11 @@ export function testSiteConnection(id: number) {
   return request.post<{ success: boolean; message: string }>(`/pt-sites/${id}/test`)
 }
 
+// 刷新站点用户信息
+export function refreshSiteProfile(id: number) {
+  return request.post<{ success: boolean; message: string; profile: Record<string, any> | null }>(`/pt-sites/${id}/refresh-profile`)
+}
+
 // 获取站点统计信息
 export function getSiteStats() {
   return request.get<

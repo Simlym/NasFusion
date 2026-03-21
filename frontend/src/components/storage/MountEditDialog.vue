@@ -37,8 +37,10 @@
           v-model="formData.host_path"
           placeholder="宿主机上的实际路径，可选"
           clearable
+          @input="hostPathManuallyEdited = true"
+          @clear="hostPathManuallyEdited = false"
         />
-        <div class="form-tips">仅用于显示和参考，不会影响实际挂载</div>
+        <div class="form-tips">根据容器路径自动推导，也可手动修改；仅用于显示和参考</div>
       </el-form-item>
 
       <el-form-item
@@ -98,6 +100,7 @@ import {
   type StorageMount,
   type StorageMountCreate
 } from '@/api/modules/storage'
+import { getDefaultBrowsePath } from '@/api/modules/filesystem'
 
 interface Props {
   modelValue: boolean
@@ -115,6 +118,8 @@ const emit = defineEmits<{
 
 const formRef = ref<FormInstance>()
 const saving = ref(false)
+const hostPathManuallyEdited = ref(false)
+const envInfo = ref<{ is_docker: boolean; default_path: string } | null>(null)
 
 const isEdit = computed(() => !!props.mount)
 
@@ -157,9 +162,51 @@ const visible = computed({
   set: (val) => emit('update:modelValue', val)
 })
 
+// 获取环境信息（只请求一次）
+async function fetchEnvInfo() {
+  if (envInfo.value !== null) return
+  try {
+    const res = await getDefaultBrowsePath()
+    envInfo.value = res.data
+  } catch {
+    envInfo.value = { is_docker: false, default_path: '/' }
+  }
+}
+
+// 根据容器路径推导宿主机路径
+function deriveHostPath(containerPath: string): string {
+  if (!envInfo.value || !containerPath) return ''
+  if (envInfo.value.is_docker) {
+    // Docker: 去掉 VOLUME_MOUNTS_BASE 前缀，如 /mnt/volume1/movies -> /volume1/movies
+    const base = envInfo.value.default_path.replace(/\/+$/, '')
+    if (containerPath.startsWith(base)) {
+      return containerPath.slice(base.length) || '/'
+    }
+    return containerPath
+  }
+  // 本地: 容器路径就是宿主机路径
+  return containerPath
+}
+
+// 监听容器路径变化，自动推导宿主机路径（仅在用户未手动编辑时）
+watch(() => formData.container_path, (newPath) => {
+  if (!hostPathManuallyEdited.value) {
+    formData.host_path = deriveHostPath(newPath)
+  }
+})
+
+// 对话框打开时获取环境信息
+watch(visible, (val) => {
+  if (val) {
+    fetchEnvInfo()
+    hostPathManuallyEdited.value = false
+  }
+})
+
 // 监听 mount 变化，初始化表单
 watch(() => props.mount, (mount) => {
   if (mount) {
+    hostPathManuallyEdited.value = true  // 编辑模式：保留已有的宿主机路径
     Object.assign(formData, {
       name: mount.name,
       mount_type: mount.mount_type,

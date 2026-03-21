@@ -69,10 +69,30 @@ export interface PTSite {
   status: 'active' | 'inactive' | 'error'
   health_check_at?: string
   health_status?: 'healthy' | 'unhealthy'
+  user_profile?: SiteUserProfile
   total_resources: number
   total_synced: number
   created_at: string
   updated_at: string
+}
+
+// 站点用户信息
+export interface SiteUserProfile {
+  id?: string
+  email?: string
+  username?: string
+  user_class?: string
+  uploaded?: number
+  uploaded_text?: string
+  downloaded?: number
+  downloaded_text?: string
+  ratio?: number
+  seeding_count?: number
+  seeding_size?: number
+  seeding_size_text?: string
+  bonus?: number
+  publish_count?: number
+  join_date?: string
 }
 
 // PT站点表单
