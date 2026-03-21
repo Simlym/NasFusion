@@ -109,8 +109,6 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
 
       # ===== 文件路径配置（容器内路径） =====
-      MEDIA_ROOT: /app/data/media
-      DOWNLOAD_PATH: /app/data/downloads
       TORRENT_PATH: /app/data/torrents
       LOG_PATH: /app/data/logs
 

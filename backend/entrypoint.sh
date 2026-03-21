@@ -62,12 +62,12 @@ fi
 
 # Create necessary data directories
 echo "Creating data directories..."
-mkdir -p /app/data/media /app/data/downloads /app/data/torrents /app/data/logs /app/data/cache/images
+mkdir -p /app/data/torrents /app/data/logs /app/data/cache/images
 
 # Check and verify directory permissions
 echo "Checking directory permissions..."
 
-for dir in /app/data/media /app/data/downloads /app/data/torrents /app/data/logs /app/data/cache; do
+for dir in /app/data/torrents /app/data/logs /app/data/cache; do
   if [ -d "$dir" ]; then
     # Check directory ownership
     DIR_UID=$(stat -c '%u' "$dir" 2>/dev/null || echo "0")

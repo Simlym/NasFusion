@@ -95,7 +95,7 @@ COPY --chown=${PUID}:${PGID} entrypoint.sh /usr/local/bin/entrypoint.sh
 # 一次性设置所有权限（确保没有权限问题）
 RUN chmod 755 /usr/local/bin/entrypoint.sh && \
     chmod -R 755 /app && \
-    mkdir -p /app/data/media /app/data/downloads /app/data/torrents /app/data/logs /app/data/cache && \
+    mkdir -p /app/data/torrents /app/data/logs /app/data/cache && \
     chown -R ${PUID}:${PGID} /app
 
 # 设置 Python 路径
