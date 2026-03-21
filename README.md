@@ -129,6 +129,10 @@ NasFusion/
 └── docker-compose.yml # Docker 编排
 ```
 
+## 社区
+
+欢迎加入 Telegram 群组交流讨论：[t.me/NasFusion](https://t.me/NasFusion)
+
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解贡献指南。
