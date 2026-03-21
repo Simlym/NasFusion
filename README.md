@@ -55,8 +55,14 @@ docker-compose up -d
 cd backend
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
-# 或 .venv\Scripts\activate  # Windows
+# 或 venv\Scripts\activate  # Windows
 pip install -r requirements.txt
+
+# ⚠️ 必须先配置环境变量，否则启动会报错
+cp .env.example .env
+# 编辑 .env，设置 SECRET_KEY 和 JWT_SECRET_KEY（至少 32 字符）
+# 快速生成密钥：python -c "import secrets; print(secrets.token_hex(32))"
+
 python -m app.main
 
 # 前端
