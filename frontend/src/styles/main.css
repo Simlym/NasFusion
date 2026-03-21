@@ -844,6 +844,21 @@ html.dark .el-text--info {
   color: var(--text-color-secondary, #A89DC0) !important;
 }
 
+/* 深色主题面包屑导航 */
+html.dark .el-breadcrumb__inner,
+html.dark .el-breadcrumb__separator {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+html.dark .el-breadcrumb__inner.is-link,
+html.dark .el-breadcrumb__inner a {
+  color: var(--text-color-regular, #D5CEE8) !important;
+}
+
+html.dark .el-breadcrumb__inner:hover {
+  color: var(--primary-color, #BD93F9) !important;
+}
+
 /* ========== 海洋主题 Element Plus 组件样式覆盖 ========== */
 
 /* 海洋主题表格样式 */
@@ -1142,6 +1157,21 @@ html.ocean .form-item-tips a {
 /* 海洋主题下覆盖 Element Plus 默认灰色文字 */
 html.ocean .el-text--info {
   color: var(--text-color-secondary, #8EAEC8) !important;
+}
+
+/* 海洋主题面包屑导航 */
+html.ocean .el-breadcrumb__inner,
+html.ocean .el-breadcrumb__separator {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+html.ocean .el-breadcrumb__inner.is-link,
+html.ocean .el-breadcrumb__inner a {
+  color: var(--text-color-regular, #C5DCF0) !important;
+}
+
+html.ocean .el-breadcrumb__inner:hover {
+  color: var(--primary-color, #38BDF8) !important;
 }
 
 /* 海洋主题 el-tooltip 弹出内容 */

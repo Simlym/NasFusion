@@ -91,6 +91,7 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { FolderOpened, Folder, Back } from '@element-plus/icons-vue'
 import request from '@/api/request'
+import { getDefaultBrowsePath } from '@/api/modules/filesystem'
 
 interface DirectoryItem {
   name: string
@@ -121,6 +122,7 @@ const directories = ref<DirectoryItem[]>([])
 const parentPath = ref<string | null>(null)
 const history = ref<string[]>([])
 const selectedPath = ref('')
+const defaultBrowsePath = ref<string | null>(null)
 
 // 路径分段（用于面包屑导航）
 const pathSegments = computed(() => {
@@ -168,11 +170,27 @@ async function browseDirectory(path: string) {
 }
 
 // 打开对话框时加载初始路径
-watch(dialogVisible, (visible) => {
+watch(dialogVisible, async (visible) => {
   if (visible) {
     history.value = []
     selectedPath.value = currentPath.value
-    browseDirectory(currentPath.value || '/')
+
+    // 如果已有路径值，直接使用
+    if (currentPath.value) {
+      browseDirectory(currentPath.value)
+      return
+    }
+
+    // 无路径时，尝试获取默认浏览路径（Docker 环境使用挂载基础目录）
+    if (defaultBrowsePath.value === null) {
+      try {
+        const res = await getDefaultBrowsePath()
+        defaultBrowsePath.value = res.data.default_path || '/'
+      } catch {
+        defaultBrowsePath.value = '/'
+      }
+    }
+    browseDirectory(defaultBrowsePath.value!)
   }
 })
 
@@ -248,7 +266,8 @@ function formatDate(dateString: string): string {
   gap: 12px;
   margin-bottom: 16px;
   padding: 12px;
-  background: #f5f7fa;
+  background: var(--bg-color-overlay);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
@@ -260,8 +279,13 @@ function formatDate(dateString: string): string {
   cursor: pointer;
 }
 
+.path-navigator :deep(.el-breadcrumb__inner),
+.path-navigator :deep(.el-breadcrumb__separator) {
+  color: var(--text-color-regular);
+}
+
 .path-navigator :deep(.el-breadcrumb__item:hover .el-breadcrumb__inner) {
-  color: var(--el-color-primary);
+  color: var(--primary-color);
 }
 
 .directory-name {

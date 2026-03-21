@@ -15,8 +15,11 @@ from app.schemas.file_system import (
     DiskInfo,
     CreateDirectoryRequest,
     CreateDirectoryResponse,
-    PermissionsResponse
+    PermissionsResponse,
+    DefaultBrowsePathResponse,
 )
+from app.services.storage.storage_mount_service import StorageMountService
+from app.core.config import settings
 
 router = APIRouter(prefix="/file-system", tags=["文件系统"])
 
@@ -88,6 +91,23 @@ async def create_directory(
         request.recursive
     )
     return result
+
+
+@router.get("/default-browse-path", response_model=DefaultBrowsePathResponse)
+async def get_default_browse_path(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    获取默认目录浏览起始路径
+
+    Docker 环境返回 VOLUME_MOUNTS_BASE（卷挂载基础目录），本地环境返回 /
+    """
+    is_docker = StorageMountService.is_docker_environment()
+    default_path = settings.VOLUME_MOUNTS_BASE if is_docker else "/"
+    return DefaultBrowsePathResponse(
+        is_docker=is_docker,
+        default_path=default_path,
+    )
 
 
 @router.get("/check-permissions", response_model=PermissionsResponse)

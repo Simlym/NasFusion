@@ -68,6 +68,13 @@ export function createDirectory(path: string, recursive: boolean = true) {
   })
 }
 
+// 获取默认浏览路径
+export function getDefaultBrowsePath() {
+  return request.get<{ is_docker: boolean; default_path: string }>(
+    '/file-system/default-browse-path'
+  )
+}
+
 // 检查权限
 export function checkPermissions(path: string) {
   return request.get<{ readable: boolean; writable: boolean; executable: boolean }>(

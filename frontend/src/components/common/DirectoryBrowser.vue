@@ -179,7 +179,8 @@ watch(
 .path-navigation {
   margin-bottom: 16px;
   padding: 10px;
-  background-color: #f5f7fa;
+  background-color: var(--bg-color-overlay);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
 }
 
@@ -188,16 +189,18 @@ watch(
 }
 
 .breadcrumb-item:hover {
-  color: #409eff;
+  color: var(--primary-color);
 }
 
 .selected-path {
   margin-top: 16px;
   padding: 10px;
-  background-color: #f0f9ff;
+  background-color: var(--bg-color-overlay);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-color-primary);
 }
 </style>

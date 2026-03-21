@@ -59,3 +59,9 @@ class PermissionsResponse(BaseModel):
     readable: bool = Field(..., description="是否可读")
     writable: bool = Field(..., description="是否可写")
     executable: bool = Field(..., description="是否可执行")
+
+
+class DefaultBrowsePathResponse(BaseModel):
+    """默认浏览路径响应"""
+    is_docker: bool = Field(..., description="是否Docker环境")
+    default_path: str = Field(..., description="默认浏览起始路径")
