@@ -340,7 +340,7 @@ const countryOptions = [
   '中国大陆', '美国', '香港', '台湾', '日本', '韩国', '英国', '法国', '德国', '其他'
 ]
 
-const yearOptions = [2025, 2024, 2023, 2022, 2021, 2020, 2019]
+const yearOptions = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019]
 
 const ratingOptions = [
   { label: '9分以上', value: 9 },
