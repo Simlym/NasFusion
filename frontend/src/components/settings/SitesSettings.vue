@@ -10,7 +10,8 @@
         </el-select>
       </div>
       <div class="toolbar-right">
-        <el-button v-if="sites.length > 0" :icon="Refresh" :loading="batchRefreshing" @click="handleBatchRefreshProfile">批量刷新</el-button>
+        <el-button v-if="sites.length > 0" :icon="Refresh" :loading="batchRefreshing"
+          @click="handleBatchRefreshProfile">批量刷新</el-button>
         <el-button type="primary" :icon="Plus" @click="handleQuickCreate">快速添加</el-button>
         <el-button :icon="Setting" @click="handleCreate">手动配置</el-button>
         <el-button-group>
@@ -22,7 +23,8 @@
 
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="site-cards">
-      <div v-for="site in sites" :key="site.id" class="site-card" :class="{ 'site-card--error': site.status === 'error' }">
+      <div v-for="site in sites" :key="site.id" class="site-card"
+        :class="{ 'site-card--error': site.status === 'error' }">
         <!-- 卡片头部 -->
         <div class="card-header">
           <div class="card-title-row">
@@ -41,10 +43,18 @@
             <el-button :icon="MoreFilled" text circle />
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="edit"><el-icon><Edit /></el-icon> 编辑配置</el-dropdown-item>
-                <el-dropdown-item command="refresh-profile"><el-icon><User /></el-icon> 刷新用户信息</el-dropdown-item>
-                <el-dropdown-item command="sync-metadata"><el-icon><Refresh /></el-icon> 同步站点元数据</el-dropdown-item>
-                <el-dropdown-item divided command="delete"><el-icon><Delete /></el-icon> 删除站点</el-dropdown-item>
+                <el-dropdown-item command="edit"><el-icon>
+                    <Edit />
+                  </el-icon> 编辑配置</el-dropdown-item>
+                <el-dropdown-item command="refresh-profile"><el-icon>
+                    <User />
+                  </el-icon> 刷新用户信息</el-dropdown-item>
+                <el-dropdown-item command="sync-metadata"><el-icon>
+                    <Refresh />
+                  </el-icon> 同步站点元数据</el-dropdown-item>
+                <el-dropdown-item divided command="delete"><el-icon>
+                    <Delete />
+                  </el-icon> 删除站点</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -54,7 +64,9 @@
         <div v-if="site.user_profile" class="user-profile-section">
           <div class="profile-header">
             <span class="profile-username">
-              <el-icon :size="12"><User /></el-icon>
+              <el-icon :size="12">
+                <User />
+              </el-icon>
               {{ site.user_profile.username || '-' }}
             </span>
             <el-tag v-if="site.user_profile.user_class" size="small" effect="plain" type="warning">
@@ -64,15 +76,19 @@
           <div class="profile-stats">
             <div class="profile-stat">
               <span class="profile-stat-label">上传</span>
-              <span class="profile-stat-value">{{ site.user_profile.uploaded_text || formatFileSize(site.user_profile.uploaded || 0) }}</span>
+              <span class="profile-stat-value">{{ site.user_profile.uploaded_text ||
+                formatFileSize(site.user_profile.uploaded
+                || 0) }}</span>
             </div>
             <div class="profile-stat">
               <span class="profile-stat-label">下载</span>
-              <span class="profile-stat-value">{{ site.user_profile.downloaded_text || formatFileSize(site.user_profile.downloaded || 0) }}</span>
+              <span class="profile-stat-value">{{ site.user_profile.downloaded_text ||
+                formatFileSize(site.user_profile.downloaded || 0) }}</span>
             </div>
             <div class="profile-stat">
               <span class="profile-stat-label">分享率</span>
-              <span class="profile-stat-value" :class="{ 'ratio-good': (site.user_profile.ratio ?? 0) >= 1 || site.user_profile.ratio === -1 }">
+              <span class="profile-stat-value"
+                :class="{ 'ratio-good': (site.user_profile.ratio ?? 0) >= 1 || site.user_profile.ratio === -1 }">
                 {{ formatRatio(site.user_profile.ratio) }}
               </span>
             </div>
@@ -80,34 +96,34 @@
               <span class="profile-stat-label">做种</span>
               <span class="profile-stat-value">{{ site.user_profile.seeding_count ?? '-' }}</span>
             </div>
-            <div v-if="site.user_profile.seeding_size || site.user_profile.seeding_size_text" class="profile-stat">
+            <div class="profile-stat">
               <span class="profile-stat-label">做种量</span>
-              <span class="profile-stat-value">{{ site.user_profile.seeding_size_text || formatFileSize(site.user_profile.seeding_size || 0) }}</span>
+              <span class="profile-stat-value">{{ site.user_profile.seeding_size_text || (site.user_profile.seeding_size
+                ?
+                formatFileSize(site.user_profile.seeding_size) : '-') }}</span>
             </div>
             <div class="profile-stat">
               <span class="profile-stat-label">积分</span>
-              <span class="profile-stat-value">{{ site.user_profile.bonus != null ? formatNumber(Math.floor(site.user_profile.bonus)) : '-' }}</span>
-            </div>
-            <div v-if="site.user_profile.publish_count != null" class="profile-stat">
-              <span class="profile-stat-label">发布</span>
-              <span class="profile-stat-value">{{ site.user_profile.publish_count }}</span>
-            </div>
-            <div v-if="site.user_profile.join_date" class="profile-stat">
-              <span class="profile-stat-label">入站</span>
-              <span class="profile-stat-value">{{ site.user_profile.join_date.substring(0, 10) }}</span>
+              <span class="profile-stat-value">{{ site.user_profile.bonus != null ?
+                formatNumber(Math.floor(site.user_profile.bonus)) : '-' }}</span>
             </div>
           </div>
         </div>
         <div v-else class="user-profile-empty">
-          <el-button link type="primary" size="small" :loading="refreshingProfileId === site.id" @click="handleRefreshProfile(site)">
-            <el-icon><User /></el-icon> 获取用户信息
+          <el-button link type="primary" size="small" :loading="refreshingProfileId === site.id"
+            @click="handleRefreshProfile(site)">
+            <el-icon>
+              <User />
+            </el-icon> 获取用户信息
           </el-button>
         </div>
       </div>
 
       <!-- 添加站点占位卡 -->
       <div class="site-card site-card--add" @click="handleQuickCreate">
-        <el-icon :size="32" color="var(--text-color-muted)"><Plus /></el-icon>
+        <el-icon :size="32" color="var(--text-color-muted)">
+          <Plus />
+        </el-icon>
         <span class="add-text">添加站点</span>
       </div>
     </div>
@@ -115,7 +131,7 @@
     <!-- 表格视图 -->
     <div v-if="viewMode === 'table'" v-loading="loading">
       <el-table :data="sites" style="width: 100%" @sort-change="handleSortChange">
-        <el-table-column prop="name" label="站点" width="140" sortable="custom">
+        <el-table-column prop="name" label="站点" min-width="140" show-overflow-tooltip sortable="custom">
           <template #default="{ row }">
             <div class="table-site-name">
               <div class="site-logo site-logo--sm" :style="{ background: getSiteColor(row.type) }">
@@ -125,7 +141,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="health_status" label="状态" width="80">
+        <el-table-column prop="health_status" label="健康" width="75">
           <template #default="{ row }">
             <span class="status-badge" :class="'badge--' + (row.health_status || 'unknown')">
               <span class="status-dot" :class="'dot--' + (row.health_status || 'unknown')"></span>
@@ -133,53 +149,97 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="用户" width="120">
+        <!-- <el-table-column label="同步" width="75">
           <template #default="{ row }">
-            <template v-if="row.user_profile">
-              <div class="table-profile-name">{{ row.user_profile.username || '-' }}</div>
-              <el-tag v-if="row.user_profile.user_class" size="small" effect="plain" type="warning">{{ row.user_profile.user_class }}</el-tag>
-            </template>
-            <el-button v-else link type="primary" size="small" :loading="refreshingProfileId === row.id" @click="handleRefreshProfile(row)">获取</el-button>
+            <el-tag v-if="row.sync_enabled" size="small" type="success">启用</el-tag>
+            <el-tag v-else size="small" type="info">禁用</el-tag>
+          </template>
+        </el-table-column> -->
+
+        <el-table-column label="用户名" min-width="100" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.user_profile?.username" class="table-cell-value">{{ row.user_profile.username }}</span>
+            <el-button v-else link type="primary" size="small" :loading="refreshingProfileId === row.id"
+              @click="handleRefreshProfile(row)">获取</el-button>
           </template>
         </el-table-column>
-        <el-table-column label="上传" width="100">
+        <el-table-column label="等级" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="row.user_profile" class="table-cell-value">{{ row.user_profile.uploaded_text || formatFileSize(row.user_profile.uploaded || 0) }}</span>
+            <el-tag v-if="row.user_profile?.user_class" size="small" effect="plain" type="warning">{{
+              row.user_profile.user_class }}</el-tag>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="下载" width="100">
+        <el-table-column label="邮箱" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="row.user_profile" class="table-cell-value">{{ row.user_profile.downloaded_text || formatFileSize(row.user_profile.downloaded || 0) }}</span>
+            <span v-if="row.user_profile?.email" class="table-cell-value">{{ row.user_profile.email }}</span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="分享率" width="80">
+        <el-table-column label="上传" width="85">
           <template #default="{ row }">
-            <span v-if="row.user_profile" class="table-cell-value" :class="{ 'ratio-good': (row.user_profile.ratio ?? 0) >= 1 || row.user_profile.ratio === -1 }">
+            <span v-if="row.user_profile" class="table-cell-value">{{ row.user_profile.uploaded_text ||
+              formatFileSize(row.user_profile.uploaded || 0) }}</span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="下载" width="85">
+          <template #default="{ row }">
+            <span v-if="row.user_profile" class="table-cell-value">{{ row.user_profile.downloaded_text ||
+              formatFileSize(row.user_profile.downloaded || 0) }}</span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="分享率" width="70">
+          <template #default="{ row }">
+            <span v-if="row.user_profile" class="table-cell-value"
+              :class="{ 'ratio-good': (row.user_profile.ratio ?? 0) >= 1 || row.user_profile.ratio === -1 }">
               {{ formatRatio(row.user_profile.ratio) }}
             </span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="做种" width="80">
+        <el-table-column label="做种" width="60">
           <template #default="{ row }">
             <span v-if="row.user_profile" class="table-cell-value">{{ row.user_profile.seeding_count ?? '-' }}</span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="做种量" width="100">
+        <el-table-column label="做种量" width="85">
           <template #default="{ row }">
-            <span v-if="row.user_profile && (row.user_profile.seeding_size || row.user_profile.seeding_size_text)" class="table-cell-value">
+            <span v-if="row.user_profile && (row.user_profile.seeding_size || row.user_profile.seeding_size_text)"
+              class="table-cell-value">
               {{ row.user_profile.seeding_size_text || formatFileSize(row.user_profile.seeding_size || 0) }}
             </span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="积分" width="100">
+        <el-table-column label="积分" width="85">
           <template #default="{ row }">
-            <span v-if="row.user_profile?.bonus != null" class="table-cell-value">{{ formatNumber(Math.floor(row.user_profile.bonus)) }}</span>
+            <span v-if="row.user_profile?.bonus != null" class="table-cell-value">{{
+              formatNumber(Math.floor(row.user_profile.bonus)) }}</span>
             <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="入站时间" width="95">
+          <template #default="{ row }">
+            <span v-if="row.user_profile?.join_date" class="table-cell-value">{{ formatDate(row.user_profile.join_date)
+              }}</span>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="同步状态" width="85">
+          <template #default="{ row }">
+            <el-tag v-if="row.last_sync_status" size="small" :type="getSyncStatusType(row.last_sync_status)">
+              {{ getSyncStatusLabel(row.last_sync_status) }}
+            </el-tag>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="最后同步" width="115">
+          <template #default="{ row }">
+            <span v-if="row.last_sync_at" class="table-cell-value">{{ formatDateTime(row.last_sync_at) }}</span>
+            <span v-else class="text-muted">未同步</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
@@ -197,29 +257,16 @@
     </el-empty>
 
     <!-- 分页 -->
-    <el-pagination
-      v-if="total > pagination.page_size"
-      v-model:current-page="pagination.page"
-      v-model:page-size="pagination.page_size"
-      class="pagination"
-      :total="total"
-      :page-sizes="[10, 20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      @current-change="loadSites"
-      @size-change="loadSites"
-    />
+    <el-pagination v-if="total > pagination.page_size" v-model:current-page="pagination.page"
+      v-model:page-size="pagination.page_size" class="pagination" :total="total" :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next" @current-change="loadSites" @size-change="loadSites" />
 
     <!-- 快速添加对话框（从预设创建） -->
     <el-dialog v-model="quickDialogVisible" title="快速添加站点" width="500px" @close="handleQuickDialogClose">
       <el-form ref="quickFormRef" :model="quickForm" :rules="quickRules" label-width="100px">
         <el-form-item label="选择站点" prop="preset_id">
           <el-select v-model="quickForm.preset_id" placeholder="请选择站点" style="width: 100%" @change="handlePresetChange">
-            <el-option
-              v-for="preset in presets"
-              :key="preset.id"
-              :label="preset.display_name"
-              :value="preset.id"
-            >
+            <el-option v-for="preset in presets" :key="preset.id" :label="preset.display_name" :value="preset.id">
               <span>{{ preset.display_name }}</span>
               <span style="color: #8492a6; font-size: 12px; margin-left: 8px">{{ preset.description }}</span>
             </el-option>
@@ -227,27 +274,15 @@
         </el-form-item>
 
         <template v-if="selectedPreset">
-          <el-alert
-            :title="`${selectedPreset.display_name} - ${selectedPreset.description}`"
-            type="info"
-            :closable="false"
-            style="margin-bottom: 16px"
-          />
+          <el-alert :title="`${selectedPreset.display_name} - ${selectedPreset.description}`" type="info"
+            :closable="false" style="margin-bottom: 16px" />
 
           <el-form-item v-if="selectedPreset.auth_fields?.includes('cookie')" label="Cookie" prop="auth_cookie">
-            <el-input
-              v-model="quickForm.auth_cookie"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入Cookie（从浏览器开发者工具复制）"
-            />
+            <el-input v-model="quickForm.auth_cookie" type="textarea" :rows="3" placeholder="请输入Cookie（从浏览器开发者工具复制）" />
           </el-form-item>
 
           <el-form-item v-if="selectedPreset.auth_fields?.includes('passkey')" label="Passkey" prop="auth_passkey">
-            <el-input
-              v-model="quickForm.auth_passkey"
-              placeholder="请输入Passkey（从站点控制面板获取）"
-            />
+            <el-input v-model="quickForm.auth_passkey" placeholder="请输入Passkey（从站点控制面板获取）" />
           </el-form-item>
 
           <el-collapse>
@@ -272,8 +307,7 @@
     </el-dialog>
 
     <!-- 手动配置对话框 -->
-    <el-dialog
-      v-model="dialogVisible" :title="dialogMode === 'create' ? '手动添加站点' : '编辑站点'" width="800px"
+    <el-dialog v-model="dialogVisible" :title="dialogMode === 'create' ? '手动添加站点' : '编辑站点'" width="800px"
       @close="handleDialogClose">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="140px">
         <el-tabs v-model="activeTab">
@@ -283,8 +317,7 @@
             </el-form-item>
             <el-form-item label="站点类型" prop="type">
               <el-select v-model="form.type" placeholder="请选择站点类型">
-                <el-option
-                  v-for="option in SITE_TYPE_OPTIONS" :key="option.value" :label="option.label"
+                <el-option v-for="option in SITE_TYPE_OPTIONS" :key="option.value" :label="option.label"
                   :value="option.value" />
               </el-select>
             </el-form-item>
@@ -299,27 +332,24 @@
           <el-tab-pane label="认证配置" name="auth">
             <el-form-item label="认证方式" prop="auth_type">
               <el-select v-model="form.auth_type" placeholder="请选择认证方式">
-                <el-option
-                  v-for="option in AUTH_TYPE_OPTIONS" :key="option.value" :label="option.label"
+                <el-option v-for="option in AUTH_TYPE_OPTIONS" :key="option.value" :label="option.label"
                   :value="option.value" />
               </el-select>
             </el-form-item>
             <el-form-item v-if="form.auth_type === 'cookie'" label="Cookie" prop="auth_cookie">
-              <el-input
-                v-model="form.auth_cookie" type="textarea" :rows="3" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_cookie
-                  ? '已保存（留空则不修改）'
-                  : '请输入Cookie'
-                  " />
+              <el-input v-model="form.auth_cookie" type="textarea" :rows="3" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_cookie
+                ? '已保存（留空则不修改）'
+                : '请输入Cookie'
+                " />
               <el-text v-if="dialogMode === 'edit' && currentEditSite?.has_auth_cookie" type="success" size="small">
                 Cookie 已保存，留空则保持不变
               </el-text>
             </el-form-item>
             <el-form-item v-if="form.auth_type === 'passkey'" label="Passkey" prop="auth_passkey">
-              <el-input
-                v-model="form.auth_passkey" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_passkey
-                  ? '已保存（留空则不修改）'
-                  : '请输入Passkey'
-                  " />
+              <el-input v-model="form.auth_passkey" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_passkey
+                ? '已保存（留空则不修改）'
+                : '请输入Passkey'
+                " />
               <el-text v-if="dialogMode === 'edit' && currentEditSite?.has_auth_passkey" type="success" size="small">
                 Passkey 已保存，留空则保持不变
               </el-text>
@@ -329,11 +359,10 @@
                 <el-input v-model="form.auth_username" placeholder="请输入用户名" />
               </el-form-item>
               <el-form-item label="密码" prop="auth_password">
-                <el-input
-                  v-model="form.auth_password" type="password" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_password
-                    ? '已保存（留空则不修改）'
-                    : '请输入密码'
-                    " show-password />
+                <el-input v-model="form.auth_password" type="password" :placeholder="dialogMode === 'edit' && currentEditSite?.has_auth_password
+                  ? '已保存（留空则不修改）'
+                  : '请输入密码'
+                  " show-password />
                 <el-text v-if="dialogMode === 'edit' && currentEditSite?.has_auth_password" type="success" size="small">
                   密码已保存，留空则保持不变
                 </el-text>
@@ -731,6 +760,48 @@ const formatRatio = (ratio?: number) => {
   return ratio.toFixed(2)
 }
 
+// 格式化日期（仅日期部分）
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return dateStr.substring(0, 10)
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-')
+}
+
+// 格式化日期时间
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return dateStr
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-')
+}
+
+// 获取同步状态类型
+const getSyncStatusType = (status?: string) => {
+  const typeMap: Record<string, any> = {
+    'success': 'success',
+    'completed': 'success',
+    'failed': 'danger',
+    'error': 'danger',
+    'running': 'primary',
+    'pending': 'info'
+  }
+  return typeMap[status || ''] || 'info'
+}
+
+// 获取同步状态标签
+const getSyncStatusLabel = (status?: string) => {
+  const labelMap: Record<string, string> = {
+    'success': '成功',
+    'completed': '完成',
+    'failed': '失败',
+    'error': '错误',
+    'running': '同步中',
+    'pending': '待同步'
+  }
+  return labelMap[status || ''] || status
+}
+
 // 卡片菜单命令
 const handleCardCommand = async (command: string, site: PTSite) => {
   switch (command) {
@@ -951,12 +1022,35 @@ onMounted(() => { loadSites() })
   width: fit-content;
 }
 
-.badge--active { background: rgba(16, 185, 129, 0.08); color: var(--success-color); }
-.badge--healthy { background: rgba(16, 185, 129, 0.08); color: var(--success-color); }
-.badge--inactive { background: rgba(148, 163, 184, 0.1); color: var(--text-color-muted); }
-.badge--error { background: rgba(239, 68, 68, 0.08); color: var(--danger-color); }
-.badge--unhealthy { background: rgba(245, 158, 11, 0.08); color: var(--warning-color); }
-.badge--unknown { background: rgba(148, 163, 184, 0.1); color: var(--text-color-muted); }
+.badge--active {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success-color);
+}
+
+.badge--healthy {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--success-color);
+}
+
+.badge--inactive {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-color-muted);
+}
+
+.badge--error {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger-color);
+}
+
+.badge--unhealthy {
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--warning-color);
+}
+
+.badge--unknown {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-color-muted);
+}
 
 .status-dot {
   display: inline-block;
@@ -966,10 +1060,23 @@ onMounted(() => { loadSites() })
   flex-shrink: 0;
 }
 
-.dot--active, .dot--healthy { background: var(--success-color); }
-.dot--inactive, .dot--unknown { background: var(--text-color-muted); }
-.dot--error { background: var(--danger-color); }
-.dot--unhealthy { background: var(--warning-color); }
+.dot--active,
+.dot--healthy {
+  background: var(--success-color);
+}
+
+.dot--inactive,
+.dot--unknown {
+  background: var(--text-color-muted);
+}
+
+.dot--error {
+  background: var(--danger-color);
+}
+
+.dot--unhealthy {
+  background: var(--warning-color);
+}
 
 /* 用户信息 */
 .user-profile-section {
@@ -1003,8 +1110,8 @@ onMounted(() => { loadSites() })
 
 .profile-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 6px 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 40px;
 }
 
 .profile-stat {
