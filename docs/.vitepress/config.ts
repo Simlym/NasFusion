@@ -11,7 +11,6 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    logo: '/logo.png',
     siteTitle: 'NasFusion',
 
     nav: [

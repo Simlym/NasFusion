@@ -46,7 +46,7 @@ docker-compose up -d
 # http://localhost:8080
 ```
 
-详细部署说明参见 [Docker 部署指南](README.docker.md)。
+详细部署说明参见[在线文档 → Docker 部署](https://simlym.github.io/NasFusion/deploy/docker)。
 
 ### 本地开发
 
@@ -102,11 +102,7 @@ npm run dev
 
 ## 文档
 
-- [在线文档](https://simlym.github.io/NasFusion/)
-- [Docker 部署指南](README.docker.md)
-- [快速入门](QUICKSTART.md)
-- [项目开发指南](CLAUDE.md)
-- [后端文档](backend/docs/)
+完整文档（部署指南、功能介绍、配置说明）：[simlym.github.io/NasFusion](https://simlym.github.io/NasFusion/)
 
 ## 项目结构
 

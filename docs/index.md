@@ -5,9 +5,6 @@ hero:
   name: "NasFusion"
   text: "PT 媒体资源管理系统"
   tagline: 以 PT 站点为起点，全生命周期管理你的媒体库。同步、识别、追剧、整理，一步到位。
-  image:
-    src: /images/hero.png
-    alt: NasFusion
   actions:
     - theme: brand
       text: 快速开始
