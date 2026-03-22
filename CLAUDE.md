@@ -35,6 +35,15 @@ backend/
 │   ├── models/            # SQLAlchemy 模型
 │   ├── schemas/           # Pydantic 模型（数据验证）
 │   ├── services/          # 业务逻辑层
+│   │   └── ai_agent/      # AI Agent 服务
+│   │       ├── agent_service.py    # AI Agent 核心服务
+│   │       ├── tool_registry.py    # 工具注册表（BaseTool）
+│   │       ├── context.py          # 用户上下文（共享基础设施）
+│   │       ├── telegram_handler.py # Telegram 集成
+│   │       ├── tools/              # 内置工具（单步操作）
+│   │       ├── skills/             # 高级技能/工作流（预留）
+│   │       ├── mcp_server/         # 对外暴露 MCP 服务
+│   │       └── mcp_client/         # 调用外部 MCP 服务
 │   ├── tasks/             # 任务处理器（Task Handlers）
 │   ├── utils/             # 工具函数
 │   └── main.py            # FastAPI 应用入口
