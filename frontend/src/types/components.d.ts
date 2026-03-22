@@ -89,6 +89,7 @@ declare module 'vue' {
     LoadingBar: typeof import('./../components/common/LoadingBar.vue')['default']
     LoginSecurity: typeof import('./../components/settings/LoginSecurity.vue')['default']
     MainLayout: typeof import('./../components/layout/MainLayout.vue')['default']
+    MCPServerSettings: typeof import('./../components/settings/MCPServerSettings.vue')['default']
     MediaLibrary: typeof import('./../components/media/MediaLibrary.vue')['default']
     MediaLibrarySettings: typeof import('./../components/settings/MediaLibrarySettings.vue')['default']
     MediaScrapingSettings: typeof import('./../components/settings/MediaScrapingSettings.vue')['default']

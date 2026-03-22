@@ -17,6 +17,7 @@
       <MediaScrapingSettings v-else-if="activeTab === 'metadata'" />
       <SystemSettings v-else-if="activeTab === 'advanced'" />
       <UsersManagement v-else-if="activeTab === 'users' && isAdmin" />
+      <MCPServerSettings v-else-if="activeTab === 'mcp-servers'" />
       <LoginSecurity v-else-if="activeTab === 'login-security'" />
     </div>
   </div>
@@ -32,6 +33,7 @@ import MediaScrapingSettings from '@/components/settings/MediaScrapingSettings.v
 import SystemSettings from '@/components/settings/SystemSettings.vue'
 import StorageSettings from '@/components/settings/StorageSettings.vue'
 import LoginSecurity from '@/components/settings/LoginSecurity.vue'
+import MCPServerSettings from '@/components/settings/MCPServerSettings.vue'
 
 const route = useRoute()
 const router = useRouter()

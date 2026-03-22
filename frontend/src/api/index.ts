@@ -22,6 +22,7 @@ import * as dashboardApi from './modules/dashboard'
 import * as aiAgentApi from './modules/aiAgent'
 import * as personApi from './modules/person'
 import * as loginHistoryApi from './modules/loginHistory'
+import * as mcpServerApi from './modules/mcpServer'
 
 
 export default {
@@ -45,6 +46,7 @@ export default {
   aiAgent: aiAgentApi,
   person: personApi,
   loginHistory: loginHistoryApi,
+  mcpServer: mcpServerApi,
 }
 
 
