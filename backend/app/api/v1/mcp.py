@@ -11,65 +11,21 @@ MCP API 接口
    - POST /mcp/messages  SSE 消息投递
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
 from app.models import User
+from app.schemas.mcp import MCPServerCreate, MCPServerResponse, MCPServerUpdate
 from app.services.ai_agent.mcp_client.service import MCPService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/mcp", tags=["MCP"])
 
 _bearer = HTTPBearer(auto_error=False)
-
-
-# ===== Pydantic 请求/响应模型 =====
-
-class MCPServerCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    transport_type: str = "http"
-    url: Optional[str] = None
-    command: Optional[str] = None
-    command_args: Optional[List[str]] = None
-    env_vars: Optional[Dict[str, str]] = None
-    auth_type: str = "none"
-    auth_token: Optional[str] = None
-    is_enabled: bool = True
-
-
-class MCPServerUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    url: Optional[str] = None
-    command: Optional[str] = None
-    command_args: Optional[List[str]] = None
-    env_vars: Optional[Dict[str, str]] = None
-    auth_type: Optional[str] = None
-    auth_token: Optional[str] = None
-    is_enabled: Optional[bool] = None
-
-
-class MCPServerResponse(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    transport_type: str
-    url: Optional[str] = None
-    command: Optional[str] = None
-    auth_type: str
-    is_enabled: bool
-    tools_count: Optional[int] = None
-    last_sync_at: Optional[Any] = None
-    last_error: Optional[str] = None
-    created_at: Any
-
-    model_config = {"from_attributes": True}
 
 
 # ===== 外部 MCP Server 管理 =====
