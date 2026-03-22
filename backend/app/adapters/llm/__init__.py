@@ -10,6 +10,7 @@ from app.adapters.llm.base import (
     BaseLLMAdapter,
     ChatCompletionResponse,
     ChatMessage,
+    StreamEvent,
     ToolCall,
     ToolDefinition,
 )
@@ -81,6 +82,7 @@ __all__ = [
     "ChatMessage",
     "ChatCompletionResponse",
     "ToolDefinition",
+    "StreamEvent",
     "ToolCall",
     # 适配器
     "ZhipuAdapter",

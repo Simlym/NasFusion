@@ -32,6 +32,14 @@ class ToolCall(BaseModel):
     arguments: Dict[str, Any]
 
 
+class StreamEvent(BaseModel):
+    """流式事件"""
+    type: str  # "content", "tool_calls", "done", "error"
+    content: Optional[str] = None  # type=content 时的文本片段
+    tool_calls: Optional[List[ToolCall]] = None  # type=tool_calls 时的完整工具调用列表
+    finish_reason: Optional[str] = None  # type=done 时的结束原因
+
+
 class ChatCompletionResponse(BaseModel):
     """聊天完成响应"""
     content: Optional[str] = None
@@ -117,7 +125,7 @@ class BaseLLMAdapter(ABC):
         tools: Optional[List[ToolDefinition]] = None,
         tool_choice: Optional[str] = None,
         **kwargs
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[StreamEvent, None]:
         """
         发送流式聊天请求
 
@@ -128,7 +136,7 @@ class BaseLLMAdapter(ABC):
             **kwargs: 其他参数
 
         Yields:
-            文本片段
+            StreamEvent 事件（content/tool_calls/done）
         """
         pass
 

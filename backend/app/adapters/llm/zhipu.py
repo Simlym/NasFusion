@@ -13,6 +13,7 @@ from app.adapters.llm.base import (
     BaseLLMAdapter,
     ChatCompletionResponse,
     ChatMessage,
+    StreamEvent,
     ToolCall,
     ToolDefinition,
 )
@@ -205,7 +206,7 @@ class ZhipuAdapter(BaseLLMAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         tool_choice: Optional[str] = None,
         **kwargs
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[StreamEvent, None]:
         """
         发送流式聊天请求
 
@@ -216,7 +217,7 @@ class ZhipuAdapter(BaseLLMAdapter):
             **kwargs: 其他参数
 
         Yields:
-            文本片段
+            StreamEvent 事件
         """
         try:
             # 构建请求体
@@ -241,6 +242,11 @@ class ZhipuAdapter(BaseLLMAdapter):
             transport = None
             if self.proxy:
                 transport = httpx.AsyncHTTPTransport(proxy=self.proxy)
+
+            # 累积工具调用的 delta 片段
+            # key: index, value: {"id": str, "name": str, "arguments": str}
+            tool_calls_acc: Dict[int, Dict[str, str]] = {}
+            finish_reason = None
 
             async with httpx.AsyncClient(
                 timeout=self.timeout,
@@ -269,13 +275,65 @@ class ZhipuAdapter(BaseLLMAdapter):
                                 data = json.loads(data_str)
                                 choice = data.get("choices", [{}])[0]
                                 delta = choice.get("delta", {})
-                                content = delta.get("content")
+                                chunk_finish = choice.get("finish_reason")
 
+                                if chunk_finish:
+                                    finish_reason = chunk_finish
+
+                                # 处理文本内容
+                                content = delta.get("content")
                                 if content:
-                                    yield content
+                                    yield StreamEvent(type="content", content=content)
+
+                                # 处理工具调用 delta
+                                delta_tool_calls = delta.get("tool_calls")
+                                if delta_tool_calls:
+                                    for tc_delta in delta_tool_calls:
+                                        idx = tc_delta.get("index", 0)
+                                        if idx not in tool_calls_acc:
+                                            tool_calls_acc[idx] = {
+                                                "id": "",
+                                                "name": "",
+                                                "arguments": "",
+                                            }
+                                        acc = tool_calls_acc[idx]
+                                        if tc_delta.get("id"):
+                                            acc["id"] = tc_delta["id"]
+                                        func = tc_delta.get("function", {})
+                                        if func.get("name"):
+                                            acc["name"] = func["name"]
+                                        if func.get("arguments"):
+                                            acc["arguments"] += func["arguments"]
 
                             except json.JSONDecodeError:
                                 continue
+
+            # 流结束后，如果有累积的工具调用，发出 tool_calls 事件
+            if tool_calls_acc:
+                parsed_tool_calls = []
+                for idx in sorted(tool_calls_acc.keys()):
+                    acc = tool_calls_acc[idx]
+                    arguments = acc["arguments"]
+                    if isinstance(arguments, str):
+                        try:
+                            arguments = json.loads(arguments)
+                        except json.JSONDecodeError:
+                            arguments = {}
+                    parsed_tool_calls.append(ToolCall(
+                        id=acc["id"],
+                        name=acc["name"],
+                        arguments=arguments,
+                    ))
+                yield StreamEvent(
+                    type="tool_calls",
+                    tool_calls=parsed_tool_calls,
+                    finish_reason=finish_reason or "tool_calls",
+                )
+            else:
+                yield StreamEvent(
+                    type="done",
+                    finish_reason=finish_reason or "stop",
+                )
 
         except httpx.HTTPStatusError as e:
             self.logger.error(f"智谱API流式请求失败: {e.response.status_code}")

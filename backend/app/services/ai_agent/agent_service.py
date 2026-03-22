@@ -569,32 +569,132 @@ class AIAgentService:
             }
             return
 
-        # 流式调用（注：流式模式下暂不支持工具调用）
+        # 获取工具定义
+        tools = None
+        if config.enable_tools:
+            tools = await mcp_client.list_tools(db, user_id)
+
+        # 流式调用（支持工具调用循环）
+        max_tool_rounds = 5  # 防止无限循环
         try:
-            full_content = ""
-            async for chunk in adapter.chat_stream(messages=messages):
-                full_content += chunk
+            for round_idx in range(max_tool_rounds + 1):
+                full_content = ""
+                tool_calls_result = None
+
+                async for event in adapter.chat_stream(messages=messages, tools=tools):
+                    if event.type == "content" and event.content:
+                        full_content += event.content
+                        yield {
+                            "type": "content",
+                            "content": event.content,
+                        }
+                    elif event.type == "tool_calls" and event.tool_calls:
+                        tool_calls_result = event.tool_calls
+                    # type == "done" 不需要特殊处理
+
+                # 如果没有工具调用，保存回复并结束
+                if not tool_calls_result:
+                    assistant_message = await AIAgentService.add_message(
+                        db,
+                        conversation.id,
+                        MESSAGE_ROLE_ASSISTANT,
+                        full_content,
+                        model=config.model,
+                        finish_reason="stop",
+                    )
+                    await db.commit()
+
+                    yield {
+                        "type": "done",
+                        "message_id": assistant_message.id,
+                        "content": full_content,
+                    }
+                    return
+
+                # 有工具调用：保存助手消息，执行工具，继续循环
+                assistant_message = await AIAgentService.add_message(
+                    db,
+                    conversation.id,
+                    MESSAGE_ROLE_ASSISTANT,
+                    full_content or None,
+                    tool_calls=[tc.model_dump() for tc in tool_calls_result],
+                    model=config.model,
+                    finish_reason="tool_calls",
+                )
+
+                # 通知前端开始工具调用
                 yield {
-                    "type": "content",
-                    "content": chunk,
+                    "type": "tool_calls",
+                    "tool_calls": [{"id": tc.id, "name": tc.name, "arguments": tc.arguments} for tc in tool_calls_result],
                 }
 
-            # 保存完整回复
-            assistant_message = await AIAgentService.add_message(
-                db,
-                conversation.id,
-                MESSAGE_ROLE_ASSISTANT,
-                full_content,
-                model=config.model,
-                finish_reason="stop",
-            )
+                # 更新消息列表：添加助手消息（带 tool_calls 信息）
+                messages.append(ChatMessage(
+                    role=MESSAGE_ROLE_ASSISTANT,
+                    content=full_content or "",
+                ))
 
-            await db.commit()
+                # 逐个执行工具
+                for tool_call in tool_calls_result:
+                    start_time = time.time()
 
+                    result = await mcp_client.call_tool(
+                        tool_call.name,
+                        tool_call.arguments,
+                        db,
+                        user_id,
+                    )
+
+                    execution_time = int((time.time() - start_time) * 1000)
+
+                    # 记录工具执行
+                    tool_execution = AIToolExecution(
+                        message_id=assistant_message.id,
+                        conversation_id=conversation.id,
+                        user_id=user_id,
+                        tool_name=tool_call.name,
+                        tool_call_id=tool_call.id,
+                        arguments=tool_call.arguments,
+                        result=result,
+                        status="completed" if result.get("success") else "failed",
+                        error_message=result.get("error"),
+                        execution_time_ms=execution_time,
+                    )
+                    db.add(tool_execution)
+
+                    # 添加工具结果消息
+                    await AIAgentService.add_message(
+                        db,
+                        conversation.id,
+                        MESSAGE_ROLE_TOOL,
+                        json.dumps(result, ensure_ascii=False),
+                        tool_call_id=tool_call.id,
+                        tool_name=tool_call.name,
+                    )
+
+                    # 通知前端工具执行结果
+                    yield {
+                        "type": "tool_result",
+                        "tool_call_id": tool_call.id,
+                        "tool_name": tool_call.name,
+                        "result": result,
+                        "execution_time_ms": execution_time,
+                    }
+
+                    # 更新消息列表
+                    messages.append(ChatMessage(
+                        role=MESSAGE_ROLE_TOOL,
+                        content=json.dumps(result, ensure_ascii=False),
+                        tool_call_id=tool_call.id,
+                        name=tool_call.name,
+                    ))
+
+                # 循环继续，再次流式调用 LLM 让其根据工具结果生成回复
+
+            # 超过最大轮次
             yield {
-                "type": "done",
-                "message_id": assistant_message.id,
-                "content": full_content,
+                "type": "error",
+                "error": "工具调用轮次超过上限，已终止",
             }
 
         except Exception as e:

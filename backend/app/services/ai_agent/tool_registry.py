@@ -280,10 +280,7 @@ class ToolRegistry:
         tool_class = cls._tools[resolved_name]
 
         try:
-            # 使用嵌套事务（Savepoint）
-            # 这样如果工具执行失败，不会回滚整个事务，只会回滚工具执行的部分
-            async with db.begin_nested():
-                result = await tool_class.execute(db, user_id, arguments)
+            result = await tool_class.execute(db, user_id, arguments)
             return result
         except Exception as e:
             logger.exception(f"工具执行失败: {resolved_name}")

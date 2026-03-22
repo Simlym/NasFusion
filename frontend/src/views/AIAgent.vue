@@ -93,7 +93,19 @@
             </div>
             <div class="message-content">
               <div v-if="streamingContent" class="message-text" v-html="renderMarkdown(streamingContent)"></div>
-              <div v-else class="typing-indicator">
+              <!-- 工具调用状态 -->
+              <div v-if="streamingToolCalls.length" class="message-tools streaming-tools">
+                <el-tag
+                  v-for="(tc, idx) in streamingToolCalls"
+                  :key="idx"
+                  :type="tc.status === 'running' ? 'warning' : tc.status === 'done' ? 'success' : 'info'"
+                  size="small"
+                >
+                  <el-icon v-if="tc.status === 'running'" class="is-loading"><Loading /></el-icon>
+                  {{ getToolDisplayName(tc.name) }}
+                </el-tag>
+              </div>
+              <div v-if="!streamingContent && !streamingToolCalls.length" class="typing-indicator">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -242,6 +254,7 @@ import {
   Promotion,
   Setting,
   Menu,
+  Loading,
 } from '@element-plus/icons-vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { marked } from 'marked'
@@ -264,6 +277,8 @@ const messageListRef = ref<HTMLElement>()
 // 流式输出状态
 const streamingContent = ref('')
 const isStreaming = ref(false)
+const streamingToolCalls = ref<Array<{ name: string; status: string; result?: any }>>([])
+
 
 const config = ref<AIAgentConfig | null>(null)
 const providers = ref<LLMProvider[]>([])
@@ -330,7 +345,9 @@ const formatTime = (time: string) => {
 
 const renderMarkdown = (text: string) => {
   if (!text) return ''
-  return marked(text)
+  // 过滤掉伪工具调用文本（流式模式下LLM可能生成此类文本）
+  const filteredText = text.replace(/\[Call Tool:\s*\w+\([^)]*\)\]/g, '')
+  return marked(filteredText)
 }
 
 const getToolDisplayName = (name: string) => {
@@ -467,6 +484,7 @@ const sendMessage = async () => {
     loading.value = false
     isStreaming.value = false
     streamingContent.value = ''
+    streamingToolCalls.value = []
   }
 }
 
@@ -555,6 +573,30 @@ const sendMessageStream = async (message: string, tempUserMessage: AIMessage) =>
               // 累积流式内容（显示在 isStreaming 区域，不操作 messages 数组）
               if (parsed.content !== undefined) {
                 streamingContent.value += parsed.content
+                scrollToBottom()
+              }
+              break
+
+            case 'tool_calls':
+              // LLM 请求工具调用，清空之前的流式内容（将在下一轮继续）
+              streamingContent.value = ''
+              if (parsed.tool_calls) {
+                streamingToolCalls.value.push(...parsed.tool_calls.map((tc: any) => ({
+                  name: tc.name,
+                  status: 'running',
+                })))
+                scrollToBottom()
+              }
+              break
+
+            case 'tool_result':
+              // 标记工具执行完成
+              if (parsed.tool_name) {
+                const tc = streamingToolCalls.value.find(t => t.name === parsed.tool_name && t.status === 'running')
+                if (tc) {
+                  tc.status = 'done'
+                  tc.result = parsed.result
+                }
                 scrollToBottom()
               }
               break
@@ -869,6 +911,10 @@ onMounted(async () => {
           margin-top: 8px;
 
           .el-tag {
+            margin-right: 4px;
+          }
+
+          &.streaming-tools .el-tag .is-loading {
             margin-right: 4px;
           }
         }
