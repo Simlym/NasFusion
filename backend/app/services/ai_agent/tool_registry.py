@@ -127,6 +127,124 @@ class ToolRegistry:
         return list(cls._tools.keys())
 
     @classmethod
+    def resolve_tool_name(cls, tool_name: str) -> Optional[str]:
+        """
+        解析工具名称，支持模糊匹配
+
+        当 LLM 返回的工具名不在注册表中时，尝试通过关键词匹配
+        找到最可能的已注册工具。
+
+        Args:
+            tool_name: LLM 返回的工具名称
+
+        Returns:
+            匹配到的已注册工具名，或 None
+        """
+        # 精确匹配
+        if tool_name in cls._tools:
+            return tool_name
+
+        # 关键词 → 工具名映射表
+        # 将常见的 LLM 幻觉工具名映射到正确的已注册工具
+        KEYWORD_MAP = {
+            "settings": "settings_manage",
+            "setting": "settings_manage",
+            "config": "settings_manage",
+            "system_config": "settings_manage",
+            "system_setting": "settings_manage",
+            "download": "download_manage",
+            "task": "task_manage",
+            "subscription": "subscription_list",
+            "subscribe": "subscription_create",
+            "movie": "movie_recommend",
+            "tv": "tv_recommend",
+            "search": "resource_search",
+            "resource": "resource_search",
+            "identify": "resource_identify",
+            "media": "media_query",
+            "status": "system_status",
+            "trending": "trending_query",
+            "sync": "pt_sync",
+        }
+
+        name_lower = tool_name.lower()
+
+        # 尝试关键词匹配
+        for keyword, mapped_tool in KEYWORD_MAP.items():
+            if keyword in name_lower and mapped_tool in cls._tools:
+                logger.warning(
+                    f"工具名纠正: '{tool_name}' -> '{mapped_tool}'"
+                )
+                return mapped_tool
+
+        return None
+
+    @classmethod
+    def _adapt_arguments(
+        cls,
+        original_name: str,
+        resolved_name: str,
+        arguments: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        适配参数：当工具名被纠正后，尝试将幻觉参数映射到正确的参数格式
+
+        Args:
+            original_name: LLM 返回的原始工具名
+            resolved_name: 纠正后的工具名
+            arguments: LLM 提供的原始参数
+
+        Returns:
+            适配后的参数
+        """
+        name_lower = original_name.lower()
+
+        if resolved_name == "settings_manage":
+            # 推断 action
+            if "get" in name_lower or "query" in name_lower or "list" in name_lower or "view" in name_lower:
+                # 检查是否有模块信息，映射到 overview
+                module_value = (
+                    arguments.get("module_name")
+                    or arguments.get("module")
+                    or arguments.get("category")
+                    or arguments.get("name")
+                    or ""
+                )
+                if module_value:
+                    # 将模块名映射到 overview_modules
+                    module_map = {
+                        "system_config": "system",
+                        "system": "system",
+                        "storage": "storage",
+                        "pt_sites": "sites",
+                        "sites": "sites",
+                        "downloaders": "downloaders",
+                        "downloader": "downloaders",
+                        "media_servers": "media_servers",
+                        "media_server": "media_servers",
+                        "organize": "organize",
+                        "media_scraping": "media_scraping",
+                        "scraping": "media_scraping",
+                        "notifications": "notifications",
+                        "notification": "notifications",
+                        "login_security": "login_security",
+                    }
+                    mapped = module_map.get(module_value.lower(), module_value.lower())
+                    return {"action": "overview", "overview_modules": [mapped]}
+                return {"action": "overview", "overview_modules": ["all"]}
+
+            elif "set" in name_lower or "update" in name_lower:
+                return {
+                    "action": "update",
+                    **{k: v for k, v in arguments.items() if k in ("category", "key", "value", "description")},
+                }
+
+        logger.debug(
+            f"参数适配: 无特殊映射规则，原样传递参数 ({original_name} -> {resolved_name})"
+        )
+        return arguments
+
+    @classmethod
     async def execute_tool(
         cls,
         tool_name: str,
@@ -146,12 +264,20 @@ class ToolRegistry:
         Returns:
             执行结果
         """
-        tool_class = cls.get_tool(tool_name)
-        if not tool_class:
+        # 解析工具名称（支持模糊匹配纠正）
+        resolved_name = cls.resolve_tool_name(tool_name)
+        if not resolved_name:
+            available = ", ".join(cls._tools.keys())
             return {
                 "success": False,
-                "error": f"未知工具: {tool_name}",
+                "error": f"未知工具: {tool_name}。可用工具: {available}",
             }
+
+        # 如果工具名被纠正了，尝试适配参数
+        if resolved_name != tool_name:
+            arguments = cls._adapt_arguments(tool_name, resolved_name, arguments)
+
+        tool_class = cls._tools[resolved_name]
 
         try:
             # 使用嵌套事务（Savepoint）
@@ -160,7 +286,7 @@ class ToolRegistry:
                 result = await tool_class.execute(db, user_id, arguments)
             return result
         except Exception as e:
-            logger.exception(f"工具执行失败: {tool_name}")
+            logger.exception(f"工具执行失败: {resolved_name}")
             return {
                 "success": False,
                 "error": str(e),

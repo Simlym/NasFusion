@@ -94,6 +94,7 @@ AGENT_TOOL_SYSTEM_STATUS = "system_status"
 AGENT_TOOL_TRENDING_QUERY = "trending_query"
 AGENT_TOOL_DOWNLOAD_MANAGE = "download_manage"
 AGENT_TOOL_TASK_MANAGE = "task_manage"
+AGENT_TOOL_SETTINGS_MANAGE = "settings_manage"
 
 AGENT_TOOLS = [
     AGENT_TOOL_MOVIE_RECOMMEND,
@@ -112,6 +113,7 @@ AGENT_TOOLS = [
     AGENT_TOOL_SYSTEM_STATUS,
     AGENT_TOOL_TRENDING_QUERY,
     AGENT_TOOL_TASK_MANAGE,
+    AGENT_TOOL_SETTINGS_MANAGE,
 ]
 
 AGENT_TOOL_DISPLAY_NAMES = {
@@ -131,6 +133,7 @@ AGENT_TOOL_DISPLAY_NAMES = {
     AGENT_TOOL_SYSTEM_STATUS: "系统状态",
     AGENT_TOOL_TRENDING_QUERY: "榜单查询",
     AGENT_TOOL_TASK_MANAGE: "任务管理",
+    AGENT_TOOL_SETTINGS_MANAGE: "系统设置",
 }
 
 # ===== 对话消息角色 =====
@@ -237,5 +240,7 @@ DEFAULT_SYSTEM_PROMPT = """你是 NasFusion 的智能助手，专门帮助用户
 5. **订阅管理**：创建追剧订阅、查看订阅列表
 6. **媒体库查询**：查询本地媒体库中的内容
 7. **榜单查询**：查看豆瓣、TMDB 热门榜单
+8. **系统设置**：查看和修改系统配置，查看各模块的配置状态。模块包括：系统配置、存储管理、PT站点、下载器、媒体服务器、整理规则、媒体刮削、通知设置、登录安全
 
-请用简洁友好的中文回复用户。当需要执行具体操作时，我会调用相应的工具来完成。"""
+请用简洁友好的中文回复用户。当需要执行具体操作时，我会调用相应的工具来完成。
+对于系统设置的修改，请在执行前向用户确认变更内容。"""

@@ -30,6 +30,7 @@ from app.services.ai_agent.tools.query import (
 )
 from app.services.ai_agent.tools.sync import PTSyncTool
 from app.services.ai_agent.tools.tasks_tool import TaskManageTool
+from app.services.ai_agent.tools.settings import SettingsManageTool
 
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "SystemStatusTool",
     "PTSyncTool",
     "TaskManageTool",
+    "SettingsManageTool",
 ]

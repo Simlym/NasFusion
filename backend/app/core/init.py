@@ -214,39 +214,42 @@ async def init_media_library_directories(db: AsyncSession):
     except Exception as e:
         logger.error(f"创建默认整理配置失败: {e}")
 
-    # 初始化成人内容显示配置
-    await init_adult_content_settings(db)
+    # 初始化系统设置默认值
+    await init_system_settings(db)
 
     logger.info("媒体库目录结构初始化完成")
 
 
-
-
-async def init_adult_content_settings(db: AsyncSession):
+async def init_system_settings(db: AsyncSession):
     """
-    初始化成人内容显示配置
+    初始化系统设置默认值
+
+    确保所有已知的系统设置在数据库中都有记录，
+    已存在的设置不会被覆盖。
     """
     from app.services.common.system_setting_service import SystemSettingService
 
-    # 检查是否已存在配置
-    existing = await SystemSettingService.get_by_key(
-        db, "media_library", "show_adult_content"
-    )
+    # 需要初始化的默认设置列表: (category, key, default_value, description)
+    default_settings = [
+        ("media_library", "show_adult_content", "false", "是否在媒体库显示成人内容页签"),
+        ("media_library", "movie_show_anime", "false", "电影列表是否显示动画内容"),
+        ("media_library", "tv_show_anime", "false", "剧集列表是否显示动画内容"),
+        ("homepage", "backdrop_count", "10", "首页Hero轮播背景图显示数量（1-50）"),
+    ]
 
-    if existing:
-        logger.debug("成人内容配置已存在")
-        return
+    for category, key, value, description in default_settings:
+        existing = await SystemSettingService.get_by_key(db, category, key)
+        if existing:
+            continue
 
-    # 创建默认配置（默认不显示）
-    await SystemSettingService.upsert(
-        db,
-        category="media_library",
-        key="show_adult_content",
-        value="false",
-        description="是否在媒体库显示成人内容页签"
-    )
-
-    logger.info("成人内容显示配置已初始化（默认：隐藏）")
+        await SystemSettingService.upsert(
+            db,
+            category=category,
+            key=key,
+            value=value,
+            description=description,
+        )
+        logger.info(f"系统设置已初始化: {category}/{key} = {value}")
 
 
 async def init_identification_priority(db: AsyncSession):
