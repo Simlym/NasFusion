@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
-import app.core.json_types
+import app.core.db_types
 
 # revision identifiers, used by Alembic.
 revision: str = 'aabd97e3448e'
@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('imdb_id', sa.String(length=20), nullable=True, comment='IMDB ID'),
     sa.Column('douban_id', sa.String(length=20), nullable=True, comment='豆瓣 ID'),
     sa.Column('name', sa.String(length=255), nullable=False, comment='姓名'),
-    sa.Column('other_names', app.core.json_types.JSON(), nullable=True, comment='别名/译名 (JSON数组)'),
+    sa.Column('other_names', app.core.db_types.JSON(), nullable=True, comment='别名/译名 (JSON数组)'),
     sa.Column('biography', sa.Text(), nullable=True, comment='简介'),
     sa.Column('birthday', sa.Date(), nullable=True, comment='出生日期'),
     sa.Column('deathday', sa.Date(), nullable=True, comment='逝世日期'),

@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 from app.constants import (
     MEDIA_TYPES,

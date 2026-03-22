@@ -6,7 +6,7 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, Text, ForeignKey,
 from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 
 class UnifiedPerson(BaseModel):

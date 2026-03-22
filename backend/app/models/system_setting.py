@@ -4,7 +4,7 @@
 """
 from sqlalchemy import Column, Integer, String, Text, Boolean, Index
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 from sqlalchemy.sql import func
 
 from app.models.base import Base

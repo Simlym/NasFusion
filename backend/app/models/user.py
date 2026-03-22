@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel

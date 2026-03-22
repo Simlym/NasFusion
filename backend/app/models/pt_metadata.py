@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, Uniqu
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.db_types import JSON
 
 
 class PTCategory(BaseModel):

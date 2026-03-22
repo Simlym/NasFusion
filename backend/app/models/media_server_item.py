@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 from app.constants.media import MEDIA_TYPES
 from app.constants.media_server import MEDIA_SERVER_TYPES
 from app.constants import UNIFIED_TABLES

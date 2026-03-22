@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import Column, Integer
 from sqlalchemy.orm import DeclarativeBase, declared_attr
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 from app.utils.timezone import now
 
 

@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 
 class SyncLog(BaseModel):

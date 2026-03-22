@@ -5,7 +5,7 @@
 """
 from sqlalchemy import Column, Integer, String, BigInteger, Boolean, Text, Index, CheckConstraint
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 from app.models.base import Base
 from app.utils.timezone import now
 from app.constants import MEDIA_TYPES

@@ -6,7 +6,7 @@ from sqlalchemy import Boolean, Column, Integer, String, DateTime, ForeignKey, C
 from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON
+from app.core.db_types import JSON
 
 
 class ResourceMapping(BaseModel):

@@ -5,7 +5,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 from app.utils.timezone import now
 
 

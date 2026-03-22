@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
 )
 
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 from app.models.base import BaseModel
 

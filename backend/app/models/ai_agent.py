@@ -11,7 +11,7 @@ from sqlalchemy import (
     Text,
 )
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import relationship
 

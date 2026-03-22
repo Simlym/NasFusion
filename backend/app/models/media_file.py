@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 from app.constants import (
     FILE_TYPES,

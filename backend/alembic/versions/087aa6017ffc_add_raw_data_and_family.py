@@ -8,7 +8,7 @@ Create Date: 2026-02-11 20:49:03.541525
 """
 from alembic import op
 import sqlalchemy as sa
-from app.core.json_types import JSON
+from app.core.db_types import JSON
 
 
 # revision identifiers, used by Alembic.

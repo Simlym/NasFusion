@@ -6,7 +6,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Text, BigInteger, Index
 
-from app.core.json_types import TZDateTime
+from app.core.db_types import TZDateTime
 
 from app.models.base import BaseModel
 

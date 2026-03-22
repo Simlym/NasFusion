@@ -5,7 +5,7 @@
 from sqlalchemy import Boolean, Column, Integer, String, Text
 
 from app.models.base import BaseModel
-from app.core.json_types import JSON, TZDateTime
+from app.core.db_types import JSON, TZDateTime
 
 
 class ScheduledTask(BaseModel):
