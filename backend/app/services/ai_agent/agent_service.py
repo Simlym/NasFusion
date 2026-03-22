@@ -23,11 +23,8 @@ from app.constants.ai_agent import (
     DEFAULT_CONVERSATION_MAX_TURNS,
 )
 from app.models import AIAgentConfig, AIConversation, AIMessage, AIToolExecution
-from app.services.ai_agent.tool_registry import ToolRegistry
+from app.mcp.client import mcp_client
 from app.utils.timezone import now
-
-# 导入所有工具以注册
-from app.services.ai_agent import tools  # noqa
 
 
 logger = logging.getLogger(__name__)
@@ -327,10 +324,10 @@ class AIAgentService:
                 "error": f"AI配置错误: {str(e)}",
             }
 
-        # 获取工具定义
+        # 获取工具定义（内部 + 外部 MCP Server）
         tools = None
         if config.enable_tools:
-            tools = ToolRegistry.get_tool_definitions()
+            tools = await mcp_client.list_tools(db, user_id)
 
         # 调用LLM
         try:
@@ -364,11 +361,11 @@ class AIAgentService:
             for tool_call in response.tool_calls:
                 start_time = time.time()
 
-                result = await ToolRegistry.execute_tool(
+                result = await mcp_client.call_tool(
                     tool_call.name,
+                    tool_call.arguments,
                     db,
                     user_id,
-                    tool_call.arguments,
                 )
 
                 execution_time = int((time.time() - start_time) * 1000)

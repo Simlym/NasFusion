@@ -53,6 +53,9 @@ pytz==2023.3
 # OpenAI Integration
 openai==1.7.2
 
+# MCP (Model Context Protocol)
+mcp>=1.0.0
+
 # Torrent Parsing
 bencodepy==0.9.5
 
