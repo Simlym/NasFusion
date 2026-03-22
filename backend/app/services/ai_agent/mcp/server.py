@@ -16,7 +16,7 @@ import mcp.types as types
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 
-from app.mcp.context import get_user_context
+from app.services.ai_agent.mcp.context import get_user_context
 
 logger = logging.getLogger(__name__)
 

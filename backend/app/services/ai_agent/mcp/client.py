@@ -87,7 +87,7 @@ class MCPClient:
     ) -> List[ToolDefinition]:
         """获取所有已启用外部 MCP Server 的工具"""
         try:
-            from app.services.mcp_service import MCPService
+            from app.services.ai_agent.mcp.service import MCPService
             servers = await MCPService.list_enabled_servers(db, user_id)
         except Exception as e:
             logger.warning(f"获取外部 MCP Server 列表失败: {e}")
@@ -109,7 +109,7 @@ class MCPClient:
 
         优先使用缓存，缓存为空时从远程获取并保存。
         """
-        from app.services.mcp_service import MCPService
+        from app.services.ai_agent.mcp.service import MCPService
 
         # 优先使用缓存
         if server.tools_cache:
@@ -150,7 +150,7 @@ class MCPClient:
         server_name, tool_name = name.split(EXTERNAL_TOOL_SEPARATOR, 1)
 
         try:
-            from app.services.mcp_service import MCPService
+            from app.services.ai_agent.mcp.service import MCPService
             server = await MCPService.get_server_by_name(db, user_id, server_name)
         except Exception as e:
             logger.warning(f"查找外部 MCP Server [{server_name}] 失败: {e}")
@@ -160,7 +160,7 @@ class MCPClient:
             return {"success": False, "error": f"外部 MCP Server [{server_name}] 不存在或未启用"}
 
         try:
-            from app.services.mcp_service import MCPService
+            from app.services.ai_agent.mcp.service import MCPService
             return await MCPService.call_external_tool(server, tool_name, arguments)
         except Exception as e:
             logger.exception(f"调用外部工具失败 [{name}]")
