@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-MCP 用户上下文注入
+用户上下文注入
 
-通过 ContextVar 将 user_id 和 db session 注入到 MCP 工具调用中，
-解决 MCP 无状态协议与工具需要用户上下文之间的矛盾。
+通过 ContextVar 将 user_id 和 db session 注入到工具调用中，
+解决无状态协议与工具需要用户上下文之间的矛盾。
 """
 from contextvars import ContextVar
 from dataclasses import dataclass

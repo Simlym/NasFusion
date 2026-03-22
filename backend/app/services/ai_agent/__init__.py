@@ -8,12 +8,14 @@ from app.services.ai_agent.tool_registry import (
     ToolRegistry,
     register_tool,
 )
-from app.services.ai_agent.mcp import (
-    MCPClient,
-    mcp_client,
+from app.services.ai_agent.context import (
     UserContext,
     get_user_context,
     set_user_context,
+)
+from app.services.ai_agent.mcp_client import (
+    MCPClient,
+    mcp_client,
 )
 
 __all__ = [

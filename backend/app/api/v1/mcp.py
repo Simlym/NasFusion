@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
 from app.models import User
-from app.services.ai_agent.mcp.service import MCPService
+from app.services.ai_agent.mcp_client.service import MCPService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/mcp", tags=["MCP"])
@@ -180,8 +180,8 @@ async def mcp_sse_endpoint(
     也支持 query 参数：?token=<JWT Token>（部分客户端不支持自定义 Header）
     """
     from app.core.database import async_session_local
-    from app.services.ai_agent.mcp.context import set_user_context
-    from app.services.ai_agent.mcp.server import handle_sse_connection
+    from app.services.ai_agent.context import set_user_context
+    from app.services.ai_agent.mcp_server.server import handle_sse_connection
     from app.utils.security import decode_access_token
 
     # 获取 token（优先 Header，其次 query param）
@@ -231,8 +231,8 @@ async def mcp_messages_endpoint(
     由 SSE 客户端在发送请求时调用，不需要直接访问。
     """
     from app.core.database import async_session_local
-    from app.services.ai_agent.mcp.context import set_user_context
-    from app.services.ai_agent.mcp.server import handle_sse_message
+    from app.services.ai_agent.context import set_user_context
+    from app.services.ai_agent.mcp_server.server import handle_sse_message
     from app.utils.security import decode_access_token
 
     # 同 SSE 端点的认证逻辑

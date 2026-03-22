@@ -23,7 +23,7 @@ from app.constants.ai_agent import (
     DEFAULT_CONVERSATION_MAX_TURNS,
 )
 from app.models import AIAgentConfig, AIConversation, AIMessage, AIToolExecution
-from app.services.ai_agent.mcp.client import mcp_client
+from app.services.ai_agent.mcp_client.client import mcp_client
 from app.utils.timezone import now
 
 
