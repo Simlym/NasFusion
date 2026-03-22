@@ -49,6 +49,7 @@ from app.models.ai_agent import (
     AIMessage,
     AIToolExecution,
 )
+from app.models.mcp_server import MCPExternalServer
 
 __all__ = [
     "Base",
@@ -97,4 +98,5 @@ __all__ = [
     "AIConversation",
     "AIMessage",
     "AIToolExecution",
+    "MCPExternalServer",
 ]
