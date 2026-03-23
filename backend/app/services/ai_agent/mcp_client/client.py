@@ -42,9 +42,10 @@ class MCPClient:
             ToolDefinition 列表，可直接传给 LLM 的 Function Calling 接口
         """
         from app.services.ai_agent import tools  # noqa: F401 触发工具注册
+        from app.services.ai_agent import skills  # noqa: F401 触发 Skill 注册
         from app.services.ai_agent.tool_registry import ToolRegistry
 
-        # 内部工具（ToolRegistry）
+        # 内部工具（ToolRegistry，含 Skills）
         internal = ToolRegistry.get_tool_definitions()
 
         # 外部 MCP Server 工具
@@ -67,6 +68,7 @@ class MCPClient:
         - 否则 → 内部 ToolRegistry
         """
         from app.services.ai_agent import tools  # noqa: F401
+        from app.services.ai_agent import skills  # noqa: F401
         from app.services.ai_agent.tool_registry import ToolRegistry
 
         # 外部工具（格式：server_name:tool_name）
