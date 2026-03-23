@@ -2,13 +2,14 @@
 """
 AI Agent Skills 子模块
 
-高级技能/工作流，区别于单步工具（tools）。
-Skills 通过 @register_tool 注册到 ToolRegistry，LLM 可直接调用。
+每个 Skill 包独立目录，结构：
+  {name}/SKILL.md     —— 标准 frontmatter，给 LLM 的触发条件与参数说明
+  {name}/scripts/     —— Python 实现
+  {name}/__init__.py  —— 导出 Skill 类，触发 @register_tool 注册
 
-skill.md  —— 给 LLM 的触发条件与参数说明，由 PromptManager 注入系统提示词
-scripts/  —— 各 Skill 的 Python 实现
+新增 Skill 包：创建对应目录后在本文件 import 即可。
 """
-from app.services.ai_agent.skills.scripts import (
+from app.services.ai_agent.skills.nasfusion import (
     SubscribeTVSkill,
     SubscribeMovieSkill,
     SmartDownloadSkill,

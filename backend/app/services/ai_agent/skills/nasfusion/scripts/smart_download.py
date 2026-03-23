@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.ai_agent.skills.scripts.base import BaseSkill
+from app.services.ai_agent.skills.nasfusion.scripts.base import BaseSkill
 from app.services.ai_agent.tool_registry import register_tool
 
 
@@ -82,7 +82,6 @@ class SmartDownloadSkill(BaseSkill):
         resources = search_result.get("resources", [])
         steps.append({"step": "search_resource", "found": len(resources)})
 
-        # 无免费资源时放开限免重试
         if prefer_free and not resources:
             search_args.pop("promotion", None)
             search_result = await ResourceSearchTool.execute(db, user_id, search_args)

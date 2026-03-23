@@ -9,7 +9,7 @@ from typing import Any, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.ai_agent.skills.scripts.base import BaseSkill
+from app.services.ai_agent.skills.nasfusion.scripts.base import BaseSkill
 from app.services.ai_agent.tool_registry import register_tool
 
 

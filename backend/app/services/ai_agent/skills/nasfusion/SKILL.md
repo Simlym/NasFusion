@@ -1,8 +1,11 @@
+---
+name: nasfusion
+description: NasFusion 媒体资源管理技能集。当用户需要订阅追剧/电影、下载影视资源、查看系统状态、从榜单下载时调用。包含 subscribe_tv、subscribe_movie、smart_download、dashboard、trending_download 五个技能。
+---
+
 # NasFusion Skills
 
 当用户意图明确匹配以下场景时，优先调用对应 Skill，而非拆成多步单工具调用。
-
----
 
 ## subscribe_tv — 追剧订阅
 **触发词**：追剧、追番、订阅剧集、以后自动下载新集

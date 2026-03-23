@@ -19,7 +19,7 @@ from app.constants.ai_agent import DEFAULT_SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
-SKILLS_MD_PATH = Path(__file__).parent / "skills" / "skill.md"
+SKILLS_DIR = Path(__file__).parent / "skills"
 
 
 class PromptManager:
@@ -92,10 +92,31 @@ class PromptManager:
 
     @classmethod
     def get_skills_prompt(cls) -> str:
-        """读取 skills/skill.md，供系统提示词拼接"""
+        """扫描 skills/*/SKILL.md，提取 frontmatter description 注入系统提示词"""
+        lines = []
         try:
-            if SKILLS_MD_PATH.exists():
-                return SKILLS_MD_PATH.read_text(encoding="utf-8").strip()
+            for skill_md in sorted(SKILLS_DIR.glob("*/SKILL.md")):
+                content = skill_md.read_text(encoding="utf-8")
+                data = cls._parse_frontmatter(content)
+                name = data.get("name", "")
+                description = data.get("description", "")
+                if name and description:
+                    lines.append(f"- {name}: {description}")
         except Exception:
-            logger.exception("读取 skill.md 失败")
-        return ""
+            logger.exception("读取 SKILL.md 失败")
+        if not lines:
+            return ""
+        return "## 可用 Skills\n" + "\n".join(lines)
+
+    @staticmethod
+    def _parse_frontmatter(content: str) -> dict:
+        """解析 YAML frontmatter（--- 包裹的块）"""
+        if not content.startswith("---"):
+            return {}
+        end = content.find("---", 3)
+        if end == -1:
+            return {}
+        try:
+            return yaml.safe_load(content[3:end]) or {}
+        except Exception:
+            return {}
