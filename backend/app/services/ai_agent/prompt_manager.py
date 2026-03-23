@@ -18,7 +18,8 @@ from app.constants.ai_agent import DEFAULT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
-PROMPTS_DIR = Path(__file__).parent.parent.parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent / "prompts"
+SKILLS_MD_PATH = Path(__file__).parent / "skills" / "skill.md"
 
 
 class PromptManager:
@@ -88,3 +89,13 @@ class PromptManager:
     def get_system_prompt(cls, variables: Optional[Dict[str, Any]] = None) -> str:
         """获取系统提示词（快捷方法）"""
         return cls.get("system", variables)
+
+    @classmethod
+    def get_skills_prompt(cls) -> str:
+        """读取 skills/skill.md，供系统提示词拼接"""
+        try:
+            if SKILLS_MD_PATH.exists():
+                return SKILLS_MD_PATH.read_text(encoding="utf-8").strip()
+        except Exception:
+            logger.exception("读取 skill.md 失败")
+        return ""

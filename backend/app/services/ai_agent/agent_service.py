@@ -288,10 +288,13 @@ class AIAgentService:
         # 构建消息列表
         messages = []
 
-        # 系统提示词（用户自定义 > YAML 文件 > 硬编码常量）
+        # 系统提示词（用户自定义 > YAML 文件 > 硬编码常量）+ Skills 说明
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
             {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
         )
+        skills_prompt = PromptManager.get_skills_prompt()
+        if skills_prompt:
+            system_prompt = system_prompt + "\n\n" + skills_prompt
         messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
         # 历史消息
@@ -540,6 +543,9 @@ class AIAgentService:
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
             {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
         )
+        skills_prompt = PromptManager.get_skills_prompt()
+        if skills_prompt:
+            system_prompt = system_prompt + "\n\n" + skills_prompt
         messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
         for msg in history_messages:

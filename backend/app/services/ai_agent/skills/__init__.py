@@ -5,13 +5,16 @@ AI Agent Skills 子模块
 高级技能/工作流，区别于单步工具（tools）。
 Skills 通过 @register_tool 注册到 ToolRegistry，LLM 可直接调用。
 
-说明文档见 SKILLS.md。
+skill.md  —— 给 LLM 的触发条件与参数说明，由 PromptManager 注入系统提示词
+scripts/  —— 各 Skill 的 Python 实现
 """
-from app.services.ai_agent.skills.subscribe_tv import SubscribeTVSkill
-from app.services.ai_agent.skills.subscribe_movie import SubscribeMovieSkill
-from app.services.ai_agent.skills.smart_download import SmartDownloadSkill
-from app.services.ai_agent.skills.dashboard import DashboardSkill
-from app.services.ai_agent.skills.trending_download import TrendingDownloadSkill
+from app.services.ai_agent.skills.scripts import (
+    SubscribeTVSkill,
+    SubscribeMovieSkill,
+    SmartDownloadSkill,
+    DashboardSkill,
+    TrendingDownloadSkill,
+)
 
 __all__ = [
     "SubscribeTVSkill",

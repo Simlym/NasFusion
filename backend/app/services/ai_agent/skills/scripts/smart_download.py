@@ -1,25 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-榜单下载 Skill
+智能下载 Skill
 
-场景：「下载豆瓣热门电影第一名」
-编排：trending_query → 取指定名次 → resource_search → 选最优 → download_create
+场景：「下载《流浪地球2》1080p 免费资源」
+编排：resource_search → 选最优资源 → download_create
 """
 from typing import Any, Dict, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.ai_agent.skills.base import BaseSkill
+from app.services.ai_agent.skills.scripts.base import BaseSkill
 from app.services.ai_agent.tool_registry import register_tool
-
-_COLLECTION_MEDIA_TYPE = {
-    "douban_hot_movie": "movie",
-    "douban_top250_movie": "movie",
-    "douban_hot_tv": "tv",
-    "tmdb_popular_movie": "movie",
-    "tmdb_top_rated_movie": "movie",
-    "tmdb_popular_tv": "tv",
-}
 
 
 def _select_best(resources: List[Dict]) -> Dict:
@@ -32,30 +23,23 @@ def _select_best(resources: List[Dict]) -> Dict:
 
 
 @register_tool
-class TrendingDownloadSkill(BaseSkill):
-    """榜单下载：从指定榜单取指定名次并自动下载"""
+class SmartDownloadSkill(BaseSkill):
+    """智能下载：搜索最优 PT 资源并创建下载任务"""
 
-    name = "trending_download"
+    name = "smart_download"
     description = (
-        "从榜单下载：查询指定榜单后，自动搜索并下载指定名次的影片。"
-        "适用场景：「下载豆瓣热门电影第一名」「把 TMDB 评分最高电影下载下来」「下载豆瓣 Top250 第5名」。"
+        "一键智能下载：自动搜索 PT 资源并下载最优匹配项。"
+        "优先选择免费（free/2x_free）资源，同等条件下优先选择做种人数最多的资源。"
+        "适用场景：「下载《流浪地球2》1080p」「帮我下载最新的阿凡达」「下载免费的黑镜第6季」。"
     )
     parameters = {
         "type": "object",
         "properties": {
-            "collection_type": {
+            "title": {"type": "string", "description": "影视名称"},
+            "media_type": {
                 "type": "string",
-                "description": "榜单类型",
-                "enum": [
-                    "douban_hot_movie", "douban_top250_movie", "douban_hot_tv",
-                    "tmdb_popular_movie", "tmdb_top_rated_movie", "tmdb_popular_tv",
-                ],
-                "default": "douban_hot_movie",
-            },
-            "rank": {
-                "type": "integer",
-                "description": "榜单名次（从 1 开始，默认第 1 名）",
-                "default": 1,
+                "description": "媒体类型：movie / tv",
+                "enum": ["movie", "tv"],
             },
             "resolution": {
                 "type": "string",
@@ -68,7 +52,7 @@ class TrendingDownloadSkill(BaseSkill):
                 "default": True,
             },
         },
-        "required": [],
+        "required": ["title"],
     }
 
     @classmethod
@@ -78,37 +62,17 @@ class TrendingDownloadSkill(BaseSkill):
         user_id: int,
         arguments: Dict[str, Any],
     ) -> Dict[str, Any]:
-        collection_type = arguments.get("collection_type", "douban_hot_movie")
-        rank = max(1, arguments.get("rank", 1))
+        title = arguments.get("title", "")
+        media_type = arguments.get("media_type")
         resolution = arguments.get("resolution")
         prefer_free = arguments.get("prefer_free", True)
         steps = []
 
-        from app.services.ai_agent.tools.query import TrendingQueryTool
-
-        trending_result = await TrendingQueryTool.execute(db, user_id, {
-            "collection_type": collection_type, "limit": rank,
-        })
-        steps.append({"step": "trending_query", "collection": collection_type})
-
-        items = trending_result.get("items", [])
-        if not items or len(items) < rank:
-            return {
-                "success": False,
-                "error": f"榜单「{collection_type}」数据不足，未找到第 {rank} 名，请先同步榜单数据",
-                "steps": steps,
-            }
-
-        target = items[rank - 1]
-        title = target.get("title", "")
-        media_type = _COLLECTION_MEDIA_TYPE.get(collection_type, "movie")
-        steps.append({"step": "pick_item", "rank": rank, "title": title})
-
         from app.services.ai_agent.tools.resource import ResourceSearchTool
 
-        search_args: Dict[str, Any] = {
-            "keyword": title, "media_type": media_type, "limit": 20,
-        }
+        search_args: Dict[str, Any] = {"keyword": title, "limit": 20}
+        if media_type:
+            search_args["media_type"] = media_type
         if resolution:
             search_args["resolution"] = resolution
         if prefer_free:
@@ -116,19 +80,19 @@ class TrendingDownloadSkill(BaseSkill):
 
         search_result = await ResourceSearchTool.execute(db, user_id, search_args)
         resources = search_result.get("resources", [])
+        steps.append({"step": "search_resource", "found": len(resources)})
 
+        # 无免费资源时放开限免重试
         if prefer_free and not resources:
             search_args.pop("promotion", None)
             search_result = await ResourceSearchTool.execute(db, user_id, search_args)
             resources = search_result.get("resources", [])
-
-        steps.append({"step": "search_resource", "found": len(resources)})
+            steps.append({"step": "search_no_promo", "found": len(resources)})
 
         if not resources:
             return {
                 "success": False,
-                "error": f"榜单第 {rank} 名《{title}》在 PT 站点暂无资源，建议同步后重试",
-                "trending_item": target,
+                "error": f"未找到「{title}」的资源，建议先同步 PT 站点后重试",
                 "steps": steps,
             }
 
@@ -138,6 +102,8 @@ class TrendingDownloadSkill(BaseSkill):
             "resource_id": best.get("id"),
             "title": best.get("title"),
             "is_free": best.get("is_free"),
+            "seeders": best.get("seeders"),
+            "size": best.get("size_str"),
         })
 
         from app.services.ai_agent.tools.download import DownloadCreateTool
@@ -151,19 +117,13 @@ class TrendingDownloadSkill(BaseSkill):
             return {
                 "success": False,
                 "error": dl_result.get("error", "创建下载任务失败"),
-                "trending_item": target,
                 "selected_resource": best,
                 "steps": steps,
             }
 
         return {
             "success": True,
-            "message": f"榜单第{rank}名《{title}》{dl_result['message']}",
-            "trending_item": {
-                "rank": rank, "title": title,
-                "rating": target.get("rating"),
-                "overview": target.get("overview"),
-            },
+            "message": dl_result["message"],
             "resource": {
                 "title": best.get("title"),
                 "resolution": best.get("resolution"),
