@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.llm import get_llm_adapter, ChatMessage
 from app.constants.ai_agent import (
-    DEFAULT_SYSTEM_PROMPT,
     MESSAGE_ROLE_ASSISTANT,
     MESSAGE_ROLE_SYSTEM,
     MESSAGE_ROLE_TOOL,
@@ -22,6 +21,8 @@ from app.constants.ai_agent import (
     CONVERSATION_STATUS_ACTIVE,
     DEFAULT_CONVERSATION_MAX_TURNS,
 )
+from app.services.ai_agent.prompt_manager import PromptManager
+from app.utils.timezone import now as tz_now
 from app.models import AIAgentConfig, AIConversation, AIMessage, AIToolExecution
 from app.services.ai_agent.mcp_client.client import mcp_client
 from app.utils.timezone import now
@@ -287,8 +288,10 @@ class AIAgentService:
         # 构建消息列表
         messages = []
 
-        # 系统提示词
-        system_prompt = config.system_prompt or DEFAULT_SYSTEM_PROMPT
+        # 系统提示词（用户自定义 > YAML 文件 > 硬编码常量）
+        system_prompt = config.system_prompt or PromptManager.get_system_prompt(
+            {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
+        )
         messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
         # 历史消息
@@ -534,7 +537,9 @@ class AIAgentService:
 
         # 构建消息列表
         messages = []
-        system_prompt = config.system_prompt or DEFAULT_SYSTEM_PROMPT
+        system_prompt = config.system_prompt or PromptManager.get_system_prompt(
+            {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
+        )
         messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
         for msg in history_messages:
