@@ -1,0 +1,41 @@
+# 追剧订阅 Skill 描述文件
+# 此文件定义技能的元数据（名称、描述、参数），修改无需重启服务
+# 对应执行逻辑：subscribe_tv.py
+
+name: subscribe_tv
+
+description: |
+  一键追剧：自动搜索 PT 资源后创建订阅，系统将自动下载新集。
+  适用场景：「帮我追《黑镜》第7季」「订阅最新一季的《纸牌屋》」。
+  注意：需要指定季数，且剧集须已在本地媒体库中识别过。
+
+parameters:
+  type: object
+  properties:
+    title:
+      type: string
+      description: 剧集名称（中文或英文均可）
+    season:
+      type: integer
+      description: 订阅季数（必须指定）
+    quality_mode:
+      type: string
+      description: "质量模式：first_match（速度优先）/ best_match（质量优先）"
+      enum: [first_match, best_match]
+      default: best_match
+  required: [title, season]
+
+# 供开发者参考，不传给 LLM
+examples:
+  - "帮我追《黑镜》第7季"
+  - "订阅最新一季的《纸牌屋》"
+  - "我要追 Severance S2"
+
+# 内部编排步骤说明
+workflow:
+  - step: search_resource
+    tool: resource_search
+    desc: 搜索 PT 站点，确认有可用资源
+  - step: create_subscription
+    tool: subscription_create
+    desc: 在媒体库中查找剧集并创建订阅

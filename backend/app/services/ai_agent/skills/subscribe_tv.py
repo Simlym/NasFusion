@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-追剧订阅 Skill
+追剧订阅 Skill 执行逻辑
 
-场景：用户说「帮我追《黑镜》第7季」
-流程：搜索资源确认有货 → 创建订阅
-优势：减少 LLM 多轮工具调用，用户一句话完成订阅
+技能描述（description、parameters）见同目录的 subscribe_tv.yaml。
+此文件只负责编排工具调用，完成「搜索资源 → 创建订阅」两步流程。
 """
 from typing import Any, Dict
 
@@ -16,33 +15,10 @@ from app.services.ai_agent.tool_registry import register_tool
 
 @register_tool
 class SubscribeTVSkill(BaseSkill):
-    """追剧订阅 Skill：一键搜索并订阅电视剧"""
+    """追剧订阅 Skill（元数据见 subscribe_tv.yaml）"""
 
+    # name/description/parameters 从 subscribe_tv.yaml 加载，此处留空即可
     name = "subscribe_tv"
-    description = """一键追剧：自动搜索 PT 资源后创建订阅，系统将自动下载新集。
-    适用场景：「帮我追《黑镜》第7季」「订阅最新一季的《纸牌屋》」。
-    注意：需要指定季数，且剧集须已在本地媒体库中识别过。"""
-
-    parameters = {
-        "type": "object",
-        "properties": {
-            "title": {
-                "type": "string",
-                "description": "剧集名称（中文或英文均可）",
-            },
-            "season": {
-                "type": "integer",
-                "description": "订阅季数（必须指定）",
-            },
-            "quality_mode": {
-                "type": "string",
-                "description": "质量模式：first_match（速度优先）/ best_match（质量优先）",
-                "enum": ["first_match", "best_match"],
-                "default": "best_match",
-            },
-        },
-        "required": ["title", "season"],
-    }
 
     @classmethod
     async def execute(
@@ -64,10 +40,7 @@ class SubscribeTVSkill(BaseSkill):
             "media_type": "tv",
             "limit": 5,
         })
-        steps.append({
-            "step": "search_resource",
-            "found": search_result.get("total", 0),
-        })
+        steps.append({"step": "search_resource", "found": search_result.get("total", 0)})
 
         if not search_result.get("success") or search_result.get("total", 0) == 0:
             return {
@@ -86,10 +59,7 @@ class SubscribeTVSkill(BaseSkill):
             "quality_mode": quality_mode,
             "auto_download": True,
         })
-        steps.append({
-            "step": "create_subscription",
-            "success": sub_result.get("success"),
-        })
+        steps.append({"step": "create_subscription", "success": sub_result.get("success")})
 
         if not sub_result.get("success"):
             return {
