@@ -448,6 +448,7 @@ import {
   getSitePresets,
   createSiteFromPreset,
   refreshSiteProfile,
+  testSiteConnection,
   type SitePreset,
   type CreateFromPresetForm
 } from '@/api/modules/site'
@@ -713,7 +714,7 @@ const handleRefreshProfile = async (site: PTSite) => {
   }
 }
 
-// 批量刷新用户信息
+// 批量刷新用户信息（同时更新健康状态）
 const handleBatchRefreshProfile = async () => {
   const activeSites = sites.value.filter(s => s.status === 'active')
   if (activeSites.length === 0) {
@@ -723,7 +724,11 @@ const handleBatchRefreshProfile = async () => {
   batchRefreshing.value = true
   try {
     const results = await Promise.allSettled(
-      activeSites.map(site => refreshSiteProfile(site.id))
+      activeSites.map(site =>
+        testSiteConnection(site.id).then(res =>
+          res.data.success ? refreshSiteProfile(site.id) : Promise.reject(res.data.message)
+        )
+      )
     )
     const succeeded = results.filter(r => r.status === 'fulfilled').length
     ElMessage.success(`已刷新 ${succeeded}/${activeSites.length} 个站点`)
