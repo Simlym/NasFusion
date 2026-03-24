@@ -32,25 +32,25 @@
             <div class="site-logo" :style="{ background: getSiteColor(site.type) }">
               {{ getSiteShortName(site.type) }}
             </div>
-            <div class="card-title-info">
-              <div class="site-name">{{ site.name }}</div>
-              <span class="status-badge" :class="'badge--' + (site.health_status || 'unknown')">
-                <span class="status-dot" :class="'dot--' + (site.health_status || 'unknown')"></span>
-                {{ healthLabel(site.health_status) }}
-              </span>
-            </div>
+            <div class="site-name">{{ site.name }}</div>
           </div>
-          <el-dropdown trigger="click" @command="(cmd: string) => handleCardCommand(cmd, site)">
-            <el-button :icon="MoreFilled" text circle />
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="edit"><el-icon><Edit /></el-icon> 编辑配置</el-dropdown-item>
-                <el-dropdown-item command="refresh-profile"><el-icon><User /></el-icon> 刷新用户信息</el-dropdown-item>
-                <el-dropdown-item command="sync-metadata"><el-icon><Refresh /></el-icon> 同步站点元数据</el-dropdown-item>
-                <el-dropdown-item divided command="delete"><el-icon><Delete /></el-icon> 删除站点</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="card-header-right">
+            <span class="status-badge" :class="'badge--' + (site.health_status || 'unknown')">
+              <span class="status-dot" :class="'dot--' + (site.health_status || 'unknown')"></span>
+              {{ healthLabel(site.health_status) }}
+            </span>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleCardCommand(cmd, site)">
+              <el-button :icon="MoreFilled" text circle />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit"><el-icon><Edit /></el-icon> 编辑配置</el-dropdown-item>
+                  <el-dropdown-item command="refresh-profile"><el-icon><User /></el-icon> 刷新用户信息</el-dropdown-item>
+                  <el-dropdown-item command="sync-metadata"><el-icon><Refresh /></el-icon> 同步站点元数据</el-dropdown-item>
+                  <el-dropdown-item divided command="delete"><el-icon><Delete /></el-icon> 删除站点</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
 
         <!-- 用户信息 -->
@@ -954,13 +954,23 @@ onMounted(() => { loadSites() })
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 8px;
 }
 
 .card-title-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 /* 站点 Logo */
@@ -984,13 +994,6 @@ onMounted(() => { loadSites() })
   height: 32px;
   font-size: 11px;
   border-radius: 8px;
-}
-
-.card-title-info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .site-name {
