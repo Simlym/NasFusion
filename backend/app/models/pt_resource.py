@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 
 from app.core.db_types import JSON, TZDateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
 
@@ -113,7 +113,7 @@ class PTResource(BaseModel):
     published_at = Column(TZDateTime(), nullable=True, index=True, comment="发布时间")
 
     # 关系
-    site = relationship("PTSite", backref="resources")
+    site = relationship("PTSite", backref=backref("resources", passive_deletes=True))
     download_tasks = relationship("DownloadTask", back_populates="pt_resource")
     # mapping 关系由 ResourceMapping.pt_resource 的 backref 自动生成
     resource_detail = relationship(

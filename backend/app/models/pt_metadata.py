@@ -5,7 +5,7 @@ PT站点元数据模型
 包括分类、视频编码、分辨率、来源、音频编码、语言、国家等元数据表
 """
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
 from app.core.db_types import JSON
@@ -53,7 +53,7 @@ class PTCategory(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始分类数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="categories")
+    site = relationship("PTSite", backref=backref("categories", passive_deletes=True))
 
     # 唯一约束：同一站点的分类ID唯一
     __table_args__ = (
@@ -129,7 +129,7 @@ class PTVideoCodec(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="video_codecs")
+    site = relationship("PTSite", backref=backref("video_codecs", passive_deletes=True))
 
     # 唯一约束：同一站点的编码ID唯一
     __table_args__ = (
@@ -193,7 +193,7 @@ class PTStandard(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="standards")
+    site = relationship("PTSite", backref=backref("standards", passive_deletes=True))
 
     # 唯一约束
     __table_args__ = (
@@ -257,7 +257,7 @@ class PTSource(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="sources")
+    site = relationship("PTSite", backref=backref("sources", passive_deletes=True))
 
     # 唯一约束
     __table_args__ = (
@@ -321,7 +321,7 @@ class PTAudioCodec(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="audio_codecs")
+    site = relationship("PTSite", backref=backref("audio_codecs", passive_deletes=True))
 
     # 唯一约束
     __table_args__ = (
@@ -383,7 +383,7 @@ class PTLanguage(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="languages")
+    site = relationship("PTSite", backref=backref("languages", passive_deletes=True))
 
     # 唯一约束
     __table_args__ = (
@@ -445,7 +445,7 @@ class PTCountry(BaseModel):
     raw_data = Column(JSON, nullable=True, comment="原始元数据JSON")
 
     # 关系
-    site = relationship("PTSite", backref="countries")
+    site = relationship("PTSite", backref=backref("countries", passive_deletes=True))
 
     # 唯一约束
     __table_args__ = (

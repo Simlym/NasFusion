@@ -18,7 +18,7 @@ from sqlalchemy import (
     DECIMAL,
     Index,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from app.models.base import BaseModel
 from app.core.db_types import JSON, TZDateTime
@@ -30,7 +30,7 @@ class SyncLog(BaseModel):
     __tablename__ = "sync_logs"
 
     # 基础信息
-    site_id = Column(Integer, ForeignKey("pt_sites.id"), nullable=False, comment="站点ID")
+    site_id = Column(Integer, ForeignKey("pt_sites.id", ondelete="CASCADE"), nullable=False, comment="站点ID")
     sync_type = Column(
         String(20), nullable=False, comment="同步类型: full/incremental/manual"
     )
@@ -98,7 +98,7 @@ class SyncLog(BaseModel):
     proxy_used = Column(Boolean, default=False, nullable=False, comment="是否使用代理")
 
     # 关系
-    site = relationship("PTSite", backref="sync_logs")
+    site = relationship("PTSite", backref=backref("sync_logs", passive_deletes=True))
 
     # 索引
     __table_args__ = (
