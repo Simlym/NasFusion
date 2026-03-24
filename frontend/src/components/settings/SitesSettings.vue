@@ -24,11 +24,7 @@
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="site-cards">
       <div v-for="site in sites" :key="site.id" class="site-card"
-        :class="{ 'site-card--error': site.status === 'error' }"
-        :style="{ '--site-accent': getSiteColor(site.type) }">
-
-        <!-- 彩色顶部强调条 -->
-        <div class="card-accent-bar"></div>
+        :class="{ 'site-card--error': site.status === 'error' }">
 
         <!-- 卡片头部 -->
         <div class="card-header">
@@ -916,30 +912,16 @@ onMounted(() => { loadSites() })
   border: 1px solid var(--border-color-light);
   border-radius: var(--border-radius-md);
   padding: 18px;
-  padding-top: 15px;
   transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  overflow: hidden;
-  position: relative;
 }
 
 .site-card:hover {
   box-shadow: var(--box-shadow-md);
   transform: translateY(-2px);
-  border-color: var(--site-accent, var(--border-color));
-}
-
-/* 顶部彩色强调条 */
-.card-accent-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--site-accent, var(--primary-color));
-  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+  border-color: var(--border-color);
 }
 
 .site-card--error {
