@@ -24,7 +24,12 @@
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="site-cards">
       <div v-for="site in sites" :key="site.id" class="site-card"
-        :class="{ 'site-card--error': site.status === 'error' }">
+        :class="{ 'site-card--error': site.status === 'error' }"
+        :style="{ '--site-accent': getSiteColor(site.type) }">
+
+        <!-- 彩色顶部强调条 -->
+        <div class="card-accent-bar"></div>
+
         <!-- 卡片头部 -->
         <div class="card-header">
           <div class="card-title-row">
@@ -43,18 +48,10 @@
             <el-button :icon="MoreFilled" text circle />
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="edit"><el-icon>
-                    <Edit />
-                  </el-icon> 编辑配置</el-dropdown-item>
-                <el-dropdown-item command="refresh-profile"><el-icon>
-                    <User />
-                  </el-icon> 刷新用户信息</el-dropdown-item>
-                <el-dropdown-item command="sync-metadata"><el-icon>
-                    <Refresh />
-                  </el-icon> 同步站点元数据</el-dropdown-item>
-                <el-dropdown-item divided command="delete"><el-icon>
-                    <Delete />
-                  </el-icon> 删除站点</el-dropdown-item>
+                <el-dropdown-item command="edit"><el-icon><Edit /></el-icon> 编辑配置</el-dropdown-item>
+                <el-dropdown-item command="refresh-profile"><el-icon><User /></el-icon> 刷新用户信息</el-dropdown-item>
+                <el-dropdown-item command="sync-metadata"><el-icon><Refresh /></el-icon> 同步站点元数据</el-dropdown-item>
+                <el-dropdown-item divided command="delete"><el-icon><Delete /></el-icon> 删除站点</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -62,59 +59,54 @@
 
         <!-- 用户信息 -->
         <div v-if="site.user_profile" class="user-profile-section">
+          <!-- 用户名 + 等级 -->
           <div class="profile-header">
             <span class="profile-username">
-              <el-icon :size="12">
-                <User />
-              </el-icon>
+              <el-icon :size="12"><User /></el-icon>
               {{ site.user_profile.username || '-' }}
             </span>
             <el-tag v-if="site.user_profile.user_class" size="small" effect="plain" type="warning">
               {{ site.user_profile.user_class }}
             </el-tag>
           </div>
-          <div class="profile-stats">
-            <div class="profile-stat">
-              <span class="profile-stat-label">上传</span>
-              <span class="profile-stat-value">{{ site.user_profile.uploaded_text ||
-                formatFileSize(site.user_profile.uploaded
-                || 0) }}</span>
+
+          <!-- 主要指标：上传 / 下载 / 分享率 -->
+          <div class="primary-metrics">
+            <div class="metric-item metric-upload">
+              <span class="metric-label">上传</span>
+              <span class="metric-value">{{ site.user_profile.uploaded_text || formatFileSize(site.user_profile.uploaded || 0) }}</span>
             </div>
-            <div class="profile-stat">
-              <span class="profile-stat-label">下载</span>
-              <span class="profile-stat-value">{{ site.user_profile.downloaded_text ||
-                formatFileSize(site.user_profile.downloaded || 0) }}</span>
+            <div class="metric-item metric-download">
+              <span class="metric-label">下载</span>
+              <span class="metric-value">{{ site.user_profile.downloaded_text || formatFileSize(site.user_profile.downloaded || 0) }}</span>
             </div>
-            <div class="profile-stat">
-              <span class="profile-stat-label">分享率</span>
-              <span class="profile-stat-value"
-                :class="{ 'ratio-good': (site.user_profile.ratio ?? 0) >= 1 || site.user_profile.ratio === -1 }">
-                {{ formatRatio(site.user_profile.ratio) }}
-              </span>
+            <div class="metric-item"
+              :class="(site.user_profile.ratio ?? 0) >= 1 || site.user_profile.ratio === -1 ? 'metric-ratio-good' : 'metric-ratio-bad'">
+              <span class="metric-label">分享率</span>
+              <span class="metric-value">{{ formatRatio(site.user_profile.ratio) }}</span>
             </div>
-            <div class="profile-stat">
-              <span class="profile-stat-label">做种</span>
-              <span class="profile-stat-value">{{ site.user_profile.seeding_count ?? '-' }}</span>
+          </div>
+
+          <!-- 次要指标：做种 / 做种量 / 积分 -->
+          <div class="secondary-metrics">
+            <div class="sec-metric">
+              <span class="sec-label">做种</span>
+              <span class="sec-value">{{ site.user_profile.seeding_count ?? '-' }}</span>
             </div>
-            <div class="profile-stat">
-              <span class="profile-stat-label">做种量</span>
-              <span class="profile-stat-value">{{ site.user_profile.seeding_size_text || (site.user_profile.seeding_size
-                ?
-                formatFileSize(site.user_profile.seeding_size) : '-') }}</span>
+            <div class="sec-metric">
+              <span class="sec-label">做种量</span>
+              <span class="sec-value">{{ site.user_profile.seeding_size_text || (site.user_profile.seeding_size ? formatFileSize(site.user_profile.seeding_size) : '-') }}</span>
             </div>
-            <div class="profile-stat">
-              <span class="profile-stat-label">积分</span>
-              <span class="profile-stat-value">{{ site.user_profile.bonus != null ?
-                formatNumber(Math.floor(site.user_profile.bonus)) : '-' }}</span>
+            <div class="sec-metric">
+              <span class="sec-label">积分</span>
+              <span class="sec-value">{{ site.user_profile.bonus != null ? formatNumber(Math.floor(site.user_profile.bonus)) : '-' }}</span>
             </div>
           </div>
         </div>
         <div v-else class="user-profile-empty">
           <el-button link type="primary" size="small" :loading="refreshingProfileId === site.id"
             @click="handleRefreshProfile(site)">
-            <el-icon>
-              <User />
-            </el-icon> 获取用户信息
+            <el-icon><User /></el-icon> 获取用户信息
           </el-button>
         </div>
       </div>
@@ -914,7 +906,7 @@ onMounted(() => { loadSites() })
 /* 站点卡片网格 */
 .site-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   min-height: 100px;
 }
@@ -924,20 +916,34 @@ onMounted(() => { loadSites() })
   border: 1px solid var(--border-color-light);
   border-radius: var(--border-radius-md);
   padding: 18px;
+  padding-top: 15px;
   transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  overflow: hidden;
+  position: relative;
 }
 
 .site-card:hover {
   box-shadow: var(--box-shadow-md);
   transform: translateY(-2px);
-  border-color: var(--border-color);
+  border-color: var(--site-accent, var(--border-color));
+}
+
+/* 顶部彩色强调条 */
+.card-accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--site-accent, var(--primary-color));
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
 }
 
 .site-card--error {
-  border-left: 3px solid var(--danger-color);
+  border-color: var(--danger-color);
 }
 
 .site-card--add {
@@ -1085,10 +1091,9 @@ onMounted(() => { loadSites() })
 
 /* 用户信息 */
 .user-profile-section {
-  padding: 10px 12px;
-  background: var(--bg-color-overlay);
-  border-radius: var(--border-radius-sm);
-  border: 1px solid var(--border-color-light);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .user-profile-empty {
@@ -1101,7 +1106,6 @@ onMounted(() => { loadSites() })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
 }
 
 .profile-username {
@@ -1113,31 +1117,97 @@ onMounted(() => { loadSites() })
   color: var(--text-color-primary);
 }
 
-.profile-stats {
+/* 主要指标：上传 / 下载 / 分享率 */
+.primary-metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px 40px;
+  gap: 6px;
 }
 
-.profile-stat {
+.metric-item {
+  background: var(--bg-color-page, var(--bg-color-overlay));
+  border: 1px solid var(--border-color-light);
+  border-radius: 8px;
+  padding: 8px 10px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
-.profile-stat-label {
-  font-size: 11px;
-  color: var(--text-color-secondary);
+.metric-label {
+  font-size: 10px;
+  color: var(--text-color-muted);
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
-.profile-stat-value {
+.metric-value {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color-primary);
+}
+
+.metric-upload .metric-value {
+  color: var(--primary-color);
+}
+
+.metric-download .metric-value {
+  color: var(--warning-color);
+}
+
+.metric-ratio-good .metric-value {
+  color: var(--success-color);
+}
+
+.metric-ratio-bad .metric-value {
+  color: var(--danger-color);
+}
+
+.metric-ratio-good {
+  border-color: rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.metric-ratio-bad {
+  border-color: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* 次要指标：做种 / 做种量 / 积分 */
+.secondary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 8px;
+  padding: 6px 10px;
+  background: var(--bg-color-overlay);
+  border-radius: 8px;
+  border: 1px solid var(--border-color-light);
+}
+
+.sec-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sec-label {
+  font-size: 10px;
+  color: var(--text-color-muted);
+  white-space: nowrap;
+}
+
+.sec-value {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-color-secondary);
   white-space: nowrap;
-  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ratio-good {
