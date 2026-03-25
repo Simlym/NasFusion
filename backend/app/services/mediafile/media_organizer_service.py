@@ -49,6 +49,7 @@ class MediaOrganizerService:
         config: Optional[OrganizeConfig] = None,
         dry_run: bool = False,
         force: bool = False,
+        storage_mount_id: Optional[int] = None,
     ) -> Dict:
         """
         整理媒体文件
@@ -103,15 +104,15 @@ class MediaOrganizerService:
             # 这样 anime 等媒体类型可以复用 movie/tv 的整理逻辑
             if media_file.unified_table_name == UNIFIED_TABLE_MOVIES:
                 result = await MediaOrganizerService._organize_movie(
-                    db, media_file, config, dry_run
+                    db, media_file, config, dry_run, storage_mount_id
                 )
             elif media_file.unified_table_name == UNIFIED_TABLE_TV:
                 result = await MediaOrganizerService._organize_tv(
-                    db, media_file, config, dry_run
+                    db, media_file, config, dry_run, storage_mount_id
                 )
             elif media_file.unified_table_name == UNIFIED_TABLE_ADULT:
                 result = await MediaOrganizerService._organize_adult(
-                    db, media_file, config, dry_run
+                    db, media_file, config, dry_run, storage_mount_id
                 )
             else:
                 return {
@@ -164,6 +165,7 @@ class MediaOrganizerService:
         media_file: MediaFile,
         config: OrganizeConfig,
         dry_run: bool,
+        storage_mount_id: Optional[int] = None,
     ) -> Dict:
         """
         整理电影文件
@@ -202,11 +204,16 @@ class MediaOrganizerService:
         # 这样 anime 类型的文件可以使用 tv 类型的整理规则和挂载点
         from app.services.storage.storage_mount_service import StorageMountService
 
-        target_mount = await StorageMountService.get_organize_target(
-            db,
-            media_category=config.media_type,
-            source_path=media_file.file_path
-        )
+        if storage_mount_id:
+            target_mount = await StorageMountService.get_mount_by_id(db, storage_mount_id)
+            if not target_mount:
+                raise ValueError(f"指定的存储挂载点 {storage_mount_id} 不存在")
+        else:
+            target_mount = await StorageMountService.get_organize_target(
+                db,
+                media_category=config.media_type,
+                source_path=media_file.file_path
+            )
 
         if not target_mount:
             raise ValueError(f"未找到媒体类型 {config.media_type} 的可用挂载点，请在存储配置中添加")
@@ -309,6 +316,7 @@ class MediaOrganizerService:
         media_file: MediaFile,
         config: OrganizeConfig,
         dry_run: bool,
+        storage_mount_id: Optional[int] = None,
     ) -> Dict:
         """
         整理电视剧文件
@@ -380,11 +388,16 @@ class MediaOrganizerService:
         # 这样 anime 类型的文件可以使用 tv 类型的整理规则和挂载点
         from app.services.storage.storage_mount_service import StorageMountService
 
-        target_mount = await StorageMountService.get_organize_target(
-            db,
-            media_category=config.media_type,
-            source_path=media_file.file_path
-        )
+        if storage_mount_id:
+            target_mount = await StorageMountService.get_mount_by_id(db, storage_mount_id)
+            if not target_mount:
+                raise ValueError(f"指定的存储挂载点 {storage_mount_id} 不存在")
+        else:
+            target_mount = await StorageMountService.get_organize_target(
+                db,
+                media_category=config.media_type,
+                source_path=media_file.file_path
+            )
 
         if not target_mount:
             raise ValueError(f"未找到媒体类型 {config.media_type} 的可用挂载点，请在存储配置中添加")
@@ -486,6 +499,7 @@ class MediaOrganizerService:
         media_file: MediaFile,
         config: OrganizeConfig,
         dry_run: bool,
+        storage_mount_id: Optional[int] = None,
     ) -> Dict:
         """
         整理成人资源文件
@@ -555,11 +569,16 @@ class MediaOrganizerService:
         # 使用挂载点系统选择目标路径
         from app.services.storage.storage_mount_service import StorageMountService
 
-        target_mount = await StorageMountService.get_organize_target(
-            db,
-            media_category=config.media_type,
-            source_path=media_file.file_path
-        )
+        if storage_mount_id:
+            target_mount = await StorageMountService.get_mount_by_id(db, storage_mount_id)
+            if not target_mount:
+                raise ValueError(f"指定的存储挂载点 {storage_mount_id} 不存在")
+        else:
+            target_mount = await StorageMountService.get_organize_target(
+                db,
+                media_category=config.media_type,
+                source_path=media_file.file_path
+            )
 
         if not target_mount:
             raise ValueError(f"未找到媒体类型 {config.media_type} 的可用挂载点，请在存储配置中添加")
@@ -694,6 +713,7 @@ class MediaOrganizerService:
         config_id: Optional[int] = None,
         dry_run: bool = False,
         force: bool = False,
+        storage_mount_id: Optional[int] = None,
     ) -> Dict:
         """
         批量整理媒体文件
@@ -724,7 +744,7 @@ class MediaOrganizerService:
                 continue
 
             result = await MediaOrganizerService.organize_media_file(
-                db, media_file, config, dry_run, force
+                db, media_file, config, dry_run, force, storage_mount_id
             )
 
             if result["status"] == "success":

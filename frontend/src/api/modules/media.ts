@@ -76,10 +76,11 @@ export function organizeSingleFile(
   dry_run = false,
   force = false,
   season_number?: number,
-  episode_number?: number
+  episode_number?: number,
+  storage_mount_id?: number
 ) {
   return request.post<MediaFileOrganizeResponse>(`/media-files/${id}/organize`, null, {
-    params: { config_id, dry_run, force, season_number, episode_number }
+    params: { config_id, dry_run, force, season_number, episode_number, storage_mount_id }
   })
 }
 

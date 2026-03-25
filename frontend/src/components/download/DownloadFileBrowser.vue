@@ -835,7 +835,8 @@ async function confirmOrganize() {
         organizeDialog.dryRun,
         organizeDialog.force,
         organizeDialog.seasonNumber,
-        organizeDialog.episodeNumber
+        organizeDialog.episodeNumber,
+        organizeDialog.storageMountId
       )
       ElMessage.success(res.data.message || '整理成功')
       organizeDialog.visible = false
@@ -872,7 +873,8 @@ async function confirmOrganize() {
         file_ids: organizeDialog.fileIds,
         config_id: organizeDialog.configId,
         dry_run: organizeDialog.dryRun,
-        force: organizeDialog.force
+        force: organizeDialog.force,
+        storage_mount_id: organizeDialog.storageMountId
       })
       const data = res.data as any
       ElMessage.success(`整理完成: 成功 ${data.success_count}, 失败 ${data.failed_count}`)

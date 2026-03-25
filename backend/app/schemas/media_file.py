@@ -123,6 +123,7 @@ class MediaFileOrganizeRequest(BaseModel):
     config_id: Optional[int] = None
     dry_run: bool = False
     force: bool = Field(default=False, description="强制重新整理（忽略已整理状态）")
+    storage_mount_id: Optional[int] = Field(default=None, description="目标存储挂载点ID（可选，不传则自动选择）")
 
 
 class MediaFileOrganizeResponse(BaseModel):

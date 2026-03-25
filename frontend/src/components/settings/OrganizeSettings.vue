@@ -39,18 +39,20 @@
 
     <!-- 配置列表 -->
     <el-table v-loading="loading" :data="configs" style="width: 100%">
-      <el-table-column prop="name" label="配置名称" min-width="150" />
+      <el-table-column prop="name" label="配置名称" min-width="130" />
       <el-table-column label="媒体类型" width="100">
         <template #default="{ row }">
           <el-tag>{{ MediaTypeLabels[row.media_type] || row.media_type }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="整理模式" width="140">
+      <el-table-column prop="dir_template" label="目录模板" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="filename_template" label="文件名模板" min-width="200" show-overflow-tooltip />
+      <el-table-column label="整理模式" width="180">
         <template #default="{ row }">
-          {{ OrganizeModeLabels[row.organize_mode] || row.organize_mode }}
+          <span style="white-space: nowrap">{{ OrganizeModeLabels[row.organize_mode] || row.organize_mode }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="生成NFO" width="100">
+      <el-table-column label="生成NFO" width="90">
         <template #default="{ row }">
           <el-tag v-if="row.generate_nfo" type="success" size="small">是</el-tag>
           <el-tag v-else type="info" size="small">否</el-tag>
@@ -62,13 +64,13 @@
           <el-tag v-else type="info" size="small">禁用</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="默认配置" width="100">
+      <el-table-column label="默认" width="70">
         <template #default="{ row }">
           <el-tag v-if="row.is_default" type="primary" size="small">是</el-tag>
           <el-tag v-else type="info" size="small">否</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
           <el-button link type="warning" size="small" @click="handleEdit(row)">编辑</el-button>
           <el-button

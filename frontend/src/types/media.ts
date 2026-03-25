@@ -116,6 +116,7 @@ export interface MediaFileOrganizeRequest {
   config_id?: number
   dry_run: boolean
   force?: boolean  // 强制重新整理（忽略已整理状态）
+  storage_mount_id?: number  // 目标存储挂载点ID（可选，不传则自动选择）
 }
 
 // 整理文件响应

@@ -246,6 +246,7 @@ async def organize_media_files(
             config_id=request.config_id,
             dry_run=request.dry_run,
             force=request.force,
+            storage_mount_id=request.storage_mount_id,
         )
         return result
     except Exception as e:
@@ -261,6 +262,7 @@ async def organize_single_file(
     force: bool = False,
     season_number: Optional[int] = None,
     episode_number: Optional[int] = None,
+    storage_mount_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -307,7 +309,7 @@ async def organize_single_file(
                 raise HTTPException(status_code=404, detail="配置不存在")
 
         result = await MediaOrganizerService.organize_media_file(
-            db, media_file, config, dry_run, force
+            db, media_file, config, dry_run, force, storage_mount_id
         )
         return result
     except HTTPException:
