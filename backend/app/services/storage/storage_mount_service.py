@@ -571,7 +571,7 @@ class StorageMountService:
 
         # 更新字段
         allowed_fields = {
-            "container_path", "host_path", "media_category", "priority",
+            "name", "container_path", "host_path", "media_category", "priority",
             "is_default", "is_enabled", "custom_label", "description", "disk_group"
         }
 

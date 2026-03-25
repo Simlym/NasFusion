@@ -42,6 +42,7 @@ export interface StorageMount {
 }
 
 export interface StorageMountUpdate {
+    name?: string
     container_path?: string
     host_path?: string
     media_category?: string

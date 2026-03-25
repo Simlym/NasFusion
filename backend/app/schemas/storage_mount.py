@@ -23,6 +23,7 @@ class StorageMountCreate(StorageMountBase):
 
 class StorageMountUpdate(BaseModel):
     """更新存储挂载点请求"""
+    name: Optional[str] = Field(None, min_length=2, max_length=50, description="挂载点名称")
     container_path: Optional[str] = Field(None, description="容器内路径")
     host_path: Optional[str] = Field(None, description="宿主机路径")
     media_category: Optional[str] = Field(None, description="媒体分类")

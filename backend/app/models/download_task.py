@@ -92,7 +92,7 @@ class DownloadTask(Base):
         Integer, ForeignKey("organize_configs.id"), nullable=True, index=True, comment="整理配置ID（整理规则：文件名模板、NFO生成等）"
     )
     storage_mount_id = Column(
-        Integer, ForeignKey("storage_mounts.id"), nullable=True, index=True, comment="存储挂载点ID（最终存储位置）"
+        Integer, ForeignKey("storage_mounts.id", ondelete="SET NULL"), nullable=True, index=True, comment="存储挂载点ID（最终存储位置）"
     )
     keep_seeding = Column(Boolean, default=True, nullable=False, comment="是否保持做种")
     seeding_time_limit = Column(Integer, nullable=True, comment="做种时长限制（小时），NULL为不限制")
