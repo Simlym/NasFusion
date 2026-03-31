@@ -28,6 +28,40 @@ from app.constants import MEDIA_TYPE_ADULT
 router = APIRouter(prefix="/media-directories", tags=["media_directories"])
 
 
+def check_episode_metadata(file_path: Optional[str]) -> dict:
+    """
+    实时检查剧集文件旁边是否存在 NFO 和缩略图文件。
+    NFO:  {stem}.nfo
+    图片:  {stem}-thumb.jpg / {stem}.jpg 等常见命名
+    """
+    import os
+    from pathlib import Path as _Path
+
+    result = {"has_nfo": False, "has_poster": False}
+    if not file_path or not os.path.exists(file_path):
+        return result
+
+    p = _Path(file_path)
+    stem = p.stem
+    parent = p.parent
+
+    # NFO
+    if (parent / f"{stem}.nfo").exists():
+        result["has_nfo"] = True
+
+    # 缩略图（常见命名规则）
+    for name in (
+        f"{stem}-thumb.jpg", f"{stem}-thumb.jpeg", f"{stem}-thumb.png",
+        f"{stem}-thumb.webp",
+        f"{stem}.jpg", f"{stem}.jpeg", f"{stem}.png",
+    ):
+        if (parent / name).exists():
+            result["has_poster"] = True
+            break
+
+    return result
+
+
 def convert_file_path_to_url(file_path: Optional[str]) -> Optional[str]:
     """
     将文件系统路径转换为代理访问URL
@@ -224,14 +258,19 @@ async def get_directory_detail(
         directory.has_backdrop = metadata["has_backdrop"]
         directory.backdrop_path = convert_file_path_to_url(metadata["backdrop_path"]) if metadata["backdrop_path"] else None
 
-        # 转换文件列表，处理可能的验证错误
+        # 转换文件列表，处理可能的验证错误，并实时检查每个文件的 NFO/图片状态
         files_response = []
         for f in detail["files"]:
             try:
-                files_response.append(MediaFileResponse.model_validate(f))
+                resp = MediaFileResponse.model_validate(f)
+                # 实时检查该文件旁边的 NFO 和缩略图
+                actual_path = f.organized_path or f.file_path
+                meta = check_episode_metadata(actual_path)
+                resp.has_nfo = meta["has_nfo"]
+                resp.has_poster = meta["has_poster"]
+                files_response.append(resp)
             except Exception as e:
                 logger.error(f"文件序列化失败: file_id={f.id}, file_path={f.file_path}, 错误: {e}")
-                # 跳过无法序列化的文件，但记录错误
                 continue
 
         return DirectoryDetailResponse(

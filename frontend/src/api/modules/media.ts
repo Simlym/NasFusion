@@ -110,6 +110,18 @@ export function searchTMDB(data: TMDBSearchRequest) {
   return request.post<TMDBSearchResponse>('/media-files/search-tmdb', data)
 }
 
+// 获取剧集文件元数据（NFO内容 + 缩略图）
+export interface EpisodeMetadata {
+  has_nfo: boolean
+  has_poster: boolean
+  poster_url: string | null
+  nfo_data: Record<string, any> | null
+}
+
+export function getEpisodeMetadata(id: number) {
+  return request.get<EpisodeMetadata>(`/media-files/${id}/episode-metadata`)
+}
+
 // ==================== 刮削相关 API ====================
 
 // 刮削单个媒体文件（下载海报、背景图、生成NFO）

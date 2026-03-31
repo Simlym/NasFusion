@@ -126,7 +126,72 @@ async def get_media_file(
     media_file = await MediaFileService.get_by_id(db, file_id)
     if not media_file:
         raise HTTPException(status_code=404, detail="媒体文件不存在")
-    return media_file
+    from app.api.v1.media_directories import check_episode_metadata
+    resp = MediaFileResponse.model_validate(media_file)
+    actual_path = media_file.organized_path or media_file.file_path
+    meta = check_episode_metadata(actual_path)
+    resp.has_nfo = meta["has_nfo"]
+    resp.has_poster = meta["has_poster"]
+    return resp
+
+
+@router.get("/{file_id}/episode-metadata")
+async def get_episode_metadata(
+    file_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取剧集文件的完整元数据：解析 NFO 内容 + 缩略图代理 URL。
+    用于在文件管理页面的剧集详情面板中展示实际内容。
+    """
+    import os
+    from pathlib import Path as _Path
+    from urllib.parse import quote
+    from app.services.mediafile.nfo_parser_service import NFOParserService
+
+    media_file = await MediaFileService.get_by_id(db, file_id)
+    if not media_file:
+        raise HTTPException(status_code=404, detail="媒体文件不存在")
+
+    file_path = media_file.organized_path or media_file.file_path
+    result: dict = {
+        "has_nfo": False,
+        "has_poster": False,
+        "poster_url": None,
+        "nfo_data": None,
+    }
+
+    if not file_path or not os.path.exists(file_path):
+        return result
+
+    p = _Path(file_path)
+    stem = p.stem
+    parent = p.parent
+
+    # NFO：{stem}.nfo
+    nfo_path = parent / f"{stem}.nfo"
+    if nfo_path.exists():
+        result["has_nfo"] = True
+        try:
+            result["nfo_data"] = await NFOParserService.parse_nfo(str(nfo_path))
+        except Exception:
+            pass
+
+    # 缩略图：常见命名约定
+    for name in (
+        f"{stem}-thumb.jpg", f"{stem}-thumb.jpeg", f"{stem}-thumb.png",
+        f"{stem}-thumb.webp",
+        f"{stem}.jpg", f"{stem}.jpeg", f"{stem}.png",
+    ):
+        thumb = parent / name
+        if thumb.exists():
+            result["has_poster"] = True
+            encoded = quote(str(thumb).replace("\\", "/"), safe="")
+            result["poster_url"] = f"/api/v1/media-directories/image?path={encoded}"
+            break
+
+    return result
 
 
 @router.post("/scan")

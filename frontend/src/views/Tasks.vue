@@ -184,8 +184,8 @@
 
     <div v-else-if="activeTab === 'history'" v-loading="historyLoading" class="tab-content">
       <div class="history-section">
-        <!-- 分类胶囊筛选 -->
-        <div class="history-control-bar">
+        <!-- 控制栏：胶囊 + 筛选 -->
+        <div class="scheduled-control-bar">
           <div class="group-pills-bar">
             <div
               class="group-pill"
@@ -205,51 +205,35 @@
               <span class="pill-label">{{ name }}</span>
             </div>
           </div>
-        </div>
 
-        <div class="toolbar">
-          <div class="toolbar-left">
-            <el-form inline>
-              <el-form-item>
-                <el-select v-model="historyFilters.status" placeholder="全部状态" clearable style="width: 140px">
-                  <el-option label="已完成" value="completed" />
-                  <el-option label="失败" value="failed" />
-                  <el-option label="已取消" value="cancelled" />
-                  <el-option label="运行中" value="running" />
-                  <el-option label="等待中" value="pending" />
-                </el-select>
-              </el-form-item>
-
-              <el-form-item>
-                <el-input
-                  v-model="historyFilters.keyword"
-                  placeholder="搜索任务名称"
-                  clearable
-                  style="width: 180px"
-                >
-                  <template #prefix><el-icon><Search /></el-icon></template>
-                </el-input>
-              </el-form-item>
-
-              <el-form-item>
-                <el-date-picker
-                  v-model="historyFilters.dateRange"
-                  type="daterange"
-                  range-separator="至"
-                  start-placeholder="开始日期"
-                  end-placeholder="结束日期"
-                  style="width: 250px"
-                  clearable
-                />
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" :icon="Search" @click="loadHistory">查询</el-button>
-                <el-button @click="resetHistoryFilters">重置</el-button>
-              </el-form-item>
-            </el-form>
-          </div>
-
-          <div class="toolbar-right">
+          <div class="scheduled-actions">
+            <el-select v-model="historyFilters.status" placeholder="全部状态" clearable style="width: 130px">
+              <el-option label="已完成" value="completed" />
+              <el-option label="失败" value="failed" />
+              <el-option label="已取消" value="cancelled" />
+              <el-option label="运行中" value="running" />
+              <el-option label="等待中" value="pending" />
+            </el-select>
+            <el-input
+              v-model="historyFilters.keyword"
+              placeholder="搜索任务名称"
+              clearable
+              style="width: 160px"
+              @keyup.enter="loadHistory"
+            >
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+            <el-date-picker
+              v-model="historyFilters.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              style="width: 240px"
+              clearable
+            />
+            <el-button type="primary" :icon="Search" @click="loadHistory">查询</el-button>
+            <el-button @click="resetHistoryFilters">重置</el-button>
           </div>
         </div>
           
@@ -2986,8 +2970,8 @@ onUnmounted(() => {
 }
 
 .lq-status-dot--completed {
-  background: var(--el-color-success-light-8);
-  color: var(--el-color-success);
+  background: var(--el-color-success);
+  color: #fff;
 }
 
 .lq-status-dot--failed {
@@ -3098,9 +3082,6 @@ onUnmounted(() => {
 
 /* ==================== 历史记录区块 ==================== */
 
-.history-control-bar {
-  margin-bottom: 12px;
-}
 
 .filter-bar {
   margin-bottom: 16px;

@@ -221,7 +221,13 @@ const loadEpisodeNodes = async (directoryId: number, resolve: any) => {
     const res = await getDirectoryDetail(directoryId)
     const files = res.data?.files || []
     const episodes: EpisodeTreeNode[] = files
-      .filter((f: any) => VIDEO_EXTS.has((f.extension || '').toLowerCase()))
+      .filter((f: any) => {
+        // 优先使用 file_type 字段
+        if (f.file_type === 'video') return true
+        // 兜底：扩展名匹配（extension 可能带前导点 ".mkv" 或不带 "mkv"）
+        const ext = (f.extension || '').toLowerCase().replace(/^\./, '')
+        return VIDEO_EXTS.has(ext)
+      })
       .sort((a: any, b: any) => (a.episode_number ?? 9999) - (b.episode_number ?? 9999))
       .map((f: any): EpisodeTreeNode => ({
         _treeKey: `e_${f.id}`,

@@ -80,6 +80,10 @@ class MediaFileResponse(MediaFileBase):
     duration: Optional[int] = None
     tech_info: Optional[dict] = None
 
+    # 元数据文件（实时检测，不存储在DB中）
+    has_nfo: bool = False
+    has_poster: bool = False
+
     # 外挂字幕 (保留，因为字幕属于文件属性，不同于海报等元数据)
     has_subtitle: bool = False
     subtitle_paths: Optional[List[str]] = None

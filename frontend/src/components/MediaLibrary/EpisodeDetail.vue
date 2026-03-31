@@ -1,97 +1,113 @@
 <template>
   <div v-loading="loading" class="episode-detail">
     <template v-if="fileData">
-      <!-- 头部信息 -->
-      <div class="episode-header">
-        <div class="episode-title-row">
-          <span class="ep-num-badge" v-if="fileData.episode_number != null">
-            E{{ String(fileData.episode_number).padStart(2, '0') }}
-          </span>
-          <h2 class="ep-title">{{ fileData.episode_title || fileData.file_name }}</h2>
-        </div>
-        <p class="ep-filename">{{ fileData.file_name }}</p>
-        <div class="ep-meta">
-          <span v-if="fileData.resolution" class="meta-chip">{{ fileData.resolution }}</span>
-          <span v-if="fileData.file_size" class="meta-chip">{{ formatFileSize(fileData.file_size) }}</span>
-        </div>
-      </div>
 
-      <!-- 刮削状态卡片 -->
-      <div class="scrape-status-card">
-        <div class="status-title">刮削状态</div>
-        <div class="status-grid">
-          <!-- NFO -->
-          <div class="status-item" :class="fileData.has_nfo ? 'status-ok' : 'status-missing'">
-            <el-icon :size="28">
-              <CircleCheck v-if="fileData.has_nfo" />
-              <CircleClose v-else />
-            </el-icon>
-            <span class="status-label">NFO 文件</span>
-            <span class="status-desc">{{ fileData.has_nfo ? '已存在' : '缺少' }}</span>
-          </div>
-
-          <!-- 图片 -->
-          <div class="status-item" :class="fileData.has_poster ? 'status-ok' : 'status-warn'">
-            <el-icon :size="28">
-              <CircleCheck v-if="fileData.has_poster" />
-              <CircleClose v-else />
-            </el-icon>
-            <span class="status-label">缩略图</span>
-            <span class="status-desc">{{ fileData.has_poster ? '已存在' : '缺少' }}</span>
-          </div>
-
-          <!-- 字幕 -->
-          <div class="status-item" :class="fileData.has_subtitle ? 'status-ok' : 'status-neutral'">
-            <el-icon :size="28">
-              <CircleCheck v-if="fileData.has_subtitle" />
-              <Minus v-else />
-            </el-icon>
-            <span class="status-label">字幕文件</span>
-            <span class="status-desc">{{ fileData.has_subtitle ? '已存在' : '无' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 操作区 -->
-      <div class="action-section">
-        <div class="action-title">刮削操作</div>
-        <div class="action-buttons">
-          <el-button
-            type="primary"
-            :loading="scraping"
-            :icon="Download"
-            @click="handleScrape"
+      <!-- 缩略图 + 基本信息 -->
+      <div class="hero">
+        <!-- 缩略图区域 -->
+        <div class="thumb-wrapper">
+          <el-image
+            v-if="metadata?.poster_url"
+            :src="metadata.poster_url"
+            fit="cover"
+            class="thumb-image"
+            :preview-src-list="[metadata.poster_url]"
           >
-            重新刮削（图片 + NFO）
-          </el-button>
-          <el-button
-            :loading="generating"
-            :icon="Document"
-            @click="handleGenerateNFO"
-          >
-            仅生成 NFO
-          </el-button>
+            <template #error>
+              <div class="thumb-placeholder">
+                <span class="ep-num-large">
+                  {{ fileData.episode_number != null ? `E${String(fileData.episode_number).padStart(2, '0')}` : 'EP' }}
+                </span>
+              </div>
+            </template>
+          </el-image>
+          <div v-else class="thumb-placeholder">
+            <span class="ep-num-large">
+              {{ fileData.episode_number != null ? `E${String(fileData.episode_number).padStart(2, '0')}` : 'EP' }}
+            </span>
+          </div>
         </div>
-        <el-text type="info" size="small" style="margin-top: 8px; display: block">
-          刮削将强制覆盖已有的缩略图和 NFO 文件
-        </el-text>
+
+        <!-- 标题 + 元信息 -->
+        <div class="hero-info">
+          <div class="ep-badge-row">
+            <span class="ep-badge" v-if="fileData.episode_number != null">
+              E{{ String(fileData.episode_number).padStart(2, '0') }}
+            </span>
+            <el-tag v-if="fileData.resolution" size="small" type="info" effect="plain">
+              {{ fileData.resolution }}
+            </el-tag>
+            <el-tag size="small" :type="metadata?.has_nfo ? 'success' : 'danger'" effect="plain">
+              NFO
+            </el-tag>
+            <el-tag size="small" :type="metadata?.has_poster ? 'success' : 'warning'" effect="plain">
+              图片
+            </el-tag>
+            <el-tag v-if="fileData.has_subtitle" size="small" type="success" effect="plain">
+              字幕
+            </el-tag>
+          </div>
+
+          <!-- 集标题 -->
+          <h2 class="ep-title">
+            {{ nfoTitle || fileData.episode_title || fileData.file_name }}
+          </h2>
+
+          <!-- 播出日期 + 评分 -->
+          <div class="ep-meta-row" v-if="nfoAired || nfoRating">
+            <span v-if="nfoAired" class="meta-item">
+              <el-icon><Calendar /></el-icon> {{ nfoAired }}
+            </span>
+            <span v-if="nfoRating" class="rating-inline">
+              ★ {{ Number(nfoRating).toFixed(1) }}
+            </span>
+          </div>
+
+          <!-- 剧情简介 -->
+          <p v-if="nfoPlot" class="ep-plot">{{ nfoPlot }}</p>
+          <p v-else-if="!loading" class="ep-plot ep-plot--empty">暂无简介</p>
+        </div>
       </div>
 
-      <!-- 文件详情 -->
-      <div class="file-info-section">
-        <div class="action-title">文件信息</div>
-        <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="文件名">{{ fileData.file_name }}</el-descriptions-item>
-          <el-descriptions-item label="分辨率">{{ fileData.resolution || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="文件大小">{{ formatFileSize(fileData.file_size) }}</el-descriptions-item>
-          <el-descriptions-item label="集数">
-            {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="fileData.episode_title" label="集标题">
-            {{ fileData.episode_title }}
-          </el-descriptions-item>
-        </el-descriptions>
+      <!-- 刮削操作 -->
+      <div class="action-bar">
+        <el-button
+          type="primary"
+          size="small"
+          :loading="scraping"
+          :icon="Refresh"
+          @click="handleScrape"
+        >
+          重新刮削
+        </el-button>
+        <el-button
+          size="small"
+          :loading="generating"
+          :icon="Document"
+          @click="handleGenerateNFO"
+        >
+          仅生成 NFO
+        </el-button>
+        <span class="action-hint">强制覆盖已有图片和 NFO</span>
       </div>
+
+      <!-- 文件信息（折叠） -->
+      <el-collapse class="file-collapse">
+        <el-collapse-item title="文件信息" name="file">
+          <el-descriptions :column="2" size="small" border>
+            <el-descriptions-item label="文件名" :span="2">
+              <span class="mono">{{ fileData.file_name }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="大小">{{ formatFileSize(fileData.file_size) }}</el-descriptions-item>
+            <el-descriptions-item label="分辨率">{{ fileData.resolution || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="集数">
+              {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="集标题">{{ fileData.episode_title || '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </el-collapse-item>
+      </el-collapse>
+
     </template>
 
     <el-empty v-else description="请从左侧选择一集" />
@@ -99,11 +115,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CircleCheck, CircleClose, Minus, Download, Document } from '@element-plus/icons-vue'
-import { scrapeMediaFile, generateNFO } from '@/api/modules/media'
-import { getMediaFile } from '@/api/mediaFile'
+import { Refresh, Document, Calendar } from '@element-plus/icons-vue'
+import { scrapeMediaFile, generateNFO, getEpisodeMetadata, type EpisodeMetadata } from '@/api/modules/media'
 import type { EpisodeTreeNode } from './DirectoryTree.vue'
 
 interface Props {
@@ -111,42 +126,43 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  (e: 'scrape-done'): void
-}>()
+const emit = defineEmits<{ (e: 'scrape-done'): void }>()
 
 const loading = ref(false)
 const scraping = ref(false)
 const generating = ref(false)
 
-// 使用本地副本，以便刮削后刷新状态
 const fileData = ref<EpisodeTreeNode | null>(null)
+const metadata = ref<EpisodeMetadata | null>(null)
 
-/** 从树节点初始化，再从API刷新状态 */
-const loadFileStatus = async () => {
+// NFO 字段快捷访问
+const nfoTitle = computed(() => metadata.value?.nfo_data?.title || null)
+const nfoPlot = computed(() => metadata.value?.nfo_data?.plot || metadata.value?.nfo_data?.outline || null)
+const nfoRating = computed(() => metadata.value?.nfo_data?.rating || null)
+const nfoAired = computed(() =>
+  metadata.value?.nfo_data?.aired
+  || metadata.value?.nfo_data?.premiered
+  || metadata.value?.nfo_data?.releasedate
+  || null
+)
+
+const loadMetadata = async () => {
   if (!props.episode) {
     fileData.value = null
+    metadata.value = null
     return
   }
-  // 先用树节点数据快速显示
   fileData.value = { ...props.episode }
-
-  // 再异步刷新，获取最新状态
+  metadata.value = null
   loading.value = true
   try {
-    const res = await getMediaFile(props.episode.id)
-    if (res.data) {
-      fileData.value = {
-        ...props.episode,
-        has_nfo: res.data.has_nfo,
-        has_poster: res.data.has_poster,
-        has_subtitle: res.data.has_subtitle,
-        resolution: res.data.resolution ?? props.episode.resolution,
-        file_size: res.data.file_size ?? props.episode.file_size,
-        episode_number: res.data.episode_number ?? props.episode.episode_number,
-        episode_title: res.data.episode_title ?? props.episode.episode_title,
-        file_name: res.data.file_name,
-      }
+    const res = await getEpisodeMetadata(props.episode.id)
+    metadata.value = res.data
+    // 同步状态到 fileData 以保持一致
+    fileData.value = {
+      ...fileData.value,
+      has_nfo: res.data.has_nfo,
+      has_poster: res.data.has_poster,
     }
   } catch {
     // 静默失败，用树节点数据兜底
@@ -162,7 +178,7 @@ async function handleScrape() {
     const res = await scrapeMediaFile(fileData.value.id, undefined, true)
     if (res.data.success) {
       ElMessage.success('刮削成功')
-      await loadFileStatus()
+      await loadMetadata()
       emit('scrape-done')
     } else {
       ElMessage.error(res.data.error || '刮削失败')
@@ -181,7 +197,7 @@ async function handleGenerateNFO() {
     const res = await generateNFO(fileData.value.id, undefined, true)
     if (res.data.success) {
       ElMessage.success('NFO 生成成功')
-      await loadFileStatus()
+      await loadMetadata()
       emit('scrape-done')
     } else {
       ElMessage.error(res.data.error || 'NFO 生成失败')
@@ -201,162 +217,173 @@ const formatFileSize = (bytes: number): string => {
   return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i]
 }
 
-watch(() => props.episode, loadFileStatus, { immediate: true })
+watch(() => props.episode, loadMetadata, { immediate: true })
 </script>
 
 <style scoped lang="scss">
 .episode-detail {
   height: 100%;
   overflow-y: auto;
-  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  padding: 20px;
 }
 
-.episode-header {
-  .episode-title-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 6px;
-  }
+/* Hero */
+.hero {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
 
-  .ep-num-badge {
-    flex-shrink: 0;
+/* 缩略图 */
+.thumb-wrapper {
+  flex-shrink: 0;
+  width: 200px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--el-fill-color-darker);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.thumb-image {
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-fill-color-dark);
+
+  .ep-num-large {
+    font-family: monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--el-text-color-placeholder);
+  }
+}
+
+/* Hero 右侧信息 */
+.hero-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ep-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  .ep-badge {
     font-family: monospace;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 12px;
     color: var(--el-color-primary);
     background: var(--el-color-primary-light-9);
-    border-radius: 6px;
-    padding: 2px 10px;
     border: 1px solid var(--el-color-primary-light-5);
-  }
-
-  .ep-title {
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-    margin: 0;
-    line-height: 1.3;
-  }
-
-  .ep-filename {
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-    margin: 0 0 10px;
-    word-break: break-all;
-  }
-
-  .ep-meta {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .meta-chip {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    background: var(--el-fill-color);
     border-radius: 4px;
-    padding: 2px 8px;
-    border: 1px solid var(--el-border-color-light);
+    padding: 1px 7px;
+    line-height: 20px;
   }
 }
 
-.scrape-status-card {
-  background: var(--el-bg-color-page);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
-  padding: 16px;
+.ep-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
 
-  .status-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--el-text-color-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 14px;
-  }
+.ep-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 
-  .status-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-
-  .status-item {
+  .meta-item {
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 4px;
-    padding: 14px 8px;
-    border-radius: 8px;
-    border: 1px solid transparent;
+  }
 
-    &.status-ok {
-      background: var(--el-color-success-light-9);
-      border-color: var(--el-color-success-light-5);
-      .el-icon { color: var(--el-color-success); }
-    }
-
-    &.status-missing {
-      background: var(--el-color-danger-light-9);
-      border-color: var(--el-color-danger-light-5);
-      .el-icon { color: var(--el-color-danger); }
-    }
-
-    &.status-warn {
-      background: var(--el-color-warning-light-9);
-      border-color: var(--el-color-warning-light-5);
-      .el-icon { color: var(--el-color-warning); }
-    }
-
-    &.status-neutral {
-      background: var(--el-fill-color-light);
-      border-color: var(--el-border-color-light);
-      .el-icon { color: var(--el-text-color-placeholder); }
-    }
-
-    .status-label {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--el-text-color-primary);
-    }
-
-    .status-desc {
-      font-size: 11px;
-      color: var(--el-text-color-secondary);
-    }
+  .rating-inline {
+    color: #f59e0b;
+    font-weight: 600;
+    font-size: 14px;
   }
 }
 
-.action-section {
-  .action-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--el-text-color-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
-  }
+.ep-plot {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--el-text-color-regular);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 
-  .action-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+  &--empty {
+    color: var(--el-text-color-placeholder);
+    font-style: italic;
   }
 }
 
-.file-info-section {
-  .action-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--el-text-color-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
+/* 操作栏 */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+
+  .action-hint {
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+    margin-left: 4px;
   }
+}
+
+/* 文件信息折叠 */
+.file-collapse {
+  border: none;
+
+  :deep(.el-collapse-item__header) {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+    background: transparent;
+    border: none;
+    padding: 0;
+    height: 32px;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border: none;
+    background: transparent;
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding-bottom: 0;
+  }
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
 }
 </style>

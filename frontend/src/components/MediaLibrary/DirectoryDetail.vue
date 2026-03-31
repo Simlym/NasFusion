@@ -373,11 +373,12 @@ const isSeasonDirectory = computed(() =>
 // 视频文件列表（排除字幕、图片等）
 const videoFiles = computed(() => {
   if (!detail.value) return []
-  return detail.value.files.filter((f: any) =>
-    ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'ts', 'flv', 'm2ts', 'rmvb'].includes(
-      (f.extension || f.file_name?.split('.').pop() || '').toLowerCase()
-    )
-  )
+  return detail.value.files.filter((f: any) => {
+    if (f.file_type === 'video') return true
+    const ext = (f.extension || '').toLowerCase().replace(/^\./, '')
+      || (f.file_name?.split('.').pop() || '').toLowerCase()
+    return ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'ts', 'flv', 'm2ts', 'rmvb', 'iso'].includes(ext)
+  })
 })
 
 // 按集数排序的剧集文件
