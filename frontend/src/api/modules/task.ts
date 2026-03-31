@@ -24,6 +24,7 @@ export interface TaskExecutionListParams {
   page?: number
   page_size?: number
   task_type?: string
+  task_types?: string[]
   status?: string
   scheduled_task_id?: number
   keyword?: string

@@ -30,6 +30,9 @@ export interface MediaFile {
   has_nfo: boolean
   has_poster: boolean
   has_subtitle: boolean
+  season_number: number | null
+  episode_number: number | null
+  episode_title: string | null
   created_at: string
   updated_at: string
 }

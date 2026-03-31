@@ -29,19 +29,74 @@
             </h1>
 
             <div class="meta-row">
-              <el-rate
-                v-if="detail.nfo_data?.rating"
-                :model-value="detail.nfo_data.rating / 2"
-                disabled
-                show-score
-                text-color="#ff9900"
-                score-template="{value}"
-              />
+              <!-- 评分：直接显示原始分值 -->
+              <div v-if="detail.nfo_data?.rating" class="rating-badge">
+                <span class="star-icon">★</span>
+                <span class="rating-num">{{ Number(detail.nfo_data.rating).toFixed(1) }}</span>
+                <span class="rating-max">/10</span>
+              </div>
+
+              <!-- 外部ID链接 -->
+              <a
+                v-if="detail.nfo_data?.imdb_id"
+                :href="`https://www.imdb.com/title/${detail.nfo_data.imdb_id}`"
+                target="_blank"
+                class="ext-link"
+                @click.stop
+              >
+                <el-tag size="small" type="warning" effect="dark" class="id-tag">
+                  IMDb
+                </el-tag>
+              </a>
+              <a
+                v-if="detail.nfo_data?.tmdb_id"
+                :href="`https://www.themoviedb.org/${detail.directory.media_type === 'tv' ? 'tv' : 'movie'}/${detail.nfo_data.tmdb_id}`"
+                target="_blank"
+                class="ext-link"
+                @click.stop
+              >
+                <el-tag size="small" type="primary" effect="dark" class="id-tag">
+                  TMDB
+                </el-tag>
+              </a>
+
               <span v-if="detail.nfo_data?.runtime" class="meta-item">{{ detail.nfo_data.runtime }} 分钟</span>
               <span v-if="detail.directory.season_number" class="meta-item">第 {{ detail.directory.season_number }} 季</span>
               <el-tag v-if="detail.directory.media_type" size="small" type="info" effect="dark" class="meta-tag">
                 {{ detail.directory.media_type.toUpperCase() }}
               </el-tag>
+            </div>
+
+            <!-- 元数据状态 -->
+            <div class="metadata-status">
+              <el-tooltip content="NFO 文件" placement="top">
+                <el-tag :type="detail.directory.has_nfo ? 'success' : 'danger'" size="small" effect="dark" class="status-tag">
+                  NFO
+                </el-tag>
+              </el-tooltip>
+              <el-tooltip content="海报图片" placement="top">
+                <el-tag :type="detail.directory.has_poster ? 'success' : 'danger'" size="small" effect="dark" class="status-tag">
+                  海报
+                </el-tag>
+              </el-tooltip>
+              <el-tooltip content="背景图片" placement="top">
+                <el-tag :type="detail.directory.has_backdrop ? 'success' : 'info'" size="small" effect="dark" class="status-tag">
+                  背景
+                </el-tag>
+              </el-tooltip>
+
+              <!-- 重新刮削当前目录 -->
+              <el-dropdown v-if="videoFiles.length > 0" @command="handleDirectoryAction" style="margin-left: 12px">
+                <el-button size="small" type="primary" plain>
+                  刮削操作 <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="scrape-all">重新刮削全部（图片+NFO）</el-dropdown-item>
+                    <el-dropdown-item command="generate-nfo-all">重新生成全部NFO</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
 
             <div v-if="detail.nfo_data?.genres?.length" class="genres-row">
@@ -67,6 +122,133 @@
       <!-- 内容 Tabs 区域 -->
       <div class="content-section">
         <el-tabs v-model="activeTab" class="detail-tabs">
+
+          <!-- 剧集 Tab（仅季度目录显示） -->
+          <el-tab-pane v-if="isSeasonDirectory" name="episodes">
+            <template #label>
+              <span>
+                剧集
+                <el-badge
+                  v-if="missingNfoCount > 0"
+                  :value="missingNfoCount"
+                  type="danger"
+                  style="margin-left: 4px"
+                />
+              </span>
+            </template>
+
+            <div class="episodes-toolbar">
+              <div class="episodes-summary">
+                <span>{{ videoFiles.length }} 集</span>
+                <span class="sep">·</span>
+                <el-text :type="missingNfoCount > 0 ? 'danger' : 'success'" size="small">
+                  NFO: {{ videoFiles.length - missingNfoCount }}/{{ videoFiles.length }}
+                </el-text>
+                <span class="sep">·</span>
+                <el-text :type="missingPosterCount > 0 ? 'warning' : 'success'" size="small">
+                  图片: {{ videoFiles.length - missingPosterCount }}/{{ videoFiles.length }}
+                </el-text>
+              </div>
+              <div class="episodes-actions">
+                <el-button
+                  size="small"
+                  type="primary"
+                  :loading="batchScraping"
+                  @click="handleBatchScrapeEpisodes"
+                >
+                  批量刮削（图片+NFO）
+                </el-button>
+                <el-button
+                  size="small"
+                  :loading="batchGenerating"
+                  @click="handleBatchGenerateNFO"
+                >
+                  批量生成NFO
+                </el-button>
+              </div>
+            </div>
+
+            <el-table :data="sortedEpisodeFiles" stripe style="width: 100%">
+              <el-table-column label="集数" width="70" align="center">
+                <template #default="{ row }">
+                  <span class="ep-num">
+                    {{ row.episode_number != null ? `E${String(row.episode_number).padStart(2, '0')}` : '-' }}
+                  </span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="文件名" min-width="220" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <div>
+                    <div class="ep-title" v-if="row.episode_title">{{ row.episode_title }}</div>
+                    <el-text size="small" type="info" class="ep-filename">{{ row.file_name }}</el-text>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="resolution" label="分辨率" width="90" align="center" />
+
+              <el-table-column label="NFO" width="60" align="center">
+                <template #default="{ row }">
+                  <el-icon :color="row.has_nfo ? '#67c23a' : '#f56c6c'" :size="18">
+                    <CircleCheck v-if="row.has_nfo" />
+                    <CircleClose v-else />
+                  </el-icon>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="图片" width="60" align="center">
+                <template #default="{ row }">
+                  <el-icon :color="row.has_poster ? '#67c23a' : '#f56c6c'" :size="18">
+                    <CircleCheck v-if="row.has_poster" />
+                    <CircleClose v-else />
+                  </el-icon>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="字幕" width="60" align="center">
+                <template #default="{ row }">
+                  <el-icon :color="row.has_subtitle ? '#67c23a' : '#909399'" :size="18">
+                    <CircleCheck v-if="row.has_subtitle" />
+                    <Minus v-else />
+                  </el-icon>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="操作" width="160" fixed="right">
+                <template #default="{ row }">
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    :loading="scrapingIds.has(row.id)"
+                    @click="handleScrapeFile(row.id)"
+                  >
+                    刮削
+                  </el-button>
+                  <el-button
+                    link
+                    type="info"
+                    size="small"
+                    :loading="generatingIds.has(row.id)"
+                    @click="handleGenerateNFOFile(row.id)"
+                  >
+                    NFO
+                  </el-button>
+                  <el-button
+                    v-if="row.jellyfin_web_url"
+                    link
+                    type="success"
+                    size="small"
+                    @click="openInJellyfin(row)"
+                  >
+                    播放
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-tab-pane>
+
           <!-- 演职人员 Tab -->
           <el-tab-pane label="演职人员" name="cast">
             <div v-if="detail.nfo_data?.actors?.length" class="actors-grid">
@@ -134,6 +316,13 @@
                <el-descriptions-item label="更新时间">{{ formatTime(detail.directory.updated_at) }}</el-descriptions-item>
                <el-descriptions-item label="原始标题">{{ detail.nfo_data?.original_title || '-' }}</el-descriptions-item>
                <el-descriptions-item label="制作公司">{{ detail.nfo_data?.studio || '-' }}</el-descriptions-item>
+               <el-descriptions-item label="IMDB ID">
+                 <a v-if="detail.nfo_data?.imdb_id" :href="`https://www.imdb.com/title/${detail.nfo_data.imdb_id}`" target="_blank">
+                   {{ detail.nfo_data.imdb_id }}
+                 </a>
+                 <span v-else>-</span>
+               </el-descriptions-item>
+               <el-descriptions-item label="TMDB ID">{{ detail.nfo_data?.tmdb_id || '-' }}</el-descriptions-item>
             </el-descriptions>
           </el-tab-pane>
         </el-tabs>
@@ -146,12 +335,17 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture,
-  VideoPlay
+  VideoPlay,
+  CircleCheck,
+  CircleClose,
+  Minus,
+  ArrowDown
 } from '@element-plus/icons-vue'
 import { getDirectoryDetail, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import { scrapeMediaFile, generateNFO, batchScrapeMediaFiles } from '@/api/modules/media'
 import { getProxiedImageUrl } from '@/utils'
 
 interface Props {
@@ -163,20 +357,55 @@ const loading = ref(false)
 const detail = ref<DirectoryDetailResponse | null>(null)
 const activeTab = ref('cast')
 
+// 刮削状态
+const scrapingIds = ref<Set<number>>(new Set())
+const generatingIds = ref<Set<number>>(new Set())
+const batchScraping = ref(false)
+const batchGenerating = ref(false)
+
 const defaultPoster = 'https://via.placeholder.com/300x450?text=No+Poster'
 
-// Hero 背景样式（使用 CSS 变量传递给伪元素）
+// 是否是季度目录（用于显示剧集Tab）
+const isSeasonDirectory = computed(() =>
+  detail.value?.directory.season_number != null
+)
+
+// 视频文件列表（排除字幕、图片等）
+const videoFiles = computed(() => {
+  if (!detail.value) return []
+  return detail.value.files.filter((f: any) =>
+    ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'ts', 'flv', 'm2ts', 'rmvb'].includes(
+      (f.extension || f.file_name?.split('.').pop() || '').toLowerCase()
+    )
+  )
+})
+
+// 按集数排序的剧集文件
+const sortedEpisodeFiles = computed(() => {
+  return [...videoFiles.value].sort((a: any, b: any) => {
+    const ea = a.episode_number ?? 9999
+    const eb = b.episode_number ?? 9999
+    return ea - eb
+  })
+})
+
+// 缺少NFO的集数
+const missingNfoCount = computed(() =>
+  videoFiles.value.filter((f: any) => !f.has_nfo).length
+)
+
+// 缺少图片的集数
+const missingPosterCount = computed(() =>
+  videoFiles.value.filter((f: any) => !f.has_poster).length
+)
+
+// Hero 背景样式
 const heroStyle = computed(() => {
   if (detail.value?.directory.backdrop_path) {
-    // 使用图片代理，并在 url() 中加引号处理空格和特殊字符
     const proxiedUrl = getProxiedImageUrl(detail.value.directory.backdrop_path)
-    return {
-      '--backdrop-url': `url("${proxiedUrl}")`
-    }
+    return { '--backdrop-url': `url("${proxiedUrl}")` }
   }
-  return {
-    backgroundColor: 'var(--nf-bg-container, #221e30)' // 默认深色背景
-  }
+  return { backgroundColor: 'var(--nf-bg-container, #221e30)' }
 })
 
 const loadDetail = async () => {
@@ -190,18 +419,13 @@ const loadDetail = async () => {
     if (res.data) {
       detail.value = res.data
 
-      // 调试日志
-      console.log('=== DirectoryDetail Debug ===')
-      console.log('has_backdrop:', detail.value.directory.has_backdrop)
-      console.log('backdrop_path:', detail.value.directory.backdrop_path)
-      console.log('poster_path:', detail.value.directory.poster_path)
-      console.log('heroStyle:', heroStyle.value)
-
-      // 根据是否有数据智能切换 Tab
-      if (!detail.value.nfo_data?.actors?.length) {
-         activeTab.value = 'files'
+      // 根据数据智能切换 Tab
+      if (res.data.directory.season_number != null) {
+        activeTab.value = 'episodes'
+      } else if (!res.data.nfo_data?.actors?.length) {
+        activeTab.value = 'files'
       } else {
-         activeTab.value = 'cast'
+        activeTab.value = 'cast'
       }
     }
   } catch (error) {
@@ -213,7 +437,97 @@ const loadDetail = async () => {
 
 const refresh = () => loadDetail()
 
-// 在 Jellyfin 中打开
+// ===== 刮削操作 =====
+
+async function handleScrapeFile(fileId: number) {
+  scrapingIds.value.add(fileId)
+  try {
+    const res = await scrapeMediaFile(fileId, undefined, true)
+    if (res.data.success) {
+      ElMessage.success('刮削成功')
+      await loadDetail()
+    } else {
+      ElMessage.error(res.data.error || '刮削失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '刮削失败')
+  } finally {
+    scrapingIds.value.delete(fileId)
+  }
+}
+
+async function handleGenerateNFOFile(fileId: number) {
+  generatingIds.value.add(fileId)
+  try {
+    const res = await generateNFO(fileId, undefined, true)
+    if (res.data.success) {
+      ElMessage.success(`NFO 生成成功`)
+      await loadDetail()
+    } else {
+      ElMessage.error(res.data.error || 'NFO 生成失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || 'NFO 生成失败')
+  } finally {
+    generatingIds.value.delete(fileId)
+  }
+}
+
+async function handleBatchScrapeEpisodes() {
+  if (!videoFiles.value.length) return
+  const ids = videoFiles.value.map((f: any) => f.id)
+  try {
+    await ElMessageBox.confirm(
+      `确定要刮削全部 ${ids.length} 集文件吗？将覆盖已有的图片和NFO`,
+      '批量刮削',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch { return }
+
+  batchScraping.value = true
+  try {
+    const res = await batchScrapeMediaFiles({ file_ids: ids })
+    ElMessage.success(`批量刮削完成：成功 ${res.data.success_count}，失败 ${res.data.failed_count}`)
+    await loadDetail()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '批量刮削失败')
+  } finally {
+    batchScraping.value = false
+  }
+}
+
+async function handleBatchGenerateNFO() {
+  if (!videoFiles.value.length) return
+  const ids = videoFiles.value.map((f: any) => f.id)
+  batchGenerating.value = true
+  const results = { success: 0, failed: 0 }
+  try {
+    for (const id of ids) {
+      try {
+        const res = await generateNFO(id, undefined, true)
+        if (res.data.success) results.success++
+        else results.failed++
+      } catch {
+        results.failed++
+      }
+    }
+    ElMessage.success(`NFO生成完成：成功 ${results.success}，失败 ${results.failed}`)
+    await loadDetail()
+  } finally {
+    batchGenerating.value = false
+  }
+}
+
+async function handleDirectoryAction(command: string) {
+  if (command === 'scrape-all') {
+    await handleBatchScrapeEpisodes()
+  } else if (command === 'generate-nfo-all') {
+    await handleBatchGenerateNFO()
+  }
+}
+
+// ===== 工具函数 =====
+
 const openInJellyfin = (file: any) => {
   if (file.jellyfin_web_url) {
     window.open(file.jellyfin_web_url, '_blank')
@@ -228,9 +542,7 @@ const formatFileSize = (bytes: number): string => {
   return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i]
 }
 
-const formatTime = (timeStr: string) => {
-    return new Date(timeStr).toLocaleString()
-}
+const formatTime = (timeStr: string) => new Date(timeStr).toLocaleString()
 
 const getStatusType = (status: string) => {
   const map: any = { discovered: 'info', identified: 'success', completed: 'success', failed: 'danger' }
@@ -238,8 +550,8 @@ const getStatusType = (status: string) => {
 }
 
 const getStatusLabel = (status: string) => {
-    const map: any = { discovered: '已发现', identified: '已识别', completed: '已完成' }
-    return map[status] || status
+  const map: any = { discovered: '已发现', identified: '已识别', completed: '已完成' }
+  return map[status] || status
 }
 
 watch(() => props.directoryId, loadDetail, { immediate: true })
@@ -259,35 +571,27 @@ defineExpose({ refresh })
 .hero-section {
   position: relative;
   width: 100%;
-  height: 400px;
-  color: #fff; /* 强制白色文字 */
+  height: 420px;
+  color: #fff;
   overflow: hidden;
 }
 
-/* 背景图片层（带模糊效果） */
 .hero-section::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-  background-image: var(--backdrop-url, none); /* 使用 CSS 变量 */
+  background-image: var(--backdrop-url, none);
   filter: blur(8px);
-  transform: scale(1.1); /* 放大以避免模糊边缘 */
+  transform: scale(1.1);
   z-index: 0;
 }
 
 .hero-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  /* 渐变遮罩：上部深色半透明 -> 底部完全不透明背景色，实现融合效果 */
+  inset: 0;
   background: linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0.6) 0%,
@@ -306,10 +610,9 @@ defineExpose({ refresh })
   display: flex;
   gap: 40px;
   height: 100%;
-  align-items: flex-end; /* 内容底部对齐 */
+  align-items: flex-end;
 }
 
-/* Poster */
 .poster-wrapper {
   flex-shrink: 0;
   width: 200px;
@@ -319,7 +622,6 @@ defineExpose({ refresh })
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   border: 4px solid rgba(255,255,255,0.1);
   background: #222;
-  /* 让海报下沉一点，突出层次感 (可选，这里先对齐) */
 }
 
 .poster-image {
@@ -328,15 +630,14 @@ defineExpose({ refresh })
 }
 
 .poster-placeholder {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    background: #333;
-    color: #666;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background: #333;
+  color: #666;
 }
 
-/* Info */
 .info-wrapper {
   flex: 1;
   padding-bottom: 20px;
@@ -344,14 +645,14 @@ defineExpose({ refresh })
 }
 
 .title {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 700;
   margin: 0 0 10px 0;
   line-height: 1.2;
 
   .year {
     font-weight: 400;
-    font-size: 24px;
+    font-size: 22px;
     opacity: 0.8;
     margin-left: 10px;
   }
@@ -360,42 +661,92 @@ defineExpose({ refresh })
 .meta-row {
   display: flex;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
-.meta-item {
+/* 评分徽章 */
+.rating-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  background: rgba(255, 153, 0, 0.2);
+  border: 1px solid rgba(255, 153, 0, 0.5);
+  border-radius: 6px;
+  padding: 2px 10px;
+
+  .star-icon {
     font-size: 14px;
-    opacity: 0.9;
+    color: #ff9900;
+  }
+
+  .rating-num {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ff9900;
+    line-height: 1;
+  }
+
+  .rating-max {
+    font-size: 12px;
+    color: rgba(255, 153, 0, 0.7);
+  }
 }
 
-.actions-row {
-    margin-bottom: 20px;
-    display: flex;
-    gap: 10px;
+.ext-link {
+  text-decoration: none;
+  .id-tag {
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+}
+
+.meta-item {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.meta-tag {
+  backdrop-filter: blur(4px);
+}
+
+/* 元数据状态行 */
+.metadata-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .status-tag {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
 }
 
 .genres-row {
-    margin-bottom: 15px;
-    .genre-tag {
-        margin-right: 8px;
-        background-color: rgba(255,255,255,0.2) !important;
-        border: 1px solid rgba(255,255,255,0.3) !important;
-        color: #fff !important;
-    }
+  margin-bottom: 12px;
+
+  .genre-tag {
+    margin-right: 8px;
+    background-color: rgba(255,255,255,0.2) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    color: #fff !important;
+  }
 }
 
 .plot {
-    font-size: 15px;
-    line-height: 1.6;
-    opacity: 0.9;
-    max-width: 800px;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 1.6;
+  opacity: 0.9;
+  max-width: 800px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Content Section */
@@ -405,49 +756,100 @@ defineExpose({ refresh })
   padding: 20px 40px;
 }
 
+/* 剧集 Tab */
+.episodes-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
+
+  .episodes-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--el-text-color-primary);
+    font-weight: 500;
+
+    .sep {
+      color: var(--el-text-color-placeholder);
+    }
+  }
+
+  .episodes-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.ep-num {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--el-color-primary);
+}
+
+.ep-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  line-height: 1.4;
+}
+
+.ep-filename {
+  font-size: 11px;
+  display: block;
+  margin-top: 2px;
+}
+
+/* 演职人员 */
 .actors-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 20px;
-    padding-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 20px;
+  padding-top: 10px;
 }
 
 .actor-card {
-    text-align: center;
-    
-    .actor-avatar {
-        margin-bottom: 10px;
-        border: 2px solid var(--el-border-color-lighter);
-    }
-    
-    .actor-name {
-        font-weight: 500;
-        font-size: 14px;
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .actor-role {
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+  text-align: center;
+
+  .actor-avatar {
+    margin-bottom: 10px;
+    border: 2px solid var(--el-border-color-lighter);
+  }
+
+  .actor-name {
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .actor-role {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
+/* 文件列表 */
 .files-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 15px;
-    font-size: 14px;
-    color: var(--el-text-color-secondary);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
 }
 
 :deep(.el-tabs__item) {
-    font-size: 16px;
-    font-weight: 500;
+  font-size: 16px;
+  font-weight: 500;
 }
 </style>

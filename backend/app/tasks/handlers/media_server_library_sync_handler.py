@@ -660,7 +660,7 @@ class MediaServerLibrarySyncHandler(BaseTaskHandler):
         return {
             "server_type": config.type,
             "server_item_id": raw_item.get("Id"),
-            "library_id": raw_item.get("ParentId") if item_type != "Movie" else library_id,
+            "library_id": library_id,
             "item_type": item_type,
             "media_type": media_type,
             "name": raw_item.get("Name", ""),

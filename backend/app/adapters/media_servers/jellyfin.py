@@ -234,7 +234,21 @@ class JellyfinAdapter(BaseMediaServerAdapter):
                     f"{self.base_url}/Items/Counts", headers={"X-Emby-Token": self.api_key}
                 )
                 response.raise_for_status()
-                return response.json()
+                stats = response.json()
+
+                # 获取用户数量
+                try:
+                    users_response = await client.get(
+                        f"{self.base_url}/Users", headers={"X-Emby-Token": self.api_key}
+                    )
+                    if users_response.status_code == 200:
+                        stats["UserCount"] = len(users_response.json())
+                    else:
+                        logger.warning(f"Jellyfin /Users returned {users_response.status_code}: {users_response.text[:200]}")
+                except Exception as e:
+                    logger.warning(f"Failed to get Jellyfin user count: {e}")
+
+                return stats
         except Exception as e:
             logger.error(f"Failed to get library stats: {str(e)}")
             raise

@@ -1,321 +1,212 @@
 <template>
   <div class="page-container">
     <!-- Tab 内容显示区域 -->
-    <div v-if="activeTab === 'live-queue'" v-loading="queueLoading" class="tab-content">
-      <!-- 实时队列区块 -->
-      <div class="unified-queue-section">
-        <!-- 状态过滤器 -->
-        <div class="status-filter-bar">
-          <div class="filter-tabs">
-            <div
-              class="filter-tab"
-              :class="{ active: queueStatusFilter === 'running' }"
-              @click="queueStatusFilter = 'running'"
-            >
-              <span class="tab-dot running"></span>
-              <span class="tab-label">运行中</span>
-              <span class="tab-count" v-if="queueStatus.running.length > 0">{{ queueStatus.running.length }}</span>
-            </div>
-            <div
-              class="filter-tab"
-              :class="{ active: queueStatusFilter === 'pending' }"
-              @click="queueStatusFilter = 'pending'"
-            >
-              <span class="tab-dot pending"></span>
-              <span class="tab-label">等待中</span>
-              <span class="tab-count" v-if="queueStatus.pending.length > 0">{{ queueStatus.pending.length }}</span>
-            </div>
-            <div
-              class="filter-tab"
-              :class="{ active: queueStatusFilter === 'recent_completed' }"
-              @click="queueStatusFilter = 'recent_completed'"
-            >
-              <span class="tab-dot completed"></span>
-              <span class="tab-label">最近完成</span>
-              <span class="tab-count" v-if="queueStatus.recent_completed.length > 0">{{ queueStatus.recent_completed.length }}</span>
-            </div>
+    <div v-if="activeTab === 'live-queue'" v-loading="queueLoading" class="tab-content lq-layout">
+
+      <!-- ── 顶部工具栏 ── -->
+      <div class="lq-header">
+        <div class="lq-stats">
+          <div class="lq-stat lq-stat--running">
+            <span class="lq-stat-dot"></span>
+            <span class="lq-stat-num">{{ queueStatus.running.length }}</span>
+            <span class="lq-stat-label">运行中</span>
           </div>
-          <div class="filter-live-indicator">
+          <div class="lq-stat-divider"></div>
+          <div class="lq-stat lq-stat--pending">
+            <span class="lq-stat-dot"></span>
+            <span class="lq-stat-num">{{ queueStatus.pending.length }}</span>
+            <span class="lq-stat-label">等待中</span>
+          </div>
+          <div class="lq-stat-divider"></div>
+          <div class="lq-stat lq-stat--done">
+            <span class="lq-stat-dot"></span>
+            <span class="lq-stat-num">{{ queueStatus.recent_completed.length }}</span>
+            <span class="lq-stat-label">最近完成</span>
+          </div>
+        </div>
+        <div class="lq-header-right">
+          <div class="live-badge">
             <span class="live-dot"></span>
             实时更新
           </div>
+          <el-button :icon="Refresh" :loading="queueLoading" size="small" @click="loadQueueStatus">刷新</el-button>
         </div>
-
-        <!-- 队列表格 -->
-        <div class="modern-table-container">
-          <div class="table-header">
-            <div class="header-title">
-              <h3>任务列表</h3>
-              <div class="header-badge">{{ displayQueueTasks.length }} 个任务</div>
-            </div>
-            <div class="header-actions">
-              <el-button
-                type="primary"
-                :icon="Refresh"
-                :loading="queueLoading"
-                size="small"
-                @click="loadQueueStatus"
-              >
-                刷新
-              </el-button>
-            </div>
-          </div>
-
-          <!-- 移动端卡片视图 -->
-          <div v-if="displayQueueTasks.length > 0 && isMobile" class="queue-cards-mobile">
-            <div v-for="row in displayQueueTasks" :key="row.id" class="queue-card-mobile">
-              <div class="queue-card-header">
-                <div class="status-cell">
-                  <div
-                    class="status-indicator"
-                    :class="{
-                      'status-running': row.status === 'running',
-                      'status-pending': row.status === 'pending',
-                      'status-completed': row.status === 'completed',
-                      'status-failed': row.status === 'failed',
-                      'status-cancelled': row.status === 'cancelled'
-                    }"
-                  >
-                    <el-icon v-if="row.status === 'running'" class="rotate-icon"><Loading /></el-icon>
-                    <el-icon v-else-if="row.status === 'completed'"><CircleCheck /></el-icon>
-                    <el-icon v-else-if="row.status === 'failed'"><Close /></el-icon>
-                    <el-icon v-else><Clock /></el-icon>
-                  </div>
-                  <span class="status-text">{{ getStatusName(row.status) }}</span>
-                </div>
-                <el-tag :type="getTaskTypeColor(row.task_type)" size="small" effect="light">{{ getTaskTypeName(row.task_type) }}</el-tag>
-              </div>
-              <div class="queue-card-title">{{ row.task_name }}</div>
-              <!-- 进度 -->
-              <div v-if="row.status === 'running'" class="queue-card-progress">
-                <div v-if="row.progress_detail?.steps" class="step-progress">
-                  <el-icon class="step-icon-running"><Loading /></el-icon>
-                  <span class="step-text">{{ getCurrentStepName(row) }}</span>
-                </div>
-                <div v-else-if="row.progress_detail?.processed !== undefined" class="batch-progress-text">
-                  已处理: {{ row.progress_detail.processed }}/{{ row.progress_detail.total }}
-                </div>
-                <el-progress :percentage="row.progress" :stroke-width="4" :color="getProgressColor(row.progress)" />
-              </div>
-              <div v-if="row.error_message" class="queue-card-error">
-                <el-icon class="error-icon"><Warning /></el-icon>
-                <span class="error-text">{{ row.error_message }}</span>
-              </div>
-              <div class="queue-card-footer">
-                <span class="time-value">{{ formatDate(row.created_at) }}</span>
-                <div class="actions-cell">
-                  <el-button v-if="['running', 'pending'].includes(row.status)" link type="warning" size="small" @click="handleCancelExecution(row.id)">取消</el-button>
-                  <el-button link type="primary" size="small" @click="handleViewDetail(row.id)">详情</el-button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <el-table
-            v-if="displayQueueTasks.length > 0 && !isMobile"
-            :data="displayQueueTasks"
-            class="queue-table modern-table"
-            :style="{ width: '100%' }"
-            :row-style="{
-              transition: 'all 0.2s ease'
-            }"
-          >
-            <el-table-column prop="status" label="状态" width="120">
-              <template #default="{ row }">
-                <div class="status-cell">
-                  <div
-                    class="status-indicator"
-                    :class="{
-                      'status-running': row.status === 'running',
-                      'status-pending': row.status === 'pending',
-                      'status-completed': row.status === 'completed',
-                      'status-failed': row.status === 'failed',
-                      'status-cancelled': row.status === 'cancelled'
-                    }"
-                  >
-                    <el-icon v-if="row.status === 'running'" class="rotate-icon">
-                      <Loading />
-                    </el-icon>
-                    <el-icon v-else-if="row.status === 'completed'">
-                      <CircleCheck />
-                    </el-icon>
-                    <el-icon v-else-if="row.status === 'failed'">
-                      <Close />
-                    </el-icon>
-                    <el-icon v-else>
-                      <Clock />
-                    </el-icon>
-                  </div>
-                  <span class="status-text">{{ getStatusName(row.status) }}</span>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="task_name" label="任务名称" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">
-                <div class="task-name-cell">
-                  <div class="task-title">{{ row.task_name }}</div>
-                  <div class="task-id">ID: {{ row.id }}</div>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column prop="task_type" label="类型" width="140">
-              <template #default="{ row }">
-                <el-tag
-                  :type="getTaskTypeColor(row.task_type)"
-                  size="small"
-                  effect="light"
-                  class="task-type-tag"
-                >
-                  {{ getTaskTypeName(row.task_type) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="进度" width="250">
-              <template #default="{ row }">
-                <!-- 步骤式进度（如 create_download） -->
-                <div v-if="row.status === 'running' && row.progress_detail?.steps" class="progress-cell">
-                  <div class="step-progress">
-                    <el-icon v-if="getCurrentStepStatus(row) === 'running'" class="step-icon-running">
-                      <Loading />
-                    </el-icon>
-                    <el-icon v-else-if="getCurrentStepStatus(row) === 'completed'" class="step-icon-success">
-                      <CircleCheck />
-                    </el-icon>
-                    <el-icon v-else class="step-icon-pending">
-                      <Clock />
-                    </el-icon>
-                    <span class="step-text">{{ getCurrentStepName(row) }}</span>
-                  </div>
-                  <div class="mini-progress">
-                    <el-progress
-                      :percentage="row.progress"
-                      :stroke-width="4"
-                      :show-text="false"
-                      :color="getProgressColor(row.progress)"
-                    />
-                  </div>
-                </div>
-
-                <!-- 批量处理进度（如 batch_identify） -->
-                <div v-else-if="row.status === 'running' && row.progress_detail?.processed !== undefined" class="progress-cell">
-                  <div class="batch-progress-text">
-                    已处理: {{ row.progress_detail.processed }}/{{ row.progress_detail.total }}
-                  </div>
-                  <div class="mini-progress">
-                    <el-progress
-                      :percentage="row.progress"
-                      :stroke-width="4"
-                      :show-text="false"
-                      :color="getProgressColor(row.progress)"
-                    />
-                  </div>
-                </div>
-
-                <!-- 普通进度条 -->
-                <div v-else-if="row.status === 'running'" class="progress-cell">
-                  <div class="progress-wrapper">
-                    <el-progress
-                      :percentage="row.progress"
-                      :stroke-width="8"
-                      :color="getProgressColor(row.progress)"
-                      striped
-                      striped-flow
-                      class="modern-progress"
-                    />
-                    <div class="progress-text">{{ row.progress }}%</div>
-                  </div>
-                </div>
-
-                <!-- 非运行状态 -->
-                <div v-else class="progress-cell">
-                  <span class="no-progress">-</span>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="创建时间" width="160">
-              <template #default="{ row }">
-                <div class="time-cell">
-                  <div class="time-value">{{ formatDate(row.created_at) }}</div>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="耗时" width="100">
-              <template #default="{ row }">
-                <div class="duration-cell">
-                  <span v-if="['completed', 'failed', 'cancelled'].includes(row.status)" class="duration-value">
-                    {{ formatDuration(row.duration) }}
-                  </span>
-                  <span v-else class="duration-value">-</span>
-                </div>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="错误信息" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">
-                <div v-if="row.error_message" class="error-cell">
-                  <el-tooltip :content="row.error_message" placement="top">
-                    <div class="error-content">
-                      <el-icon class="error-icon"><Warning /></el-icon>
-                      <span class="error-text">{{ row.error_message }}</span>
-                    </div>
-                  </el-tooltip>
-                </div>
-                <span v-else class="no-error">-</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <div class="actions-cell">
-                  <el-button
-                    v-if="['running', 'pending'].includes(row.status)"
-                    link
-                    type="warning"
-                    size="small"
-                    @click="handleCancelExecution(row.id)"
-                  >
-                    取消
-                  </el-button>
-
-                  <el-button
-                    link
-                    type="primary"
-                    size="small"
-                    @click="handleViewDetail(row.id)"
-                  >
-                    详情
-                  </el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-
-        <!-- 空状态 -->
-        <el-empty
-          v-if="displayQueueTasks.length === 0"
-          description="暂无任务"
-          :image-size="80"
-        >
-          <template #description>
-            <p style="font-size: 16px; color: #6b7280">暂无任务</p>
-            <p style="font-size: 14px; color: #9ca3af; margin-top: 8px">
-              {{ queueStatusFilter === 'running' ? '当前没有运行中的任务' :
-                 queueStatusFilter === 'pending' ? '当前没有等待中的任务' :
-                 '最近24小时内没有完成的任务' }}
-            </p>
-          </template>
-        </el-empty>
       </div>
+
+      <!-- ── 运行中：仅在有任务时展示 ── -->
+      <div v-if="queueStatus.running.length > 0" class="lq-active-band lq-active-band--running">
+        <div class="lq-band-label">
+          <span class="lq-section-dot lq-section-dot--running"></span>
+          <span>运行中</span>
+          <span class="lq-section-count">{{ queueStatus.running.length }}</span>
+        </div>
+        <div class="lq-running-grid">
+          <div v-for="row in queueStatus.running" :key="row.id" class="lq-run-card">
+            <div class="lq-run-card-head">
+              <el-tag :type="getCategoryColor(TASK_CATEGORY_MAP[row.task_type] || 'system')" size="small" effect="plain">
+                {{ TASK_CATEGORY_NAMES[TASK_CATEGORY_MAP[row.task_type] || 'system'] }}
+              </el-tag>
+              <div class="lq-run-card-actions">
+                <el-button link type="warning" size="small" @click="handleCancelExecution(row.id)">取消</el-button>
+                <el-button link type="primary" size="small" @click="handleViewDetail(row.id)">详情</el-button>
+              </div>
+            </div>
+            <div class="lq-run-card-name">{{ row.task_name }}</div>
+            <div class="lq-run-card-progress">
+              <div v-if="row.progress_detail?.steps" class="lq-step-hint">
+                <el-icon class="lq-spin"><Loading /></el-icon>
+                <span>{{ getCurrentStepName(row) }}</span>
+              </div>
+              <div v-else-if="row.progress_detail?.processed !== undefined" class="lq-batch-hint">
+                已处理 {{ row.progress_detail.processed }} / {{ row.progress_detail.total }}
+              </div>
+              <div class="lq-progress-track">
+                <el-progress :percentage="row.progress" :stroke-width="6" :show-text="false"
+                  :color="getProgressColor(row.progress)" striped striped-flow class="lq-progress-bar" />
+                <span class="lq-progress-pct">{{ row.progress }}%</span>
+              </div>
+            </div>
+            <div class="lq-run-card-foot">
+              <span class="lq-time">开始于 {{ formatDate(row.started_at || row.created_at) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 等待中：仅在有任务时展示 ── -->
+      <div v-if="queueStatus.pending.length > 0" class="lq-active-band lq-active-band--pending">
+        <div class="lq-band-label">
+          <span class="lq-section-dot lq-section-dot--pending"></span>
+          <span>等待中</span>
+          <span class="lq-section-count">{{ queueStatus.pending.length }}</span>
+        </div>
+        <div class="lq-pending-list">
+          <div v-for="row in queueStatus.pending" :key="row.id" class="lq-pending-row">
+            <div class="lq-pending-row-left">
+              <el-tag :type="getCategoryColor(TASK_CATEGORY_MAP[row.task_type] || 'system')" size="small" effect="light">
+                {{ TASK_CATEGORY_NAMES[TASK_CATEGORY_MAP[row.task_type] || 'system'] }}
+              </el-tag>
+              <span class="lq-pending-name">{{ row.task_name }}</span>
+              <span class="lq-time">{{ formatDate(row.created_at) }}</span>
+            </div>
+            <div class="lq-pending-row-actions">
+              <el-button link type="warning" size="small" @click="handleCancelExecution(row.id)">取消</el-button>
+              <el-button link type="primary" size="small" @click="handleViewDetail(row.id)">详情</el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 最近完成：Activity Feed（主体内容）── -->
+      <div class="lq-feed-panel">
+        <div class="lq-feed-header">
+          <div class="lq-section-title">
+            <span class="lq-section-dot lq-section-dot--done"></span>
+            <span>最近完成</span>
+            <span class="lq-section-count">{{ queueStatus.recent_completed.length }}</span>
+          </div>
+        </div>
+
+        <el-table
+          v-if="queueStatus.recent_completed.length > 0"
+          :data="queueStatus.recent_completed"
+          class="lq-feed-table"
+          :style="{ width: '100%' }"
+          size="small"
+        >
+          <!-- 状态 -->
+          <el-table-column label="状态" width="110">
+            <template #default="{ row }">
+              <div class="lq-status-cell">
+                <div class="lq-status-dot" :class="`lq-status-dot--${row.status}`">
+                  <el-icon v-if="row.status === 'completed'"><CircleCheck /></el-icon>
+                  <el-icon v-else-if="row.status === 'failed'"><CircleClose /></el-icon>
+                  <el-icon v-else><Close /></el-icon>
+                </div>
+                <span class="lq-status-text" :class="`lq-status-text--${row.status}`">
+                  {{ getStatusName(row.status) }}
+                </span>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 任务名称 -->
+          <el-table-column label="任务名称" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              <div class="lq-name-cell">
+                <span class="lq-name-text">{{ row.task_name }}</span>
+                <el-tag :type="getCategoryColor(TASK_CATEGORY_MAP[row.task_type] || 'system')" size="small" effect="light" class="lq-name-tag">
+                  {{ TASK_CATEGORY_NAMES[TASK_CATEGORY_MAP[row.task_type] || 'system'] }}
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 耗时 -->
+          <el-table-column label="耗时" width="100" align="center">
+            <template #default="{ row }">
+              <span class="lq-duration">{{ row.duration ? formatDuration(row.duration) : '—' }}</span>
+            </template>
+          </el-table-column>
+
+          <!-- 完成时间 -->
+          <el-table-column label="完成时间" width="150">
+            <template #default="{ row }">
+              <span class="lq-time">{{ formatDate(row.completed_at || row.updated_at) }}</span>
+            </template>
+          </el-table-column>
+
+          <!-- 错误信息 -->
+          <el-table-column label="错误信息" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.error_message" class="lq-error-text">{{ row.error_message }}</span>
+              <span v-else class="lq-time">—</span>
+            </template>
+          </el-table-column>
+
+          <!-- 操作 -->
+          <el-table-column label="操作" width="70" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button link type="primary" size="small" @click="handleViewDetail(row.id)">详情</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-else class="lq-empty lq-feed-empty">
+          <svg class="lq-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>过去 24 小时内暂无完成任务</span>
+        </div>
+      </div>
+
     </div>
 
     <div v-else-if="activeTab === 'history'" v-loading="historyLoading" class="tab-content">
       <div class="history-section">
+        <!-- 分类胶囊筛选 -->
+        <div class="history-control-bar">
+          <div class="group-pills-bar">
+            <div
+              class="group-pill"
+              :class="{ 'group-pill--active': historyFilters.task_category === '' }"
+              @click="historyFilters.task_category = ''; loadHistory()"
+            >
+              <span class="pill-label">全部</span>
+            </div>
+            <div
+              v-for="(name, key) in TASK_CATEGORY_NAMES"
+              :key="key"
+              class="group-pill"
+              :class="{ 'group-pill--active': historyFilters.task_category === key }"
+              @click="historyFilters.task_category = key; loadHistory()"
+            >
+              <span class="pill-indicator" :class="`pill-indicator--${key}`"></span>
+              <span class="pill-label">{{ name }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="toolbar">
           <div class="toolbar-left">
             <el-form inline>
@@ -329,31 +220,18 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="任务类型">
-                <el-select v-model="historyFilters.task_type" placeholder="全部类型" clearable style="width: 160px">
-                  <el-option label="PT资源同步" value="pt_resource_sync" />
-                  <el-option label="PT资源识别" value="pt_resource_identify" />
-                  <el-option label="订阅检查" value="subscription_check" />
-                  <el-option label="媒体扫描" value="media_file_scan" />
-                  <el-option label="资源下载" value="download_create" />
-                  <el-option label="下载状态同步" value="download_status_sync" />
-                  <el-option label="观看历史同步" value="media_server_watch_history_sync" />
-                  <el-option label="库统计更新" value="media_server_library_stats_update" />
-                  <el-option label="演职员关系回填" value="credits_backfill" />
-                  <el-option label="重复人物合并" value="person_merge" />
-                </el-select>
-              </el-form-item>
-
-              <el-form-item label="关键字">
+              <el-form-item>
                 <el-input
                   v-model="historyFilters.keyword"
-                  placeholder="任务名称"
+                  placeholder="搜索任务名称"
                   clearable
-                  style="width: 160px"
-                />
+                  style="width: 180px"
+                >
+                  <template #prefix><el-icon><Search /></el-icon></template>
+                </el-input>
               </el-form-item>
 
-              <el-form-item label="日期范围">
+              <el-form-item>
                 <el-date-picker
                   v-model="historyFilters.dateRange"
                   type="daterange"
@@ -370,7 +248,7 @@
               </el-form-item>
             </el-form>
           </div>
-          
+
           <div class="toolbar-right">
           </div>
         </div>
@@ -1240,6 +1118,7 @@ interface HistoryParams {
   sort_order: string
   status?: string
   task_type?: string
+  task_types?: string[]
   scheduled_task_id?: number
   keyword?: string
   start_date?: string
@@ -1334,9 +1213,6 @@ const detailDrawerVisible = ref(false)
 const detailLoading = ref(false)
 const currentDetail = ref<TaskExecution | null>(null)
 
-// 实时队列状态过滤器
-const queueStatusFilter = ref('running')
-
 // ==================== 数据 ====================
 const queueStatus = reactive<TaskQueueStatus>({
   running: [],
@@ -1364,6 +1240,7 @@ const historyPagination = reactive({
 const historyFilters = reactive({
   status: '',
   task_type: '',
+  task_category: '',
   scheduledTaskId: null as number | null,
   keyword: '',
   dateRange: null as Date[] | null
@@ -1468,18 +1345,6 @@ const selectedSiteSchema = computed(() => {
   }
   // 其他所有站点都是 NexusPHP
   return 'nexusphp'
-})
-
-// 实时队列：根据过滤器显示的任务
-const displayQueueTasks = computed(() => {
-  if (queueStatusFilter.value === 'running') {
-    return queueStatus.running
-  } else if (queueStatusFilter.value === 'pending') {
-    return queueStatus.pending
-  } else if (queueStatusFilter.value === 'recent_completed') {
-    return queueStatus.recent_completed
-  }
-  return []
 })
 
 // 当前选中的分组胶囊
@@ -2027,7 +1892,15 @@ const loadHistory = async () => {
     if (historyFilters.status) {
       params.status = historyFilters.status
     }
-    if (historyFilters.task_type) {
+    if (historyFilters.task_category) {
+      // 将分类映射为具体的 task_type 列表传给后端
+      const typesInCategory = Object.entries(TASK_CATEGORY_MAP)
+        .filter(([, cat]) => cat === historyFilters.task_category)
+        .map(([type]) => type)
+      if (typesInCategory.length) {
+        params.task_types = typesInCategory
+      }
+    } else if (historyFilters.task_type) {
       params.task_type = historyFilters.task_type
     }
     if (historyFilters.scheduledTaskId) {
@@ -2054,6 +1927,7 @@ const loadHistory = async () => {
 const resetHistoryFilters = () => {
   historyFilters.status = ''
   historyFilters.task_type = ''
+  historyFilters.task_category = ''
   historyFilters.scheduledTaskId = null
   historyFilters.keyword = ''
   historyFilters.dateRange = null
@@ -2781,8 +2655,456 @@ onUnmounted(() => {
   padding: 16px;
 }
 
+.queue-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #67c23a;
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ════════════════════════════════════
+   Live Queue — Activity Feed 布局
+   ════════════════════════════════════ */
+
+.lq-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 顶部工具栏 ── */
+.lq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lq-stats {
+  display: flex;
+  align-items: center;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lq-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+}
+
+.lq-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lq-stat--running .lq-stat-dot { background: var(--el-color-primary); animation: live-pulse 1.2s ease-in-out infinite; }
+.lq-stat--pending .lq-stat-dot { background: var(--el-color-warning); }
+.lq-stat--done .lq-stat-dot    { background: var(--el-color-success); }
+
+.lq-stat-num {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--el-text-color-primary);
+}
+.lq-stat--running .lq-stat-num { color: var(--el-color-primary); }
+.lq-stat--pending .lq-stat-num { color: var(--el-color-warning); }
+
+.lq-stat-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+}
+
+.lq-stat-divider {
+  width: 1px;
+  height: 26px;
+  background: var(--el-border-color-lighter);
+  flex-shrink: 0;
+}
+
+.lq-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── 通用区块标签 ── */
+.lq-section-title,
+.lq-band-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.lq-section-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lq-section-dot--running { background: var(--el-color-primary); animation: live-pulse 1.2s ease-in-out infinite; }
+.lq-section-dot--pending { background: var(--el-color-warning); }
+.lq-section-dot--done    { background: var(--el-color-success); }
+
+.lq-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+/* ── 活跃任务横幅（运行中 / 等待中，v-if 控制显隐） ── */
+.lq-active-band {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lq-active-band--running {
+  border: 1px solid var(--el-border-color-lighter);
+  border-left: 3px solid var(--el-color-primary);
+  background: var(--el-bg-color);
+}
+
+.lq-active-band--pending {
+  border: 1px solid var(--el-border-color-lighter);
+  border-left: 3px solid var(--el-color-warning);
+  background: var(--el-bg-color);
+}
+
+.lq-active-band .lq-band-label {
+  padding: 10px 16px 8px;
+}
+
+/* ── 运行中卡片网格 ── */
+.lq-running-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.lq-run-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px 14px 10px;
+  transition: box-shadow 0.18s;
+}
+.lq-run-card:hover { box-shadow: 0 3px 12px rgba(37,99,235,0.10); }
+
+.lq-run-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.lq-run-card-actions { display: flex; align-items: center; flex-shrink: 0; }
+
+.lq-run-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.4;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.lq-run-card-progress { margin-bottom: 8px; }
+
+.lq-step-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--el-color-primary);
+  margin-bottom: 5px;
+  overflow: hidden;
+}
+.lq-step-hint span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.lq-batch-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 5px;
+}
+
+.lq-spin { animation: lq-spin 1s linear infinite; }
+@keyframes lq-spin { to { transform: rotate(360deg); } }
+
+.lq-progress-track { display: flex; align-items: center; gap: 8px; }
+.lq-progress-bar { flex: 1; }
+.lq-progress-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--el-color-primary);
+  min-width: 32px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lq-run-card-foot {
+  padding-top: 7px;
+  border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+/* ── 等待中行列表 ── */
+.lq-pending-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 10px;
+  gap: 0;
+}
+
+.lq-pending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+.lq-pending-row:last-child { border-bottom: none; padding-bottom: 0; }
+.lq-pending-row:first-child { padding-top: 0; }
+
+.lq-pending-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lq-pending-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.lq-pending-row-actions { display: flex; align-items: center; flex-shrink: 0; }
+
+/* ── 最近完成面板 ── */
+.lq-feed-panel {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lq-feed-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+/* ── 表格基础样式 ── */
+.lq-feed-table {
+  border-radius: 0;
+}
+
+.lq-feed-table :deep(.el-table__header th) {
+  background: var(--el-fill-color-extra-light);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.lq-feed-table :deep(.el-table__body td) {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--el-border-color-extra-light);
+}
+
+.lq-feed-table :deep(.el-table__body tr:last-child td) {
+  border-bottom: none;
+}
+
+.lq-feed-table :deep(.el-table__body tr:hover td) {
+  background: var(--el-fill-color-extra-light);
+}
+
+/* 去掉 el-table 自带的外边框和阴影 */
+.lq-feed-table :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+/* ── 状态单元格 ── */
+.lq-status-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lq-status-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.lq-status-dot--completed {
+  background: var(--el-color-success-light-8);
+  color: var(--el-color-success);
+}
+
+.lq-status-dot--failed {
+  background: var(--el-color-danger-light-8);
+  color: var(--el-color-danger);
+}
+
+.lq-status-dot--cancelled {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-placeholder);
+}
+
+.lq-status-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lq-status-text--completed { color: var(--el-text-color-primary); }
+.lq-status-text--failed    { color: var(--el-color-danger); }
+.lq-status-text--cancelled { color: var(--el-text-color-secondary); }
+
+/* ── 任务名单元格 ── */
+.lq-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lq-name-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.lq-name-tag {
+  flex-shrink: 0;
+}
+
+/* ── 错误文字 ── */
+.lq-error-text {
+  font-size: 12px;
+  color: var(--el-color-danger);
+}
+
+/* ── 空状态 ── */
+.lq-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--el-text-color-placeholder);
+  padding: 24px 16px;
+}
+
+.lq-feed-empty {
+  padding: 48px 24px;
+}
+
+.lq-empty-icon {
+  width: 32px;
+  height: 32px;
+  stroke: var(--el-border-color);
+}
+
+/* ── 时间 / 耗时 ── */
+.lq-time {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  white-space: nowrap;
+}
+
+.lq-duration {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 旧样式保留（其他地方可能引用） */
+.queue-section { margin-bottom: 20px; }
+.queue-section-empty {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--el-text-color-placeholder);
+}
+.queue-section-table { width: 100%; }
+.queue-cards-mobile { display: flex; flex-direction: column; gap: 10px; }
+.queue-card-mobile {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  padding: 12px;
+}
+.queue-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.queue-card-title { font-size: 14px; font-weight: 500; color: var(--el-text-color-primary); margin-bottom: 8px; }
+.queue-card-progress { margin-bottom: 4px; }
+.queue-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--el-text-color-secondary); }
+.queue-card-error { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--el-color-danger); margin-bottom: 4px; }
+
 /* ==================== 历史记录区块 ==================== */
 
+.history-control-bar {
+  margin-bottom: 12px;
+}
 
 .filter-bar {
   margin-bottom: 16px;
@@ -3818,6 +4140,24 @@ onUnmounted(() => {
   /* 统一队列区域在移动端减少内边距 */
   .unified-queue-section {
     padding: 8px 0;
+  }
+
+  /* Live Queue 移动端适配 */
+  .lq-stat { padding: 8px 12px; gap: 5px; }
+  .lq-stat-num { font-size: 15px; }
+  .lq-stat-label { font-size: 11px; }
+  .lq-running-grid { grid-template-columns: 1fr; padding: 0 10px 10px; }
+  .lq-pending-list { padding: 0 10px 8px; }
+  .lq-pending-row-left { gap: 6px; }
+
+  /* 最近完成表格移动端：隐藏耗时、完成时间、错误列 */
+  .lq-feed-table :deep(.el-table__header th:nth-child(3)),
+  .lq-feed-table :deep(.el-table__body td:nth-child(3)),
+  .lq-feed-table :deep(.el-table__header th:nth-child(4)),
+  .lq-feed-table :deep(.el-table__body td:nth-child(4)),
+  .lq-feed-table :deep(.el-table__header th:nth-child(5)),
+  .lq-feed-table :deep(.el-table__body td:nth-child(5)) {
+    display: none;
   }
 
   /* 现代表格容器在移动端 */

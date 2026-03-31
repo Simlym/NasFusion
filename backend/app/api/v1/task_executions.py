@@ -3,7 +3,7 @@
 任务执行API
 """
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +46,7 @@ async def get_task_executions_list(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     task_type: Optional[str] = Query(None, description="任务类型"),
+    task_types: Optional[List[str]] = Query(None, description="任务类型列表（多选）"),
     scheduled_task_id: Optional[int] = Query(None, description="调度任务ID"),
     keyword: Optional[str] = Query(None, description="搜索关键字"),
     status: Optional[str] = Query(None, description="执行状态"),
@@ -65,6 +66,7 @@ async def get_task_executions_list(
         limit=page_size,
         status=status,
         task_type=task_type,
+        task_types=task_types,
         scheduled_task_id=scheduled_task_id,
         keyword=keyword,
         start_date=start_date,

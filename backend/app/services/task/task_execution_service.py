@@ -70,6 +70,7 @@ class TaskExecutionService:
         limit: int = 100,
         status: Optional[str] = None,
         task_type: Optional[str] = None,
+        task_types: Optional[List[str]] = None,
         scheduled_task_id: Optional[int] = None,
         keyword: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -84,8 +85,10 @@ class TaskExecutionService:
         if status:
             query = query.where(TaskExecution.status == status)
 
-        # 任务类型过滤
-        if task_type:
+        # 任务类型过滤（单值或多值）
+        if task_types:
+            query = query.where(TaskExecution.task_type.in_(task_types))
+        elif task_type:
             query = query.where(TaskExecution.task_type == task_type)
 
         # 定时任务ID过滤

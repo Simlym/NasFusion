@@ -44,7 +44,16 @@
 
       <!-- 右侧详情面板 -->
       <el-main class="detail-main">
-        <DirectoryDetail ref="detailRef" :directory-id="currentDirectoryId" />
+        <EpisodeDetail
+          v-if="currentEpisode"
+          :episode="currentEpisode"
+          @scrape-done="handleEpisodeScrapeDone"
+        />
+        <DirectoryDetail
+          v-else
+          ref="detailRef"
+          :directory-id="currentDirectoryId"
+        />
       </el-main>
     </el-container>
 
@@ -93,9 +102,10 @@ import {
 } from '@element-plus/icons-vue'
 import DirectoryTree from '@/components/MediaLibrary/DirectoryTree.vue'
 import DirectoryDetail from '@/components/MediaLibrary/DirectoryDetail.vue'
+import EpisodeDetail from '@/components/MediaLibrary/EpisodeDetail.vue'
 import ProblemFilter from '@/components/MediaLibrary/ProblemFilter.vue'
 import { detectIssues } from '@/api/mediaDirectory'
-import type { DirectoryTreeNode } from '@/api/mediaDirectory'
+import type { AnyTreeNode, EpisodeTreeNode } from '@/components/MediaLibrary/DirectoryTree.vue'
 import { scanDirectory } from '@/api/modules/media'
 // 组件引用
 const treeRef = ref()
@@ -107,6 +117,7 @@ const libraryMediaType = ref<string>('movie')
 const selectedIssues = ref<string[]>([])
 const issueCounts = ref<Record<string, number>>({})
 const currentDirectoryId = ref<number | null>(null)
+const currentEpisode = ref<EpisodeTreeNode | null>(null)
 
 const libraryScanDialog = reactive({
   visible: false,
@@ -123,10 +134,25 @@ onMounted(() => {
 // ========== library Tab 专用函数 ==========
 
 /**
- * 处理节点点击
+ * 处理节点点击（目录或剧集文件）
  */
-const handleNodeClick = (node: DirectoryTreeNode) => {
-  currentDirectoryId.value = node.id
+const handleNodeClick = (node: AnyTreeNode) => {
+  if (node._node_type === 'episode') {
+    currentDirectoryId.value = null
+    currentEpisode.value = node as EpisodeTreeNode
+  } else {
+    currentEpisode.value = null
+    currentDirectoryId.value = node.id
+  }
+}
+
+/**
+ * 剧集刮削完成后，刷新父季度节点的子列表，更新树中的NFO/图片状态图标
+ */
+const handleEpisodeScrapeDone = () => {
+  if (currentEpisode.value && treeRef.value) {
+    treeRef.value.refreshNodeByKey(`d_${currentEpisode.value.parent_dir_id}`)
+  }
 }
 
 /**
@@ -148,6 +174,7 @@ const handleLibraryRefresh = () => {
 const handleLibraryMediaTypeChange = () => {
   // 重置选中的目录
   currentDirectoryId.value = null
+  currentEpisode.value = null
   // 重置问题筛选
   selectedIssues.value = []
   // 注意：不需要手动调用 refresh()，因为 DirectoryTree 组件内部已经 watch 了 mediaType

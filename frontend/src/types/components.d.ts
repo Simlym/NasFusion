@@ -82,6 +82,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
     EmptyState: typeof import('./../components/common/EmptyState.vue')['default']
+    EpisodeDetail: typeof import('./../components/MediaLibrary/EpisodeDetail.vue')['default']
     EpisodeStatusGrid: typeof import('./../components/subscription/EpisodeStatusGrid.vue')['default']
     ErrorPage: typeof import('./../components/common/ErrorPage.vue')['default']
     LibraryFilterDialog: typeof import('./../components/media/LibraryFilterDialog.vue')['default']
