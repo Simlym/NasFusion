@@ -211,6 +211,9 @@ class MediaFileScrapeRequest(BaseModel):
     config_id: Optional[int] = Field(
         default=None, description="整理配置ID，不指定则使用默认配置"
     )
+    force: bool = Field(
+        default=False, description="强制覆盖已存在的图片和NFO文件"
+    )
 
 
 class MediaFileScrapeResponse(BaseModel):
@@ -249,6 +252,9 @@ class MediaFileGenerateNFORequest(BaseModel):
 
     config_id: Optional[int] = Field(
         default=None, description="整理配置ID，不指定则使用默认配置"
+    )
+    force: bool = Field(
+        default=False, description="强制覆盖已存在的NFO文件"
     )
 
 

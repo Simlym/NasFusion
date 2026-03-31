@@ -118,6 +118,10 @@
                 <el-dropdown-menu>
                   <el-dropdown-item command="identify" :icon="Search">识别</el-dropdown-item>
                   <el-dropdown-item command="organize" :icon="FolderOpened">整理</el-dropdown-item>
+                  <template v-if="row.organized">
+                    <el-dropdown-item divided command="scrape" :icon="Download">重新刮削图片+NFO</el-dropdown-item>
+                    <el-dropdown-item command="generate-nfo" :icon="Document">重新生成NFO</el-dropdown-item>
+                  </template>
                   <el-dropdown-item divided command="delete" :icon="Delete" class="delete-item">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -379,6 +383,7 @@ import {
   FolderOpened,
   Download,
   Delete,
+  Document,
 } from '@element-plus/icons-vue'
 import type { MediaFile, TMDBCandidate } from '@/types/media'
 import type { OrganizeConfig } from '@/types/organize'
@@ -902,7 +907,7 @@ async function handleExtractInfo(id: number) {
 
 async function handleScrape(id: number) {
   try {
-    await ElMessageBox.confirm('确定要刮削此文件吗？将下载海报、背景图并生成NFO文件', '确认刮削', {
+    await ElMessageBox.confirm('确定要重新刮削此文件吗？将强制覆盖已有的海报、背景图和NFO文件', '重新刮削', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'info'
@@ -914,7 +919,7 @@ async function handleScrape(id: number) {
       duration: 0
     })
 
-    const res = await scrapeMediaFile(id, selectedConfigId.value)
+    const res = await scrapeMediaFile(id, selectedConfigId.value, true)
     loading.close()
 
     if (res.data.success) {
@@ -977,7 +982,7 @@ async function handleGenerateNFO(id: number) {
       duration: 0
     })
 
-    const res = await generateNFO(id, selectedConfigId.value)
+    const res = await generateNFO(id, selectedConfigId.value, true)
     loading.close()
 
     if (res.data.success) {

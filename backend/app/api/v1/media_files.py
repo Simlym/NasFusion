@@ -567,7 +567,7 @@ async def scrape_media_file(
             )
 
     try:
-        result = await scraper_service.scrape_media_file(db, media_file, config)
+        result = await scraper_service.scrape_media_file(db, media_file, config, force=request.force)
         return MediaFileScrapeResponse(**result)
     except Exception as e:
         logger.exception(f"刮削媒体文件失败: {file_id}")
@@ -653,7 +653,7 @@ async def generate_nfo_for_media_file(
             )
 
     try:
-        result = await scraper_service.generate_nfo_only(db, media_file, config)
+        result = await scraper_service.generate_nfo_only(db, media_file, config, force=request.force)
         return MediaFileGenerateNFOResponse(**result)
     except Exception as e:
         logger.exception(f"生成NFO失败: {file_id}")

@@ -113,9 +113,10 @@ export function searchTMDB(data: TMDBSearchRequest) {
 // ==================== 刮削相关 API ====================
 
 // 刮削单个媒体文件（下载海报、背景图、生成NFO）
-export function scrapeMediaFile(id: number, config_id?: number) {
+export function scrapeMediaFile(id: number, config_id?: number, force = false) {
   return request.post<MediaFileScrapeResponse>(`/media-files/${id}/scrape`, {
-    config_id
+    config_id,
+    force
   })
 }
 
@@ -125,8 +126,9 @@ export function batchScrapeMediaFiles(data: MediaFileBatchScrapeRequest) {
 }
 
 // 仅生成NFO文件
-export function generateNFO(id: number, config_id?: number) {
+export function generateNFO(id: number, config_id?: number, force = false) {
   return request.post<MediaFileGenerateNFOResponse>(`/media-files/${id}/generate-nfo`, {
-    config_id
+    config_id,
+    force
   })
 }

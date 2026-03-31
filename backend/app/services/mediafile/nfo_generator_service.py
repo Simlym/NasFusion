@@ -41,6 +41,7 @@ class NFOGeneratorService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Optional[str]:
         """
         生成NFO文件
@@ -49,6 +50,7 @@ class NFOGeneratorService:
             db: 数据库会话
             media_file: 媒体文件对象
             config: 整理配置
+            force: 强制覆盖已存在的NFO文件
 
         Returns:
             生成的NFO文件路径，失败返回None
@@ -65,15 +67,15 @@ class NFOGeneratorService:
             # 根据统一资源表名生成不同的NFO（这样 anime、adult 等类型可以复用 movie/tv 的NFO生成逻辑）
             if media_file.unified_table_name == UNIFIED_TABLE_MOVIES:
                 return await NFOGeneratorService._generate_movie_nfo(
-                    db, media_file, config
+                    db, media_file, config, force=force
                 )
             elif media_file.unified_table_name == UNIFIED_TABLE_TV:
                 return await NFOGeneratorService._generate_tv_episode_nfo(
-                    db, media_file, config
+                    db, media_file, config, force=force
                 )
             elif media_file.unified_table_name == UNIFIED_TABLE_ADULT:
                 return await NFOGeneratorService._generate_adult_nfo(
-                    db, media_file, config
+                    db, media_file, config, force=force
                 )
             else:
                 logger.warning(f"不支持的统一资源表: {media_file.unified_table_name}，当前仅支持 {UNIFIED_TABLE_MOVIES}、{UNIFIED_TABLE_TV} 和 {UNIFIED_TABLE_ADULT}")
@@ -88,6 +90,7 @@ class NFOGeneratorService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Optional[str]:
         """
         生成电影NFO文件
@@ -111,7 +114,7 @@ class NFOGeneratorService:
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO
-        if nfo_path.exists() and not config.overwrite_nfo:
+        if nfo_path.exists() and not (force or config.overwrite_nfo):
             logger.debug(f"NFO文件已存在，跳过: {nfo_path}")
             media_file.has_nfo = True
             media_file.nfo_path = str(nfo_path)
@@ -353,6 +356,7 @@ class NFOGeneratorService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Optional[str]:
         """
         生成电视剧剧集NFO文件
@@ -386,7 +390,7 @@ class NFOGeneratorService:
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO
-        if nfo_path.exists() and not config.overwrite_nfo:
+        if nfo_path.exists() and not (force or config.overwrite_nfo):
             logger.debug(f"NFO文件已存在，跳过: {nfo_path}")
             media_file.has_nfo = True
             media_file.nfo_path = str(nfo_path)
@@ -788,6 +792,7 @@ class NFOGeneratorService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Optional[str]:
         """
         生成成人资源NFO文件
@@ -811,7 +816,7 @@ class NFOGeneratorService:
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO
-        if nfo_path.exists() and not config.overwrite_nfo:
+        if nfo_path.exists() and not (force or config.overwrite_nfo):
             logger.debug(f"NFO文件已存在，跳过: {nfo_path}")
             media_file.has_nfo = True
             media_file.nfo_path = str(nfo_path)

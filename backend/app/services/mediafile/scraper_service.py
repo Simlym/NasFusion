@@ -30,6 +30,7 @@ class ScraperService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         刮削媒体文件（下载海报、背景图、生成NFO）
@@ -90,7 +91,7 @@ class ScraperService:
             # 1. 生成NFO文件
             if config.generate_nfo:
                 try:
-                    nfo_path = await NFOGeneratorService.generate_nfo(db, media_file, config)
+                    nfo_path = await NFOGeneratorService.generate_nfo(db, media_file, config, force=force)
                     if nfo_path:
                         result["nfo_generated"] = True
                         result["nfo_path"] = nfo_path
@@ -102,12 +103,12 @@ class ScraperService:
             # 2. 下载图片（区分电影、电视剧和成人资源）
             if media_file.unified_table_name == UNIFIED_TABLE_TV:
                 await ScraperService._process_tv_images(
-                    db, media_file, metadata, target_dir, config, result
+                    db, media_file, metadata, target_dir, config, result, force=force
                 )
             elif media_file.unified_table_name == UNIFIED_TABLE_ADULT:
                 # 成人资源处理逻辑
                 await ScraperService._process_adult_images(
-                    db, media_file, metadata, target_dir, config, result
+                    db, media_file, metadata, target_dir, config, result, force=force
                 )
             else:
                 # 电影处理逻辑
@@ -118,7 +119,7 @@ class ScraperService:
                         success = await ScraperService.download_image(
                             metadata.poster_url,
                             poster_path,
-                            overwrite=config.overwrite_poster,
+                            overwrite=force or config.overwrite_poster,
                         )
                         if success:
                             result["poster_downloaded"] = True
@@ -137,7 +138,7 @@ class ScraperService:
                         success = await ScraperService.download_image(
                             metadata.backdrop_url,
                             backdrop_path,
-                            overwrite=config.overwrite_backdrop,
+                            overwrite=force or config.overwrite_backdrop,
                         )
                         if success:
                             result["backdrop_downloaded"] = True
@@ -236,6 +237,7 @@ class ScraperService:
         target_dir: Path,
         config: OrganizeConfig,
         result: Dict[str, Any],
+        force: bool = False,
     ):
         """处理电视剧图片（剧集剧照、季海报、剧集海报、背景图）"""
         try:
@@ -260,11 +262,10 @@ class ScraperService:
                 try:
                     # 剧集海报通常命名为 poster.jpg，存放在剧集根目录
                     show_poster_path = show_dir / f"{config.poster_filename}.jpg"
-                    # 剧集海报一般不覆盖，避免资源浪费
                     await ScraperService.download_image(
                         metadata.poster_url,
                         show_poster_path,
-                        overwrite=False, 
+                        overwrite=force or config.overwrite_poster,
                     )
                 except Exception as e:
                     logger.warning(f"剧集海报下载失败: {e}")
@@ -277,7 +278,7 @@ class ScraperService:
                     success = await ScraperService.download_image(
                         metadata.backdrop_url,
                         show_backdrop_path,
-                        overwrite=False,
+                        overwrite=force or config.overwrite_backdrop,
                     )
                     if success:
                         # 对于媒体文件，我们也记录背景图路径（哪怕它在父目录）
@@ -297,23 +298,23 @@ class ScraperService:
                     await ScraperService.download_image(
                         season_poster_url,
                         season_poster_path,
-                        overwrite=False,
+                        overwrite=force or config.overwrite_poster,
                     )
                 except Exception as e:
                     logger.warning(f"季海报下载失败: {e}")
 
             # 5. 下载单集剧照 (Episode Still) -> 文件同名
             poster_url_for_file = episode_still_url
-            
+
             if config.download_poster and poster_url_for_file:
                 try:
                     video_stem = Path(media_file.organized_path).stem
                     file_poster_path = target_dir / f"{video_stem}-thumb.jpg"
-                    
+
                     success = await ScraperService.download_image(
                         poster_url_for_file,
                         file_poster_path,
-                        overwrite=config.overwrite_poster,
+                        overwrite=force or config.overwrite_poster,
                     )
                     if success:
                         result["poster_downloaded"] = True
@@ -519,6 +520,7 @@ class ScraperService:
         target_dir: Path,
         config: OrganizeConfig,
         result: Dict[str, Any],
+        force: bool = False,
     ):
         """
         处理成人资源图片（封面、预览图）
@@ -543,7 +545,7 @@ class ScraperService:
                     success = await ScraperService.download_image(
                         metadata.poster_url,
                         poster_path,
-                        overwrite=config.overwrite_poster,
+                        overwrite=force or config.overwrite_poster,
                     )
                     if success:
                         result["poster_downloaded"] = True
@@ -562,7 +564,7 @@ class ScraperService:
                     success = await ScraperService.download_image(
                         metadata.backdrop_url,
                         backdrop_path,
-                        overwrite=config.overwrite_backdrop,
+                        overwrite=force or config.overwrite_backdrop,
                     )
                     if success:
                         result["backdrop_downloaded"] = True
@@ -658,6 +660,7 @@ class ScraperService:
         db: AsyncSession,
         media_file: MediaFile,
         config: OrganizeConfig,
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         仅生成NFO文件（不下载图片）
@@ -681,7 +684,7 @@ class ScraperService:
             return result
 
         try:
-            nfo_path = await NFOGeneratorService.generate_nfo(db, media_file, config)
+            nfo_path = await NFOGeneratorService.generate_nfo(db, media_file, config, force=force)
             if nfo_path:
                 result["success"] = True
                 result["nfo_path"] = nfo_path
