@@ -7,7 +7,7 @@
   >
     <div class="filter-tip">
       <el-alert
-        title=”勾选不希望在”最近观看”中显示的媒体库（限制级内容、私密资源等）”
+        title="默认全部显示，取消勾选的媒体库将不在最近观看中显示"
         type="info"
         show-icon
         :closable="false"
@@ -16,7 +16,7 @@
 
     <div v-loading="loading" class="library-list">
       <template v-if="libraries.length > 0">
-        <el-checkbox-group v-model="localExcludedIds">
+        <el-checkbox-group v-model="localVisibleIds">
           <div v-for="lib in libraries" :key="lib.id" class="library-item">
             <el-checkbox :value="lib.id">
               <div class="lib-info">
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 import type { MediaServerConfig } from '@/types/mediaServer'
@@ -56,7 +56,7 @@ const visible = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 const libraries = ref<any[]>([])
-const localExcludedIds = ref<string[]>([])
+const localVisibleIds = ref<string[]>([])
 
 const open = async () => {
   if (!props.configId) {
@@ -64,11 +64,7 @@ const open = async () => {
     return
   }
   visible.value = true
-  loadLibraries()
-  
-  // 初始化排除列表
-  const excluded = props.config?.server_config?.excluded_library_ids || []
-  localExcludedIds.value = [...excluded]
+  await loadLibraries()
 }
 
 const loadLibraries = async () => {
@@ -77,6 +73,10 @@ const loadLibraries = async () => {
   try {
     const res = await api.mediaServer.getMediaServerLibraries(props.configId, true)
     libraries.value = res.data
+    const excluded = new Set(props.config?.server_config?.excluded_library_ids || [])
+    localVisibleIds.value = libraries.value
+      .map((lib: any) => lib.id)
+      .filter((id: string) => !excluded.has(id))
   } catch (err) {
     ElMessage.error('获取媒体库失败')
   } finally {
@@ -92,12 +92,15 @@ const handleSave = async () => {
     if (!updatedConfig.server_config) {
       updatedConfig.server_config = {}
     }
-    updatedConfig.server_config.excluded_library_ids = localExcludedIds.value
-    
+    const visibleSet = new Set(localVisibleIds.value)
+    updatedConfig.server_config.excluded_library_ids = libraries.value
+      .map((lib: any) => lib.id)
+      .filter((id: string) => !visibleSet.has(id))
+
     await api.mediaServer.updateMediaServerConfig(props.configId, {
       server_config: updatedConfig.server_config
     })
-    
+
     ElMessage.success('设置已保存')
     visible.value = false
     emit('updated')
@@ -113,12 +116,12 @@ const handleClosed = () => {
 }
 
 const formatLibType = (type: string) => {
-  const map: any = {
-    'movies': '电影',
-    'tvshows': '剧集',
-    'music': '音乐',
-    'books': '书籍',
-    'other': '其他'
+  const map: Record<string, string> = {
+    movies: '电影',
+    tvshows: '剧集',
+    music: '音乐',
+    books: '书籍',
+    other: '其他'
   }
   return map[type] || type
 }
