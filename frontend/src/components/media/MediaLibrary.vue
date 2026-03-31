@@ -90,6 +90,26 @@
             同步媒体库
           </el-button>
         </el-form-item>
+
+        <!-- 视图切换 -->
+        <el-form-item style="margin-left: auto; margin-right: 0">
+          <el-button-group>
+            <el-tooltip content="竖版海报" placement="top">
+              <el-button
+                :type="viewMode === 'portrait' ? 'primary' : 'default'"
+                :icon="Grid"
+                @click="viewMode = 'portrait'"
+              />
+            </el-tooltip>
+            <el-tooltip content="横版列表" placement="top">
+              <el-button
+                :type="viewMode === 'landscape' ? 'primary' : 'default'"
+                :icon="List"
+                @click="viewMode = 'landscape'"
+              />
+            </el-tooltip>
+          </el-button-group>
+        </el-form-item>
       </el-form>
     </div>
 
@@ -102,122 +122,175 @@
       <el-tag type="danger">已匹配资源: {{ statistics.matched_unified_count || 0 }}</el-tag>
     </div>
 
-    <!-- 媒体项列表 -->
-    <el-table
-      v-loading="loading"
-      :data="items"
-      style="width: 100%"
-      stripe
-      :height="tableHeight"
-      @sort-change="handleSortChange"
-    >
-      <el-table-column label="海报" width="80" align="center">
-        <template #default="scope">
-          <el-image
-            v-if="scope.row.image_url"
-            :src="scope.row.image_url"
-            fit="cover"
-            style="width: 50px; height: 75px; border-radius: 4px"
-            lazy
-          >
-            <template #error>
-              <div class="image-slot">
+    <!-- 媒体项卡片网格 -->
+    <div v-loading="loading" class="cards-container">
+      <el-empty v-if="!loading && items.length === 0" description="暂无媒体项" />
+
+      <!-- 竖版：海报网格 -->
+      <el-row v-else-if="viewMode === 'portrait'" :gutter="16">
+        <el-col
+          v-for="item in items"
+          :key="item.id"
+          :xs="12" :sm="8" :md="6" :lg="4" :xl="3"
+        >
+          <div class="media-card" @click="openInMediaServer(item)">
+            <div class="card-poster">
+              <el-image
+                v-if="item.image_url"
+                :src="item.image_url"
+                fit="cover"
+                lazy
+                class="poster-image"
+              >
+                <template #placeholder>
+                  <div class="poster-placeholder shimmer"></div>
+                </template>
+                <template #error>
+                  <div class="poster-placeholder">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div v-else class="poster-placeholder">
                 <el-icon><Picture /></el-icon>
               </div>
-            </template>
-          </el-image>
-          <div v-else class="image-slot">
-            <el-icon><Picture /></el-icon>
-          </div>
-        </template>
-      </el-table-column>
 
-      <el-table-column label="标题" min-width="250" show-overflow-tooltip>
-        <template #default="scope">
-          <div class="title-cell">
-            <div class="title-main">{{ scope.row.name }}</div>
-            <div v-if="scope.row.original_name && scope.row.original_name !== scope.row.name" class="title-sub">
-              {{ scope.row.original_name }}
+              <div class="card-overlay">
+                <div class="overlay-top">
+                  <el-tag size="small" :type="getItemTypeTag(item.item_type)" class="type-tag">
+                    {{ getItemTypeLabel(item.item_type) }}
+                  </el-tag>
+                </div>
+                <div class="overlay-bottom">
+                  <div class="overlay-meta">
+                    <span v-if="item.year" class="meta-year">{{ item.year }}</span>
+                    <span v-if="item.play_count > 0" class="meta-plays">
+                      <el-icon><VideoPlay /></el-icon>
+                      {{ item.play_count }}
+                    </span>
+                  </div>
+                  <div class="overlay-actions">
+                    <el-button
+                      v-if="item.web_url"
+                      type="primary"
+                      circle
+                      size="small"
+                      :icon="VideoPlay"
+                      @click.stop="openInMediaServer(item)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="assoc-badges">
+                <el-tooltip v-if="item.media_file_id" content="已关联本地文件" placement="top">
+                  <span class="assoc-dot dot-file"></span>
+                </el-tooltip>
+                <el-tooltip v-if="item.unified_resource_id" content="已关联统一资源" placement="top">
+                  <span class="assoc-dot dot-resource"></span>
+                </el-tooltip>
+              </div>
             </div>
-            <div v-if="scope.row.series_name" class="title-sub">
-              {{ scope.row.series_name }}
-              <span v-if="scope.row.season_number">S{{ String(scope.row.season_number).padStart(2, '0') }}</span>
-              <span v-if="scope.row.episode_number">E{{ String(scope.row.episode_number).padStart(2, '0') }}</span>
+
+            <div class="card-info">
+              <div class="card-title" :title="item.name">{{ item.name }}</div>
+              <div v-if="item.original_name && item.original_name !== item.name" class="card-subtitle" :title="item.original_name">
+                {{ item.original_name }}
+              </div>
+              <div v-else-if="item.series_name" class="card-subtitle">
+                {{ item.series_name }}
+                <span v-if="item.season_number">S{{ String(item.season_number).padStart(2, '0') }}</span>
+                <span v-if="item.episode_number">E{{ String(item.episode_number).padStart(2, '0') }}</span>
+              </div>
             </div>
           </div>
-        </template>
-      </el-table-column>
+        </el-col>
+      </el-row>
 
-      <el-table-column label="类型" width="100" align="center">
-        <template #default="scope">
-          <el-tag size="small" :type="getItemTypeTag(scope.row.item_type)">
-            {{ scope.row.item_type }}
-          </el-tag>
-        </template>
-      </el-table-column>
+      <!-- 横版：列表卡片 -->
+      <el-row v-else :gutter="16">
+        <el-col
+          v-for="item in items"
+          :key="item.id"
+          :xs="24" :sm="24" :md="12" :lg="8"
+        >
+          <div class="media-card-landscape" @click="openInMediaServer(item)">
+            <!-- 缩略图 -->
+            <div class="landscape-thumb">
+              <el-image
+                v-if="item.image_url"
+                :src="item.image_url"
+                fit="cover"
+                lazy
+                class="thumb-image"
+              >
+                <template #placeholder>
+                  <div class="thumb-placeholder shimmer"></div>
+                </template>
+                <template #error>
+                  <div class="thumb-placeholder">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div v-else class="thumb-placeholder">
+                <el-icon><Picture /></el-icon>
+              </div>
+            </div>
 
-      <el-table-column label="年份" width="80" align="center" sortable="custom" prop="year">
-        <template #default="scope">
-          {{ scope.row.year || '-' }}
-        </template>
-      </el-table-column>
+            <!-- 详细信息 -->
+            <div class="landscape-info">
+              <div class="landscape-title" :title="item.name">{{ item.name }}</div>
+              <div v-if="item.original_name && item.original_name !== item.name" class="landscape-original" :title="item.original_name">
+                {{ item.original_name }}
+              </div>
+              <div v-else-if="item.series_name" class="landscape-original">
+                {{ item.series_name }}
+                <span v-if="item.season_number">S{{ String(item.season_number).padStart(2, '0') }}</span>
+                <span v-if="item.episode_number">E{{ String(item.episode_number).padStart(2, '0') }}</span>
+              </div>
 
-      <el-table-column label="加入时间" width="160" sortable="custom" prop="date_created">
-        <template #default="scope">
-          {{ scope.row.date_created ? formatDate(scope.row.date_created) : '-' }}
-        </template>
-      </el-table-column>
+              <div class="landscape-meta">
+                <el-tag size="small" :type="getItemTypeTag(item.item_type)">
+                  {{ getItemTypeLabel(item.item_type) }}
+                </el-tag>
+                <span v-if="item.year" class="meta-text">{{ item.year }}</span>
+                <span v-if="item.play_count > 0" class="meta-text plays">
+                  <el-icon><VideoPlay /></el-icon>
+                  {{ item.play_count }} 次
+                </span>
+              </div>
 
-      <el-table-column label="播放次数" width="120" align="center" sortable="custom" prop="play_count">
-        <template #default="scope">
-          <el-tag v-if="scope.row.play_count > 0" type="success" size="small">
-            {{ scope.row.play_count }}
-          </el-tag>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
+              <div v-if="item.date_created" class="landscape-date">
+                加入于 {{ formatDate(item.date_created) }}
+              </div>
 
-      <el-table-column label="最后播放" width="160" sortable="custom" prop="last_played_at">
-        <template #default="scope">
-          {{ scope.row.last_played_at ? formatDate(scope.row.last_played_at) : '-' }}
-        </template>
-      </el-table-column>
+              <div class="landscape-badges">
+                <el-tag v-if="item.media_file_id" type="success" size="small">已关联文件</el-tag>
+                <el-tag v-if="item.unified_resource_id" type="primary" size="small">已关联资源</el-tag>
+              </div>
+            </div>
 
-      <el-table-column label="关联状态" width="120" align="center">
-        <template #default="scope">
-          <div class="association-status">
-            <el-tooltip content="已关联本地文件" placement="top">
-              <el-tag v-if="scope.row.media_file_id" type="success" size="small" :icon="Document">文件</el-tag>
-            </el-tooltip>
-            <el-tooltip content="已关联统一资源" placement="top">
-              <el-tag v-if="scope.row.unified_resource_id" type="primary" size="small" :icon="Link">资源</el-tag>
-            </el-tooltip>
+            <!-- 操作按钮 -->
+            <div v-if="item.web_url" class="landscape-action">
+              <el-button
+                type="primary"
+                circle
+                :icon="VideoPlay"
+                @click.stop="openInMediaServer(item)"
+              />
+            </div>
           </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="操作" width="180" align="center" fixed="right">
-        <template #default="scope">
-          <el-button
-            v-if="scope.row.web_url"
-            type="primary"
-            size="small"
-            link
-            @click="openInJellyfin(scope.row)"
-          >
-            <el-icon class="el-icon--left"><VideoPlay /></el-icon>
-            在 Jellyfin 中播放
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-col>
+      </el-row>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrapper">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.page_size"
-        :page-sizes="[20, 50, 100, 200]"
+        :page-sizes="[24, 48, 96, 192]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
@@ -293,10 +366,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { Search, Refresh, Connection, Picture, Document, Link, VideoPlay } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { Search, Refresh, Connection, Picture, VideoPlay, Grid, List } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
 import { debounce } from 'lodash-es'
 import {
   getMediaServerConfigs,
@@ -306,6 +380,8 @@ import {
   getMediaServerLibraries
 } from '@/api/modules/mediaServer'
 import type { MediaServerConfig, MediaServerLibrary } from '@/types/mediaServer'
+
+const route = useRoute()
 
 const configs = ref<MediaServerConfig[]>([])
 const libraries = ref<MediaServerLibrary[]>([])
@@ -324,25 +400,24 @@ const filters = ref({
 
 const pagination = ref({
   page: 1,
-  page_size: 100,
+  page_size: 48,
   total: 0
 })
 
 const sortField = ref('synced_at')
-const sortOrder = ref(true) // true = desc
-
-const tableHeight = computed(() => {
-  return window.innerHeight - 320
-})
+const sortOrder = ref(true)
+const viewMode = ref<'portrait' | 'landscape'>('portrait')
 
 // 加载配置列表
 const loadConfigs = async () => {
   try {
     const res = await getMediaServerConfigs()
     configs.value = res.data
-
-    // 默认选择第一个
-    if (configs.value.length > 0 && !filters.value.config_id) {
+    // 优先使用路由参数，否则默认选第一个
+    const queryConfigId = route.query.config_id ? Number(route.query.config_id) : undefined
+    if (queryConfigId && configs.value.some(c => c.id === queryConfigId)) {
+      filters.value.config_id = queryConfigId
+    } else if (configs.value.length > 0 && !filters.value.config_id) {
       filters.value.config_id = configs.value[0].id
     }
   } catch (error) {
@@ -356,7 +431,6 @@ const loadLibraries = async () => {
     libraries.value = []
     return
   }
-
   try {
     const res = await getMediaServerLibraries(filters.value.config_id)
     libraries.value = res.data
@@ -400,7 +474,6 @@ const loadItems = async () => {
 // 加载统计信息
 const loadStatistics = async () => {
   if (!filters.value.config_id) return
-
   try {
     const res = await getMediaServerLibraryStatistics(filters.value.config_id)
     statistics.value = res.data
@@ -440,7 +513,6 @@ const confirmSync = async () => {
       duration: 5000
     })
 
-    // 3秒后刷新列表
     setTimeout(() => {
       loadItems()
       loadStatistics()
@@ -453,40 +525,22 @@ const confirmSync = async () => {
   }
 }
 
-// 筛选变化
 const handleFilterChange = () => {
   pagination.value.page = 1
   loadItems()
   loadStatistics()
 }
 
-// 服务器切换
 const handleServerChange = async () => {
-  // 清空媒体库选择
   filters.value.library_id = undefined
-  
-  // 加载新服务器的媒体库列表
   await loadLibraries()
-  
-  // 触发筛选变化
   handleFilterChange()
 }
 
-// 搜索防抖
 const handleSearchDebounced = debounce(() => {
   handleFilterChange()
 }, 500)
 
-// 排序变化
-const handleSortChange = ({ prop, order }: any) => {
-  if (prop) {
-    sortField.value = prop
-    sortOrder.value = order === 'descending'
-    loadItems()
-  }
-}
-
-// 分页变化
 const handlePageChange = () => {
   loadItems()
 }
@@ -496,14 +550,12 @@ const handleSizeChange = () => {
   loadItems()
 }
 
-// 在 Jellyfin 中打开
-const openInJellyfin = (item: any) => {
+const openInMediaServer = (item: any) => {
   if (item.web_url) {
     window.open(item.web_url, '_blank')
   }
 }
 
-// 获取项类型标签颜色
 const getItemTypeTag = (type: string) => {
   const typeMap: Record<string, any> = {
     Movie: 'primary',
@@ -514,12 +566,20 @@ const getItemTypeTag = (type: string) => {
   return typeMap[type] || ''
 }
 
-// 格式化日期
-const formatDate = (date: string) => {
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
+const getItemTypeLabel = (type: string) => {
+  const labelMap: Record<string, string> = {
+    Movie: '电影',
+    Episode: '剧集',
+    Series: '系列',
+    Season: '季'
+  }
+  return labelMap[type] || type
 }
 
-// 媒体库显示标签（名称 + 目录路径）
+const formatDate = (date: string) => {
+  return dayjs(date).format('YYYY-MM-DD')
+}
+
 const getLibraryLabel = (lib: MediaServerLibrary) => {
   if (!lib.locations?.length) return lib.name
   return `${lib.name} (${lib.locations.join(', ')})`
@@ -529,6 +589,11 @@ onMounted(async () => {
   await loadConfigs()
   if (filters.value.config_id) {
     await loadLibraries()
+    // 应用路由传入的 library_id
+    const queryLibraryId = route.query.library_id as string | undefined
+    if (queryLibraryId && libraries.value.some(l => l.id === queryLibraryId)) {
+      filters.value.library_id = queryLibraryId
+    }
     await Promise.all([loadItems(), loadStatistics()])
   }
 })
@@ -572,40 +637,318 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.title-cell {
-  .title-main {
-    font-weight: 500;
-    color: var(--nf-text-primary);
-    margin-bottom: 4px;
+/* 卡片网格 */
+.cards-container {
+  min-height: 200px;
+}
+
+.media-card {
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: translateY(-4px);
+
+    .poster-image {
+      transform: scale(1.06);
+    }
+
+    .card-overlay {
+      opacity: 1;
+    }
   }
+}
 
-  .title-sub {
-    font-size: 12px;
-    color: var(--nf-text-secondary);
+/* 海报区域 */
+.card-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--nf-bg-overlay);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.3s;
+
+  .media-card:hover & {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   }
 }
 
-.association-status {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
+.poster-image {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
-.image-slot {
-  width: 50px;
-  height: 75px;
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--nf-bg-overlay);
-  border-radius: 4px;
+  font-size: 36px;
   color: var(--nf-text-placeholder);
-  font-size: 24px;
+  background: var(--nf-bg-overlay);
 }
 
+/* 悬浮遮罩 */
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.5) 0%,
+    transparent 35%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.overlay-top {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.type-tag {
+  font-size: 11px;
+  backdrop-filter: blur(4px);
+}
+
+.overlay-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.overlay-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: white;
+}
+
+.meta-year {
+  font-size: 13px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.meta-plays {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.9;
+  color: var(--el-color-success-light-3);
+
+  .el-icon {
+    font-size: 13px;
+  }
+}
+
+.overlay-actions {
+  :deep(.el-button) {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+
+    &:hover {
+      background: var(--el-color-primary);
+      border-color: var(--el-color-primary);
+      transform: scale(1.1);
+    }
+  }
+}
+
+/* 关联状态角标 */
+.assoc-badges {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2;
+}
+
+.assoc-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+
+  &.dot-file {
+    background: var(--el-color-success);
+  }
+
+  &.dot-resource {
+    background: var(--el-color-primary);
+  }
+}
+
+/* 卡片底部文字 */
+.card-info {
+  padding: 8px 2px 0;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nf-text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: var(--nf-text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 横版列表卡片 */
+.media-card-landscape {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--nf-bg-elevated);
+  box-shadow: var(--nf-shadow-sm);
+  cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--nf-shadow-md, 0 4px 16px rgba(0, 0, 0, 0.15));
+
+    .thumb-image {
+      transform: scale(1.06);
+    }
+  }
+}
+
+.landscape-thumb {
+  flex-shrink: 0;
+  width: 90px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--nf-bg-overlay);
+}
+
+.thumb-image {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--nf-text-placeholder);
+  background: var(--nf-bg-overlay);
+}
+
+.landscape-info {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 12px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.landscape-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--nf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.landscape-original {
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landscape-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.meta-text {
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+
+  &.plays {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--el-color-success);
+
+    .el-icon {
+      font-size: 13px;
+    }
+  }
+}
+
+.landscape-date {
+  font-size: 11px;
+  color: var(--nf-text-placeholder);
+}
+
+.landscape-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.landscape-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  .media-card-landscape:hover & {
+    opacity: 1;
+  }
+}
+
+/* 分页 */
 .pagination-wrapper {
   margin-top: 20px;
   display: flex;
@@ -614,6 +957,24 @@ onMounted(async () => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: var(--nf-shadow-sm);
+}
+
+/* shimmer 骨架 */
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+html.dark .shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
 // 同步对话框样式
@@ -628,7 +989,7 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   height: auto !important;
-  
+
   :deep(.el-radio__label) {
     white-space: normal;
     line-height: 1.5;

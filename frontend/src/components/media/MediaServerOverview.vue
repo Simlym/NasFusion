@@ -17,50 +17,26 @@
       </el-col>
     </el-row>
 
-    <!-- 服务器列表 -->
+    <!-- 媒体库标题 -->
     <div class="section-title">
-      <h3>媒体服务器状态</h3>
-      <el-button type="primary" link @click="goToSettings">
-        管理配置 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-      </el-button>
-    </div>
-
-    <el-row :gutter="20" class="servers-row">
-      <el-col v-for="server in configs" :key="server.id" :xs="24" :sm="12" :md="8" :lg="6">
-        <el-card shadow="hover" class="server-card" :class="{ 'is-offline': server.status !== 'online' }">
-          <div class="server-header">
-            <div class="server-type-badge" :class="server.type">
-              {{ server.type.toUpperCase() }}
-            </div>
-            <el-tag :type="MediaServerStatusTypes[server.status]" size="small">
-              {{ MediaServerStatusLabels[server.status] }}
-            </el-tag>
-          </div>
-          
-          <div class="server-body">
-            <h4 class="server-name">{{ server.name }}</h4>
-            <p class="server-url">{{ server.host }}:{{ server.port }}</p>
-          </div>
-          
-          <div class="server-footer">
-            <el-button size="small" type="primary" plain :icon="Setting" @click="openFilterDialog(server)">
-              显示设置
-            </el-button>
-          </div>
-        </el-card>
-      </el-col>
-      
-      <!-- 添加服务器占位卡片 -->
-      <el-col v-if="configs.length === 0" :xs="24">
-        <el-empty description="暂未配置媒体服务器">
-          <el-button type="primary" @click="goToSettings">去配置</el-button>
-        </el-empty>
-      </el-col>
-    </el-row>
-
-    <!-- 库大小统计（图表或详细列表） -->
-    <div v-if="allLibraries.length > 0" class="section-title">
       <h3>媒体库分布</h3>
+      <div class="section-actions">
+        <el-button v-if="configs.length === 1" size="small" :icon="Setting" @click="openFilterDialog(configs[0])">
+          显示设置
+        </el-button>
+        <el-dropdown v-else-if="configs.length > 1" @command="openFilterDialogById">
+          <el-button size="small" :icon="Setting">
+            显示设置
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item v-for="s in configs" :key="s.id" :command="s.id">
+                {{ s.name }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </div>
     
     <el-row v-if="allLibraries.length > 0" :gutter="20" class="libraries-grid">
@@ -131,12 +107,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  ArrowRight,
-  Refresh,
-  Calendar,
-  Setting
-} from '@element-plus/icons-vue'
+import { Refresh, Calendar, Setting } from '@element-plus/icons-vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -145,10 +116,6 @@ import 'dayjs/locale/zh-cn'
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 import api from '@/api'
-import { 
-  MediaServerStatusLabels, 
-  MediaServerStatusTypes
-} from '@/types/mediaServer'
 import type { MediaServerConfig, MediaServerStats, MediaServerLibrary } from '@/types/mediaServer'
 import { ElMessage } from 'element-plus'
 import { getMediaServerImageUrl } from '@/utils'
@@ -269,22 +236,21 @@ const handleRefresh = async (configId: number, libraryId?: string) => {
 const openFilterDialog = (server: MediaServerConfig) => {
   selectedConfigId.value = server.id
   selectedConfig.value = server
-  // 使用 nextTick 确保 props 已更新后再打开对话框
   nextTick(() => {
     filterDialog.value?.open()
   })
 }
 
-const handleLibraryClick = (lib: any) => {
-  if (lib.web_url) {
-    window.open(lib.web_url, '_blank')
-  } else {
-    ElMessage.info('该库暂不支持直接跳转')
-  }
+const openFilterDialogById = (configId: number) => {
+  const server = configs.value.find(c => c.id === configId)
+  if (server) openFilterDialog(server)
 }
 
-const goToSettings = () => {
-  router.push({ name: 'Settings', query: { tab: 'media-servers' } })
+const handleLibraryClick = (lib: any) => {
+  router.push({
+    path: '/media-servers',
+    query: { tab: 'library', config_id: lib.config_id, library_id: lib.id }
+  })
 }
 
 const formatDate = (date: string) => {
@@ -358,55 +324,10 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.server-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-}
-
-.server-card.is-offline {
-  opacity: 0.8;
-}
-
-.server-header {
+.section-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-}
-
-.server-type-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.server-type-badge.jellyfin { background: #00a4dc; color: white; }
-.server-type-badge.emby { background: #52b54b; color: white; }
-.server-type-badge.plex { background: #e5a00d; color: black; }
-
-.server-name {
-  margin: 0 0 4px;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.server-url {
-  font-size: 12px;
-  color: var(--text-color-secondary);
-  margin-bottom: 0;
-}
-
-.server-footer {
-  margin-top: 16px;
-  display: flex;
   gap: 8px;
-}
-
-.libraries-table-card {
-  border-radius: 12px;
 }
 
 /* 媒体库卡片样式 */
