@@ -285,17 +285,16 @@
       </el-row>
     </div>
 
-    <!-- 分页 -->
-    <div class="pagination-wrapper">
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.page_size"
-        :page-sizes="[24, 48, 96, 192]"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handlePageChange"
-      />
+    <!-- 无限滚动触发点 -->
+    <div ref="scrollTrigger" class="scroll-trigger"></div>
+
+    <!-- 加载更多 / 全部加载完 -->
+    <div v-if="loadingMore" class="load-status">
+      <el-icon class="is-loading"><Loading /></el-icon>
+      <span>加载中…</span>
+    </div>
+    <div v-else-if="noMore && items.length > 0" class="load-status load-status--done">
+      已加载全部 {{ pagination.total }} 项
     </div>
 
     <!-- 同步对话框 -->
@@ -366,9 +365,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, Connection, Picture, VideoPlay, Grid, List } from '@element-plus/icons-vue'
+import { Search, Refresh, Connection, Picture, VideoPlay, Grid, List, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { debounce } from 'lodash-es'
@@ -388,7 +387,11 @@ const libraries = ref<MediaServerLibrary[]>([])
 const items = ref<any[]>([])
 const statistics = ref<any>(null)
 const loading = ref(false)
+const loadingMore = ref(false)
+const noMore = ref(false)
 const syncing = ref(false)
+const scrollTrigger = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
 
 const filters = ref({
   config_id: undefined as number | undefined,
@@ -441,14 +444,22 @@ const loadLibraries = async () => {
 }
 
 // 加载媒体项列表
-const loadItems = async () => {
+const loadItems = async (isLoadMore = false) => {
   if (!filters.value.config_id) {
     items.value = []
     pagination.value.total = 0
     return
   }
 
-  loading.value = true
+  if (isLoadMore) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    pagination.value.page = 1
+    items.value = []
+    noMore.value = false
+  }
+
   try {
     const res = await getMediaServerLibraryItems(filters.value.config_id, {
       library_id: filters.value.library_id,
@@ -461,14 +472,45 @@ const loadItems = async () => {
       order_desc: sortOrder.value
     })
 
-    items.value = res.data.items
+    if (isLoadMore) {
+      items.value.push(...res.data.items)
+    } else {
+      items.value = res.data.items
+    }
     pagination.value.total = res.data.total
+
+    if (items.value.length >= pagination.value.total) {
+      noMore.value = true
+    }
   } catch (error: any) {
     console.error('加载媒体项失败:', error)
     ElMessage.error(error.response?.data?.detail || '加载失败')
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
+}
+
+const loadMore = () => {
+  if (loading.value || loadingMore.value || noMore.value) return
+  pagination.value.page++
+  loadItems(true)
+}
+
+const setupObserver = () => {
+  if (!scrollTrigger.value) return
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) loadMore()
+    },
+    { rootMargin: '300px', threshold: 0.1 }
+  )
+  observer.observe(scrollTrigger.value)
+}
+
+const cleanupObserver = () => {
+  observer?.disconnect()
+  observer = null
 }
 
 // 加载统计信息
@@ -514,6 +556,7 @@ const confirmSync = async () => {
     })
 
     setTimeout(() => {
+      noMore.value = false
       loadItems()
       loadStatistics()
     }, 3000)
@@ -526,7 +569,6 @@ const confirmSync = async () => {
 }
 
 const handleFilterChange = () => {
-  pagination.value.page = 1
   loadItems()
   loadStatistics()
 }
@@ -540,15 +582,6 @@ const handleServerChange = async () => {
 const handleSearchDebounced = debounce(() => {
   handleFilterChange()
 }, 500)
-
-const handlePageChange = () => {
-  loadItems()
-}
-
-const handleSizeChange = () => {
-  pagination.value.page = 1
-  loadItems()
-}
 
 const openInMediaServer = (item: any) => {
   if (item.web_url) {
@@ -589,13 +622,17 @@ onMounted(async () => {
   await loadConfigs()
   if (filters.value.config_id) {
     await loadLibraries()
-    // 应用路由传入的 library_id
     const queryLibraryId = route.query.library_id as string | undefined
     if (queryLibraryId && libraries.value.some(l => l.id === queryLibraryId)) {
       filters.value.library_id = queryLibraryId
     }
     await Promise.all([loadItems(), loadStatistics()])
   }
+  nextTick(() => setupObserver())
+})
+
+onUnmounted(() => {
+  cleanupObserver()
 })
 </script>
 
@@ -948,15 +985,27 @@ onMounted(async () => {
   }
 }
 
-/* 分页 */
-.pagination-wrapper {
-  margin-top: 20px;
+/* 无限滚动 */
+.scroll-trigger {
+  height: 1px;
+}
+
+.load-status {
   display: flex;
+  align-items: center;
   justify-content: center;
-  background: var(--nf-bg-elevated);
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: var(--nf-shadow-sm);
+  gap: 8px;
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--nf-text-secondary);
+
+  .el-icon {
+    font-size: 18px;
+  }
+
+  &--done {
+    color: var(--nf-text-placeholder);
+  }
 }
 
 /* shimmer 骨架 */
