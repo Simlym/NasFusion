@@ -471,73 +471,144 @@
     </div>
 
     <div v-else-if="activeTab === 'scheduled'" v-loading="tasksLoading" class="tab-content">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <!-- 左侧：筛选器 -->
-        <div class="toolbar-left">
-          <el-form inline :model="scheduledTasksFilters">
-            <el-form-item>
-              <el-select
-                v-model="scheduledTasksFilters.task_type"
-                placeholder="任务类型"
-                clearable
-                style="width: 160px"
-                @change="loadScheduledTasks"
-              >
-                <el-option label="PT资源同步" value="pt_resource_sync" />
-                <el-option label="PT资源识别" value="pt_resource_identify" />
-                <el-option label="订阅检查" value="subscription_check" />
-                <el-option label="媒体扫描" value="media_file_scan" />
-                <el-option label="资源下载" value="download_create" />
-                <el-option label="下载状态同步" value="download_status_sync" />
-                <el-option label="观看历史同步" value="media_server_watch_history_sync" />
-                <el-option label="库统计更新" value="media_server_library_stats_update" />
-                <el-option label="演职员关系回填" value="credits_backfill" />
-                <el-option label="重复人物合并" value="person_merge" />
-              </el-select>
-            </el-form-item>
-            <el-form-item>
-              <el-input
-                v-model="scheduledTasksFilters.keyword"
-                placeholder="任务名称"
-                clearable
-                style="width: 200px"
-                @clear="loadScheduledTasks"
-                @keyup.enter="loadScheduledTasks"
-              >
-                <template #append>
-                  <el-button :icon="Search" @click="loadScheduledTasks" />
-                </template>
-              </el-input>
-            </el-form-item>
-          </el-form>
+      <!-- 控制栏：胶囊筛选 + 搜索 + 操作 -->
+      <div class="scheduled-control-bar">
+        <!-- 左：分组胶囊 -->
+        <div class="group-pills-bar">
+          <div
+            class="group-pill"
+            :class="{ 'group-pill--active': activeGroupFilter === 'all' }"
+            @click="activeGroupFilter = 'all'"
+          >
+            <span class="pill-label">全部</span>
+            <span class="pill-count">{{ scheduledTasks.length }}</span>
+          </div>
+          <div
+            v-for="group in groupedScheduledTasks"
+            :key="group.category"
+            class="group-pill"
+            :class="{
+              'group-pill--active': activeGroupFilter === group.category,
+              'group-pill--has-failed': group.failedCount > 0
+            }"
+            @click="activeGroupFilter = group.category"
+          >
+            <span class="pill-indicator" :class="`pill-indicator--${group.category}`"></span>
+            <span class="pill-label">{{ group.name }}</span>
+            <span class="pill-count">{{ group.tasks.length }}</span>
+            <span v-if="group.failedCount > 0" class="pill-fail-dot">{{ group.failedCount }}</span>
+          </div>
         </div>
 
-        <!-- 右侧：创建与批量操作 -->
-        <div class="toolbar-right">
+        <!-- 右：搜索 + 批量操作 + 创建 -->
+        <div class="scheduled-actions">
           <template v-if="selectedTasks.length > 0">
-            <el-tag type="info" style="margin-right: 12px">已选择 {{ selectedTasks.length }} 个任务</el-tag>
+            <el-tag type="info" size="small">已选 {{ selectedTasks.length }}</el-tag>
             <el-button size="small" :icon="VideoPlay" @click="batchEnable">启用</el-button>
             <el-button size="small" :icon="VideoPause" @click="batchDisable">禁用</el-button>
             <el-button size="small" type="danger" :icon="Delete" @click="batchDelete">删除</el-button>
-            <el-divider direction="vertical" />
+            <el-divider direction="vertical" style="margin: 0 4px" />
           </template>
-          
+          <el-input
+            v-model="scheduledTasksFilters.keyword"
+            placeholder="搜索名称"
+            clearable
+            style="width: 160px"
+            @clear="loadScheduledTasks"
+            @keyup.enter="loadScheduledTasks"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
           <el-button type="primary" :icon="Plus" @click="handleCreate">创建任务</el-button>
         </div>
       </div>
 
-      <!-- 移动端定时任务卡片视图 -->
-      <div v-if="scheduledTasks.length > 0 && isMobile" class="scheduled-cards-mobile">
-        <div v-for="task in scheduledTasks" :key="task.id" class="task-card-mobile">
+      <!-- 桌面端：平铺任务表格 -->
+      <el-table
+        v-if="filteredScheduledTasks.length > 0 && !isMobile"
+        :data="filteredScheduledTasks"
+        class="scheduled-flat-table"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="40" />
+        <el-table-column prop="task_name" label="任务名称" min-width="160" show-overflow-tooltip sortable />
+        <el-table-column label="分组" width="110">
+          <template #default="{ row }">
+            <el-tag
+              :type="getCategoryColor(TASK_CATEGORY_MAP[row.task_type] || 'system')"
+              size="small"
+              effect="plain"
+            >
+              {{ TASK_CATEGORY_NAMES[TASK_CATEGORY_MAP[row.task_type] || 'system'] || '系统' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="调度" width="150">
+          <template #default="{ row }">
+            <el-text size="small">{{ getScheduleDescription(row) }}</el-text>
+          </template>
+        </el-table-column>
+        <el-table-column prop="last_run_at" label="上次执行" width="155" sortable>
+          <template #default="{ row }">
+            <el-text v-if="row.last_run_at" size="small">{{ formatDate(row.last_run_at) }}</el-text>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="上次状态" width="90">
+          <template #default="{ row }">
+            <el-tag v-if="row.last_run_status" size="small" :type="getStatusTagType(row.last_run_status)" effect="plain">
+              {{ getStatusName(row.last_run_status) }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="next_run_at" label="下次运行" width="155" sortable>
+          <template #default="{ row }">
+            <el-text v-if="row.next_run_at" size="small">{{ formatDate(row.next_run_at) }}</el-text>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="70">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" :loading="togglingId === row.id" @change="handleToggleTask(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <div style="display: flex; align-items: center; justify-content: flex-start; gap: 4px;">
+              <el-button type="primary" link size="small" :icon="VideoPlay" :loading="runningId === row.id" @click="handleRunNow(row)">执行</el-button>
+              <el-button type="primary" link size="small" :icon="Clock" @click="handleViewHistory(row)">历史</el-button>
+              <el-dropdown trigger="click">
+                <el-button link type="primary" size="small">
+                  更多<el-icon class="el-icon--right"><More /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item :icon="Edit" @click="handleEdit(row)">编辑</el-dropdown-item>
+                    <el-dropdown-item :icon="Delete" style="color: #f56c6c" @click="handleDelete(row)">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 移动端：卡片列表 -->
+      <div v-if="filteredScheduledTasks.length > 0 && isMobile" class="scheduled-cards-mobile">
+        <div v-for="task in filteredScheduledTasks" :key="task.id" class="task-card-mobile">
           <div class="task-card-header">
             <div class="task-card-title">{{ task.task_name }}</div>
             <el-switch v-model="task.enabled" :loading="togglingId === task.id" @change="handleToggleTask(task)" />
           </div>
           <div class="task-card-body">
             <div class="task-card-info">
-              <span class="info-label">类型</span>
-              <el-tag size="small" :type="getTaskTypeColor(task.task_type)" effect="light">{{ getTaskTypeName(task.task_type) }}</el-tag>
+              <span class="info-label">分组</span>
+              <el-tag :type="getCategoryColor(TASK_CATEGORY_MAP[task.task_type] || 'system')" size="small" effect="plain">
+                {{ TASK_CATEGORY_NAMES[TASK_CATEGORY_MAP[task.task_type] || 'system'] || '系统' }}
+              </el-tag>
             </div>
             <div class="task-card-info">
               <span class="info-label">调度</span>
@@ -568,101 +639,14 @@
         </div>
       </div>
 
-      <!-- 定时任务表格 -->
-      <el-table
-        v-if="scheduledTasks.length > 0 && !isMobile"
-        :data="scheduledTasks"
-        :style="{ width: '100%' }"
-        class="scheduled-tasks-table"
-        :default-sort="{ prop: 'task_type', order: 'ascending' }"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="task_name" label="任务名称" min-width="150" show-overflow-tooltip sortable />
-        <el-table-column prop="task_type" label="类型" width="180" sortable :sort-method="(a, b) => getTaskTypeName(a.task_type).localeCompare(getTaskTypeName(b.task_type), 'zh')">
-          <template #default="{ row }">
-            {{ getTaskTypeName(row.task_type) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="调度" width="180" align="left">
-          <template #default="{ row }">
-            <div style="text-align: left;">
-              <el-text size="small">{{ getScheduleDescription(row) }}</el-text>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="last_run_at" label="上次执行" width="160" align="left" sortable>
-          <template #default="{ row }">
-            <div style="text-align: left;">
-              <el-text v-if="row.last_run_at" size="small">{{ formatDate(row.last_run_at) }}</el-text>
-              <span v-else>-</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="上次状态" width="90">
-          <template #default="{ row }">
-            <el-tag v-if="row.last_run_status" size="small" :type="getStatusTagType(row.last_run_status)" effect="plain">
-              {{ getStatusName(row.last_run_status) }}
-            </el-tag>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="next_run_at" label="下次运行" width="180" align="left" sortable>
-          <template #default="{ row }">
-            <div style="text-align: left;">
-              <el-text v-if="row.next_run_at" size="small">{{ formatDate(row.next_run_at) }}</el-text>
-              <span v-else>-</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.enabled"
-              :loading="togglingId === row.id"
-              @change="handleToggleTask(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
-          <template #default="{ row }">
-            <div style="display: flex; align-items: center; justify-content: flex-start; gap: 4px;">
-              <el-button
-                type="primary"
-                link
-                size="small"
-                :icon="VideoPlay"
-                :loading="runningId === row.id"
-                @click="handleRunNow(row)"
-              >
-                执行
-              </el-button>
-              <el-button
-                type="primary"
-                link
-                size="small"
-                :icon="Clock"
-                @click="handleViewHistory(row)"
-              >
-                历史
-              </el-button>
-              <el-dropdown trigger="click">
-                <el-button link type="primary" size="small">
-                  更多<el-icon class="el-icon--right"><More /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item :icon="Edit" @click="handleEdit(row)">编辑</el-dropdown-item>
-                    <el-dropdown-item :icon="Delete" style="color: #f56c6c" @click="handleDelete(row)">删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-empty v-if="scheduledTasks.length === 0" description="暂无定时任务" :image-size="100">
+      <!-- 空状态：筛选无结果 -->
+      <el-empty
+        v-if="filteredScheduledTasks.length === 0 && scheduledTasks.length > 0"
+        :description="`「${activeGroupFilter === 'all' ? '全部' : TASK_CATEGORY_NAMES[activeGroupFilter]}」暂无任务`"
+        :image-size="80"
+      />
+      <!-- 空状态：无任务 -->
+      <el-empty v-else-if="scheduledTasks.length === 0" description="暂无定时任务" :image-size="100">
         <el-button type="primary" :icon="Plus" @click="handleCreate">创建第一个任务</el-button>
       </el-empty>
     </div>
@@ -1498,6 +1482,95 @@ const displayQueueTasks = computed(() => {
   return []
 })
 
+// 当前选中的分组胶囊
+const activeGroupFilter = ref('all')
+
+// 经胶囊过滤后的任务列表（客户端过滤，不重新请求后端）
+const filteredScheduledTasks = computed(() => {
+  if (activeGroupFilter.value === 'all') return scheduledTasks.value
+  return scheduledTasks.value.filter(
+    t => (TASK_CATEGORY_MAP[t.task_type] || 'system') === activeGroupFilter.value
+  )
+})
+
+// 定时任务统计
+const taskStats = computed(() => {
+  const total = scheduledTasks.value.length
+  const enabled = scheduledTasks.value.filter(t => t.enabled).length
+  return {
+    total,
+    enabled,
+    disabled: total - enabled,
+    failed: scheduledTasks.value.filter(t => t.last_run_status === 'failed').length
+  }
+})
+
+// 业务分组映射：task_type → 分组 key
+const TASK_CATEGORY_MAP: Record<string, string> = {
+  pt_resource_sync: 'pt',
+  pt_resource_identify: 'pt',
+  pt_sync: 'pt',
+  batch_identify: 'pt',
+  subscription_check: 'download',
+  download_create: 'download',
+  download_status_sync: 'download',
+  sync_download_status: 'download',
+  create_download: 'download',
+  media_server_watch_history_sync: 'media_server',
+  media_server_library_stats_update: 'media_server',
+  media_server_library_sync: 'media_server',
+  media_file_scan: 'metadata',
+  scan_media: 'metadata',
+  credits_backfill: 'metadata',
+  person_merge: 'metadata',
+  person_detail_sync: 'metadata',
+  trending_sync: 'metadata',
+  trending_detail_sync: 'metadata',
+  task_execution_cleanup: 'system',
+  cleanup: 'system',
+  notification_send: 'system',
+  ai_recommendation: 'system',
+}
+
+const TASK_CATEGORY_NAMES: Record<string, string> = {
+  pt: 'PT 资源',
+  download: '订阅与下载',
+  media_server: '媒体服务器',
+  metadata: '媒体元数据',
+  system: '系统',
+}
+
+const TASK_CATEGORY_COLORS: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
+  pt: 'primary',
+  download: 'warning',
+  media_server: 'success',
+  metadata: 'info',
+  system: 'info',
+}
+
+const TASK_CATEGORY_ORDER = ['pt', 'download', 'media_server', 'metadata', 'system']
+
+const getCategoryColor = (category: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
+  TASK_CATEGORY_COLORS[category] || 'info'
+
+// 按业务分组
+const groupedScheduledTasks = computed(() => {
+  const groups: Record<string, { category: string; name: string; tasks: ScheduledTask[]; failedCount: number; enabledCount: number }> = {}
+  for (const task of scheduledTasks.value) {
+    const category = TASK_CATEGORY_MAP[task.task_type] || 'system'
+    if (!groups[category]) {
+      groups[category] = { category, name: TASK_CATEGORY_NAMES[category] || category, tasks: [], failedCount: 0, enabledCount: 0 }
+    }
+    groups[category].tasks.push(task)
+    if (task.last_run_status === 'failed') groups[category].failedCount++
+    if (task.enabled) groups[category].enabledCount++
+  }
+  // 按预定义顺序排列，未知分组追加到末尾
+  const sorted = TASK_CATEGORY_ORDER.filter(c => groups[c]).map(c => groups[c])
+  const extras = Object.values(groups).filter(g => !TASK_CATEGORY_ORDER.includes(g.category))
+  return [...sorted, ...extras]
+})
+
 // ==================== 辅助函数 ====================
 const getTaskTypeName = (type: string) => TaskTypeNames[type as keyof typeof TaskTypeNames] || type
 const getStatusName = (status: string) => {
@@ -1992,6 +2065,7 @@ const resetHistoryFilters = () => {
 const handleSelectionChange = (selection: ScheduledTask[]) => {
   selectedTasks.value = selection
 }
+
 
 const handleCreate = () => {
   dialogMode.value = 'create'
@@ -2585,6 +2659,7 @@ watch(
   }
 )
 
+
 // ==================== 监听标签页切换（保留原有逻辑作为后备） ====================
 watch(activeTab, (newTab) => {
   // 这个watcher现在主要处理程序内部触发的tab变化
@@ -3132,6 +3207,279 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+/* ==================== 概览卡片 ==================== */
+.task-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.task-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--nf-bg-elevated, #fff);
+  border: 1px solid var(--nf-border-base, #e2e8f0);
+  transition: box-shadow 0.2s;
+  min-width: 80px;
+}
+
+.task-stat-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.task-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--nf-text-primary, #1f2937);
+}
+
+.task-stat-label {
+  font-size: 12px;
+  color: var(--nf-text-secondary, #6b7280);
+  line-height: 1.3;
+}
+
+.task-stat-item--success .task-stat-value { color: var(--nf-success, #10b981); }
+.task-stat-item--info .task-stat-value { color: var(--nf-text-placeholder, #9ca3af); }
+.task-stat-item--danger { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.04); }
+.task-stat-item--danger .task-stat-value { color: var(--nf-danger, #ef4444); }
+.task-stat-item--groups .task-stat-value { color: var(--nf-primary, #6366f1); }
+
+/* ==================== 控制栏（胶囊 + 搜索 + 操作） ==================== */
+.scheduled-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.scheduled-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ==================== 快速筛选胶囊 ==================== */
+.group-pills-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.group-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--nf-border-base, #e2e8f0);
+  background: var(--nf-bg-elevated, #fff);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--nf-text-secondary, #6b7280);
+  position: relative;
+}
+
+.group-pill:hover {
+  border-color: var(--nf-primary, #6366f1);
+  color: var(--nf-primary, #6366f1);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.group-pill--active {
+  background: var(--nf-primary, #6366f1);
+  border-color: var(--nf-primary, #6366f1);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.group-pill--active:hover {
+  background: var(--nf-primary, #6366f1);
+  color: #fff;
+}
+
+.group-pill--has-failed {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.pill-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pill-indicator--pt { background: #6366f1; }
+.pill-indicator--download { background: #f59e0b; }
+.pill-indicator--media_server { background: #10b981; }
+.pill-indicator--metadata { background: #6b7280; }
+.pill-indicator--system { background: #9ca3af; }
+
+.group-pill--active .pill-indicator {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.pill-label {
+  line-height: 1;
+}
+
+.pill-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.group-pill--active .pill-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.pill-fail-dot {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ==================== 平铺任务表格 ==================== */
+.scheduled-flat-table {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.scheduled-flat-table :deep(.el-table__row) {
+  transition: background 0.15s;
+}
+
+/* ==================== 任务分组视图 ==================== */
+.task-groups-container {
+  margin-top: 4px;
+}
+
+.task-groups {
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-groups :deep(.el-collapse-item) {
+  border: 1px solid var(--nf-border-base, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.task-group-item--has-failed :deep(.el-collapse-item__header) {
+  border-left: 3px solid var(--nf-danger, #ef4444);
+}
+
+.task-groups :deep(.el-collapse-item__header) {
+  padding: 10px 16px;
+  background: var(--nf-bg-page, #f9fafb);
+  height: auto;
+  line-height: 1;
+  font-size: 14px;
+  border-bottom: 1px solid var(--nf-border-light, #f1f5f9);
+}
+
+.task-groups :deep(.el-collapse-item__content) {
+  padding-bottom: 0;
+}
+
+.task-groups :deep(.el-collapse-item__wrap) {
+  border-bottom: none;
+}
+
+.group-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.group-type-tag {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.group-count-badge {
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nf-bg-overlay, #e5e7eb);
+  color: var(--nf-text-secondary, #6b7280);
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.group-meta {
+  font-size: 12px;
+  color: var(--nf-text-placeholder, #9ca3af);
+  flex-shrink: 0;
+}
+
+.group-failed-tag {
+  flex-shrink: 0;
+}
+
+.group-inner-table {
+  border-radius: 0;
+}
+
+.group-inner-table :deep(.el-table__header th) {
+  background: var(--nf-bg-page, #f9fafb);
+  font-size: 12px;
+  padding: 8px 8px;
+}
+
+.group-inner-table :deep(.el-table__body td) {
+  padding: 8px 8px;
+  font-size: 13px;
+}
+
+/* 移动端分组卡片 */
+.mobile-group-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+}
+
 /* ==================== 定时任务表格 ==================== */
 .scheduled-tasks-table {
   margin-top: 16px;
@@ -3308,6 +3656,54 @@ onUnmounted(() => {
 
 /* ==================== 响应式设计 ==================== */
 @media (max-width: 768px) {
+
+  /* 控制栏移动端：胶囊在上，操作在下 */
+  .scheduled-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .group-pills-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+
+  .group-pill {
+    font-size: 12px;
+    padding: 5px 11px;
+    flex-shrink: 0;
+  }
+
+  .scheduled-actions {
+    justify-content: flex-end;
+  }
+
+  /* 概览卡片移动端 */
+  .task-stats-row {
+    gap: 8px;
+  }
+
+  .task-stat-item {
+    padding: 8px 12px;
+    flex: 1;
+    min-width: calc(50% - 8px);
+  }
+
+  .task-stat-value {
+    font-size: 18px;
+  }
+
+  /* 分组视图移动端 */
+  .task-groups :deep(.el-collapse-item__header) {
+    padding: 10px 12px;
+  }
+
+  .group-meta {
+    display: none;
+  }
 
   /* 过滤器移动端优化 */
   .status-filter-bar {
