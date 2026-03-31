@@ -2729,13 +2729,11 @@ onUnmounted(() => {
 .lq-stat--done .lq-stat-dot    { background: var(--el-color-success); }
 
 .lq-stat-num {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1;
   color: var(--el-text-color-primary);
 }
-.lq-stat--running .lq-stat-num { color: var(--el-color-primary); }
-.lq-stat--pending .lq-stat-num { color: var(--el-color-warning); }
 
 .lq-stat-label {
   font-size: 12px;
@@ -2800,13 +2798,11 @@ onUnmounted(() => {
 
 .lq-active-band--running {
   border: 1px solid var(--el-border-color-lighter);
-  border-left: 3px solid var(--el-color-primary);
   background: var(--el-bg-color);
 }
 
 .lq-active-band--pending {
   border: 1px solid var(--el-border-color-lighter);
-  border-left: 3px solid var(--el-color-warning);
   background: var(--el-bg-color);
 }
 
