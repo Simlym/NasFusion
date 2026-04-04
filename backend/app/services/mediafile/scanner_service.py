@@ -253,7 +253,7 @@ class MediaScannerService:
 
                 # 3. 处理文件同步
                 if sorted_files:
-                    await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files)
+                    await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files, directory.media_type)
                     stats["files"] += len(sorted_files)
                 
                 # 更新统计信息
@@ -357,7 +357,8 @@ class MediaScannerService:
         db: AsyncSession,
         directory_id: int,
         dir_path: str,
-        file_entries: List[os.DirEntry]
+        file_entries: List[os.DirEntry],
+        media_type: Optional[str] = None
     ):
         """同步目录下的文件：添加新文件，标记丢失文件"""
         
@@ -391,7 +392,7 @@ class MediaScannerService:
         for name, entry in disk_files.items():
             if name not in db_file_map:
                 # 新增文件
-                await MediaScannerService._create_file(db, entry, directory_id)
+                await MediaScannerService._create_file(db, entry, directory_id, media_type)
             else:
                  # 检查是否需要更新关联
                  f = db_file_map[name]
@@ -407,22 +408,22 @@ class MediaScannerService:
                 await db.delete(file_obj)
 
     @staticmethod
-    async def _create_file(db: AsyncSession, entry: os.DirEntry, directory_id: int):
+    async def _create_file(db: AsyncSession, entry: os.DirEntry, directory_id: int, media_type: Optional[str] = None):
         """创建单个文件记录"""
         from app.utils.file_operations import get_file_type
-        
+
         ext = Path(entry.name).suffix.lower()
         stat = entry.stat()
-        
+
         file_type = "other"
         if ext in VIDEO_EXTENSIONS: file_type = FILE_TYPE_VIDEO
         elif ext in SUBTITLE_EXTENSIONS: file_type = FILE_TYPE_SUBTITLE
         elif ext in AUDIO_EXTENSIONS: file_type = FILE_TYPE_AUDIO
-        
+
         # 统一路径分隔符
         file_path = entry.path.replace('\\', '/')
         directory_path = os.path.dirname(entry.path).replace('\\', '/')
-        
+
         media_file = MediaFile(
             file_path=file_path,
             file_name=entry.name,
@@ -430,6 +431,7 @@ class MediaScannerService:
             media_directory_id=directory_id,
             file_size=stat.st_size,
             file_type=file_type,
+            media_type=media_type or "unknown",
             extension=ext,
             modified_at=datetime.fromtimestamp(stat.st_mtime),
             status="discovered", # 默认状态

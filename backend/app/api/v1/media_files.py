@@ -616,6 +616,15 @@ async def scrape_media_file(
     if not media_file:
         raise HTTPException(status_code=404, detail="媒体文件不存在")
 
+    # 如果 media_type 为 unknown，尝试从所属目录继承
+    if media_file.media_type == "unknown" and media_file.media_directory_id:
+        from app.services.mediafile.media_directory_service import MediaDirectoryService
+        directory = await MediaDirectoryService.get_by_id(db, media_file.media_directory_id)
+        if directory and directory.media_type and directory.media_type != "unknown":
+            media_file.media_type = directory.media_type
+            db.add(media_file)
+            await db.flush()
+
     # 获取配置
     config = None
     if request.config_id:
