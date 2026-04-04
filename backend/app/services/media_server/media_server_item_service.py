@@ -213,8 +213,9 @@ class MediaServerItemService:
             elif child.item_type == "Episode":
                 seasons_map[sn]["episodes"].append(child)
 
-        # 排序
+        # 排序，并过滤掉没有集数的无效季（如媒体服务器产生的空 season 0 条目）
         seasons = sorted(seasons_map.values(), key=lambda s: s["season_number"])
+        seasons = [s for s in seasons if s["episodes"] or s["season_number"] > 0]
 
         return {
             "series": series,
