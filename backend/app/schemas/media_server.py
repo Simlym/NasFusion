@@ -288,6 +288,10 @@ class MediaServerItemResponse(BaseResponseSchema):
     web_url: Optional[str] = None
     image_url: Optional[str] = None
 
+    # Series 统计（仅 Series 类型有值）
+    season_count: Optional[int] = None
+    episode_count: Optional[int] = None
+
 
 class MediaServerItemListResponse(BaseModel):
     """媒体服务器媒体项列表响应"""

@@ -64,6 +64,7 @@ class MediaServerItemService:
         config_id: Optional[int] = None,
         media_type: Optional[str] = None,
         item_type: Optional[str] = None,
+        item_types: Optional[List[str]] = None,
         library_id: Optional[str] = None,
         is_active: bool = True,
         has_media_file: Optional[bool] = None,
@@ -104,6 +105,8 @@ class MediaServerItemService:
             conditions.append(MediaServerItem.media_type == media_type)
         if item_type:
             conditions.append(MediaServerItem.item_type == item_type)
+        if item_types:
+            conditions.append(MediaServerItem.item_type.in_(item_types))
         if library_id:
             conditions.append(MediaServerItem.library_id == library_id)
         if is_active is not None:
@@ -159,6 +162,150 @@ class MediaServerItemService:
         items = list(result.scalars().all())
 
         return items, total
+
+    @staticmethod
+    async def get_series_children(
+        db: AsyncSession,
+        config_id: int,
+        series_id: str,
+    ) -> Dict[str, Any]:
+        """
+        获取剧集的所有季和集，按季分组返回
+
+        Args:
+            db: 数据库会话
+            config_id: 媒体服务器配置ID
+            series_id: 剧集的 server_item_id
+
+        Returns:
+            Dict: {seasons: [{season_number, season_name, episodes: [...]}]}
+        """
+        # 获取 Series 本身信息
+        series = await MediaServerItemService.get_by_server_item_id(db, config_id, series_id)
+
+        # 获取该剧所有 Season 和 Episode
+        result = await db.execute(
+            select(MediaServerItem).where(
+                and_(
+                    MediaServerItem.media_server_config_id == config_id,
+                    MediaServerItem.series_id == series_id,
+                    MediaServerItem.is_active == True,
+                    MediaServerItem.item_type.in_(["Season", "Episode"]),
+                )
+            ).order_by(MediaServerItem.season_number, MediaServerItem.episode_number)
+        )
+        children = list(result.scalars().all())
+
+        # 按季分组
+        seasons_map: Dict[int, Dict[str, Any]] = {}
+        for child in children:
+            sn = child.season_number or 0
+            if sn not in seasons_map:
+                seasons_map[sn] = {
+                    "season_number": sn,
+                    "season_name": f"第 {sn} 季" if sn > 0 else "特别篇",
+                    "season_id": None,
+                    "episodes": [],
+                }
+            if child.item_type == "Season":
+                seasons_map[sn]["season_name"] = child.name
+                seasons_map[sn]["season_id"] = child.server_item_id
+            elif child.item_type == "Episode":
+                seasons_map[sn]["episodes"].append(child)
+
+        # 排序
+        seasons = sorted(seasons_map.values(), key=lambda s: s["season_number"])
+
+        return {
+            "series": series,
+            "seasons": seasons,
+        }
+
+    @staticmethod
+    async def get_season_episodes(
+        db: AsyncSession,
+        config_id: int,
+        series_id: str,
+        season_number: int,
+    ) -> Tuple[Optional[MediaServerItem], List[MediaServerItem]]:
+        """
+        获取某一季的所有集
+
+        Args:
+            db: 数据库会话
+            config_id: 媒体服务器配置ID
+            series_id: 剧集的 server_item_id
+            season_number: 季数
+
+        Returns:
+            Tuple: (Season对象, Episode列表)
+        """
+        result = await db.execute(
+            select(MediaServerItem).where(
+                and_(
+                    MediaServerItem.media_server_config_id == config_id,
+                    MediaServerItem.series_id == series_id,
+                    MediaServerItem.season_number == season_number,
+                    MediaServerItem.is_active == True,
+                )
+            ).order_by(MediaServerItem.episode_number)
+        )
+        items = list(result.scalars().all())
+
+        season_item = None
+        episodes = []
+        for item in items:
+            if item.item_type == "Season":
+                season_item = item
+            elif item.item_type == "Episode":
+                episodes.append(item)
+
+        return season_item, episodes
+
+    @staticmethod
+    async def get_series_stats(
+        db: AsyncSession,
+        config_id: int,
+        series_ids: List[str],
+    ) -> Dict[str, Dict[str, int]]:
+        """
+        批量获取多个剧集的季数和集数统计
+
+        Args:
+            db: 数据库会话
+            config_id: 媒体服务器配置ID
+            series_ids: 剧集 server_item_id 列表
+
+        Returns:
+            Dict: {series_id: {season_count, episode_count}}
+        """
+        if not series_ids:
+            return {}
+
+        # 查询 Episode 数量和不同季数
+        result = await db.execute(
+            select(
+                MediaServerItem.series_id,
+                func.count(func.distinct(MediaServerItem.season_number)).label("season_count"),
+                func.count(MediaServerItem.id).label("episode_count"),
+            ).where(
+                and_(
+                    MediaServerItem.media_server_config_id == config_id,
+                    MediaServerItem.series_id.in_(series_ids),
+                    MediaServerItem.item_type == "Episode",
+                    MediaServerItem.is_active == True,
+                )
+            ).group_by(MediaServerItem.series_id)
+        )
+        rows = result.all()
+
+        stats = {}
+        for row in rows:
+            stats[row.series_id] = {
+                "season_count": row.season_count,
+                "episode_count": row.episode_count,
+            }
+        return stats
 
     @staticmethod
     async def create_or_update(

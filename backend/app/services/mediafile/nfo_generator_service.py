@@ -59,8 +59,8 @@ class NFOGeneratorService:
             logger.debug("配置中未启用NFO生成")
             return None
 
-        if not media_file.organized_path:
-            logger.error("媒体文件未整理，无法生成NFO")
+        if not media_file.organized_path and not media_file.file_path:
+            logger.error("媒体文件路径为空，无法生成NFO")
             return None
 
         try:
@@ -110,7 +110,8 @@ class NFOGeneratorService:
             return None
 
         # 构建NFO文件路径
-        organized_path = Path(media_file.organized_path)
+        actual_path = media_file.organized_path or media_file.file_path
+        organized_path = Path(actual_path)
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO
@@ -386,7 +387,8 @@ class NFOGeneratorService:
             logger.debug(f"使用订阅覆写信息: {override_info}")
 
         # 构建NFO文件路径
-        organized_path = Path(media_file.organized_path)
+        actual_path = media_file.organized_path or media_file.file_path
+        organized_path = Path(actual_path)
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO
@@ -812,7 +814,8 @@ class NFOGeneratorService:
             return None
 
         # 构建NFO文件路径（放在视频同目录）
-        organized_path = Path(media_file.organized_path)
+        actual_path = media_file.organized_path or media_file.file_path
+        organized_path = Path(actual_path)
         nfo_path = organized_path.with_suffix(".nfo")
 
         # 检查是否跳过已存在的NFO

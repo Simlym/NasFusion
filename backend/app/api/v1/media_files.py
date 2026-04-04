@@ -160,6 +160,17 @@ async def get_episode_metadata(
         "has_poster": False,
         "poster_url": None,
         "nfo_data": None,
+        "file_path": media_file.file_path,
+        "organized_path": media_file.organized_path,
+        "nfo_path": None,
+        "poster_file_path": None,
+        "video_codec": media_file.video_codec,
+        "duration": media_file.duration,
+        "organized": media_file.organized,
+        "organize_mode": media_file.organize_mode,
+        "status": media_file.status,
+        "media_type": media_file.media_type,
+        "sub_title": media_file.sub_title,
     }
 
     if not file_path or not os.path.exists(file_path):
@@ -173,6 +184,7 @@ async def get_episode_metadata(
     nfo_path = parent / f"{stem}.nfo"
     if nfo_path.exists():
         result["has_nfo"] = True
+        result["nfo_path"] = str(nfo_path)
         try:
             result["nfo_data"] = await NFOParserService.parse_nfo(str(nfo_path))
         except Exception:
@@ -187,6 +199,7 @@ async def get_episode_metadata(
         thumb = parent / name
         if thumb.exists():
             result["has_poster"] = True
+            result["poster_file_path"] = str(thumb)
             encoded = quote(str(thumb).replace("\\", "/"), safe="")
             result["poster_url"] = f"/api/v1/media-directories/image?path={encoded}"
             break

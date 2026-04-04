@@ -236,6 +236,7 @@ export function getMediaServerLibraryItems(
   params?: {
     media_type?: string
     item_type?: string
+    item_types?: string
     library_id?: string
     has_media_file?: boolean
     has_unified_resource?: boolean
@@ -247,6 +248,25 @@ export function getMediaServerLibraryItems(
   }
 ) {
   return request.get<any>(`/media-servers/${configId}/library-items`, { params })
+}
+
+/**
+ * 获取剧集的所有季
+ * @param configId 配置ID
+ * @param seriesId 剧集的 server_item_id
+ */
+export function getSeriesSeasons(configId: number, seriesId: string) {
+  return request.get<any>(`/media-servers/${configId}/library-items/series/${seriesId}/seasons`)
+}
+
+/**
+ * 获取某一季的所有集
+ * @param configId 配置ID
+ * @param seriesId 剧集的 server_item_id
+ * @param seasonNumber 季数
+ */
+export function getSeasonEpisodes(configId: number, seriesId: string, seasonNumber: number) {
+  return request.get<any>(`/media-servers/${configId}/library-items/series/${seriesId}/seasons/${seasonNumber}/episodes`)
 }
 
 /**

@@ -116,6 +116,17 @@ export interface EpisodeMetadata {
   has_poster: boolean
   poster_url: string | null
   nfo_data: Record<string, any> | null
+  file_path: string | null
+  organized_path: string | null
+  nfo_path: string | null
+  poster_file_path: string | null
+  video_codec: string | null
+  duration: number | null
+  organized: boolean
+  organize_mode: string | null
+  status: string | null
+  media_type: string | null
+  sub_title: string | null
 }
 
 export function getEpisodeMetadata(id: number) {

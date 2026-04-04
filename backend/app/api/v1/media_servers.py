@@ -646,7 +646,8 @@ async def batch_rematch_watch_history(
 async def get_media_server_library_items(
     config_id: int,
     media_type: Optional[str] = Query(None, description="媒体类型过滤：movie/tv/music/book/anime/adult/game/other"),
-    item_type: Optional[str] = Query(None, description="媒体项类型过滤：Movie/Episode/Series/Season"),
+    item_type: Optional[str] = Query(None, description="媒体项类型过滤（单个）：Movie/Episode/Series/Season"),
+    item_types: Optional[str] = Query(None, description="媒体项类型过滤（多个，逗号分隔）：Movie,Series"),
     library_id: Optional[str] = Query(None, description="媒体库ID过滤"),
     has_media_file: Optional[bool] = Query(None, description="是否已关联本地文件"),
     has_unified_resource: Optional[bool] = Query(None, description="是否已关联统一资源"),
@@ -665,7 +666,8 @@ async def get_media_server_library_items(
 
     支持筛选：
     - media_type: 按媒体类型过滤
-    - item_type: 按媒体项类型过滤
+    - item_type: 按媒体项类型过滤（单个）
+    - item_types: 按媒体项类型过滤（多个，逗号分隔，如 "Movie,Series"）
     - library_id: 按媒体库过滤
     - has_media_file: 是否已关联本地文件
     - has_unified_resource: 是否已关联统一资源
@@ -682,12 +684,18 @@ async def get_media_server_library_items(
     # 应用媒体库显示设置过滤
     excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id) or None
 
+    # 解析 item_types 参数
+    item_types_list = None
+    if item_types:
+        item_types_list = [t.strip() for t in item_types.split(",") if t.strip()]
+
     # 查询媒体项
     items, total = await MediaServerItemService.get_list(
         db=db,
         config_id=config_id,
         media_type=media_type,
         item_type=item_type,
+        item_types=item_types_list,
         library_id=library_id,
         is_active=True,
         has_media_file=has_media_file,
@@ -702,6 +710,12 @@ async def get_media_server_library_items(
 
     # 转换为响应格式（添加额外字段）
     from sqlalchemy.inspection import inspect as sqlalchemy_inspect
+
+    # 批量获取 Series 的季/集统计
+    series_server_ids = [item.server_item_id for item in items if item.item_type == "Series"]
+    series_stats = {}
+    if series_server_ids:
+        series_stats = await MediaServerItemService.get_series_stats(db, config_id, series_server_ids)
 
     response_items = []
     for item in items:
@@ -727,6 +741,12 @@ async def get_media_server_library_items(
         # 构建图片 URL（使用代理接口）
         if item.images and item.images.get("Primary"):
             item_data["image_url"] = f"/api/v1/media-servers/{config_id}/image?path={item.images['Primary']}"
+
+        # 为 Series 类型添加季/集统计
+        if item.item_type == "Series" and item.server_item_id in series_stats:
+            stats = series_stats[item.server_item_id]
+            item_data["season_count"] = stats["season_count"]
+            item_data["episode_count"] = stats["episode_count"]
 
         response_items.append(item_data)
 
@@ -817,3 +837,129 @@ async def get_media_server_library_statistics(
     stats = await MediaServerItemService.get_statistics(db, config_id)
 
     return stats
+
+
+@router.get("/{config_id}/library-items/series/{series_id}/seasons")
+async def get_series_seasons(
+    config_id: int,
+    series_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取剧集的所有季，包含每季的集数统计
+
+    返回结构：
+    {
+        "series": {...},       // 剧集信息
+        "seasons": [           // 季列表
+            {
+                "season_number": 1,
+                "season_name": "第 1 季",
+                "season_id": "xxx",
+                "episode_count": 12,
+                "image_url": "...",
+            }
+        ]
+    }
+    """
+    config = await MediaServerConfigService.get_by_id(db, config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="Media server config not found")
+    if config.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    data = await MediaServerItemService.get_series_children(db, config_id, series_id)
+
+    from sqlalchemy.inspection import inspect as sqlalchemy_inspect
+
+    # 转换 series 信息
+    series_data = None
+    if data["series"]:
+        series_item = data["series"]
+        series_data = {c.key: getattr(series_item, c.key) for c in sqlalchemy_inspect(series_item).mapper.column_attrs}
+        series_data["server_name"] = config.name
+        if series_item.images and series_item.images.get("Primary"):
+            series_data["image_url"] = f"/api/v1/media-servers/{config_id}/image?path={series_item.images['Primary']}"
+        if config.type == "jellyfin":
+            protocol = "https" if config.use_ssl else "http"
+            base_url = f"{protocol}://{config.host}:{config.port}"
+            series_data["web_url"] = f"{base_url}/web/index.html#!/details?id={series_item.server_item_id}"
+
+    # 转换 seasons 信息
+    seasons_response = []
+    for season in data["seasons"]:
+        season_resp = {
+            "season_number": season["season_number"],
+            "season_name": season["season_name"],
+            "season_id": season["season_id"],
+            "episode_count": len(season["episodes"]),
+            "image_url": None,
+        }
+        # 尝试从 Season 对象获取图片，如果没有则从第一集获取
+        if season["season_id"]:
+            # 查找 Season 类型的条目获取图片
+            for child in data["seasons"]:
+                if child["season_id"] == season["season_id"]:
+                    break
+        # 用第一集的图片作为备选
+        if season["episodes"]:
+            first_ep = season["episodes"][0]
+            if first_ep.images and first_ep.images.get("Primary"):
+                season_resp["image_url"] = f"/api/v1/media-servers/{config_id}/image?path={first_ep.images['Primary']}"
+
+        seasons_response.append(season_resp)
+
+    return {
+        "series": series_data,
+        "seasons": seasons_response,
+    }
+
+
+@router.get("/{config_id}/library-items/series/{series_id}/seasons/{season_number}/episodes")
+async def get_season_episodes(
+    config_id: int,
+    series_id: str,
+    season_number: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取某一季的所有集
+
+    返回结构：
+    {
+        "season": {...},       // 季信息（可能为 null）
+        "episodes": [...]      // 集列表
+    }
+    """
+    config = await MediaServerConfigService.get_by_id(db, config_id)
+    if not config:
+        raise HTTPException(status_code=404, detail="Media server config not found")
+    if config.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    season_item, episodes = await MediaServerItemService.get_season_episodes(
+        db, config_id, series_id, season_number
+    )
+
+    from sqlalchemy.inspection import inspect as sqlalchemy_inspect
+
+    def build_item_data(item):
+        item_data = {c.key: getattr(item, c.key) for c in sqlalchemy_inspect(item).mapper.column_attrs}
+        item_data["server_name"] = config.name
+        if config.type == "jellyfin":
+            protocol = "https" if config.use_ssl else "http"
+            base_url = f"{protocol}://{config.host}:{config.port}"
+            item_data["web_url"] = f"{base_url}/web/index.html#!/details?id={item.server_item_id}"
+        if item.images and item.images.get("Primary"):
+            item_data["image_url"] = f"/api/v1/media-servers/{config_id}/image?path={item.images['Primary']}"
+        return item_data
+
+    season_data = build_item_data(season_item) if season_item else None
+    episodes_data = [build_item_data(ep) for ep in episodes]
+
+    return {
+        "season": season_data,
+        "episodes": episodes_data,
+    }

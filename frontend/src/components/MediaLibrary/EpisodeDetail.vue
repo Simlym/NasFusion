@@ -37,6 +37,9 @@
             <el-tag v-if="fileData.resolution" size="small" type="info" effect="plain">
               {{ fileData.resolution }}
             </el-tag>
+            <el-tag v-if="metadata?.video_codec" size="small" type="info" effect="plain">
+              {{ metadata.video_codec }}
+            </el-tag>
             <el-tag size="small" :type="metadata?.has_nfo ? 'success' : 'danger'" effect="plain">
               NFO
             </el-tag>
@@ -46,6 +49,12 @@
             <el-tag v-if="fileData.has_subtitle" size="small" type="success" effect="plain">
               字幕
             </el-tag>
+            <el-tag v-if="metadata?.organized" size="small" type="success" effect="plain">
+              已整理
+            </el-tag>
+            <el-tag v-else size="small" type="info" effect="plain">
+              未整理
+            </el-tag>
           </div>
 
           <!-- 集标题 -->
@@ -53,13 +62,19 @@
             {{ nfoTitle || fileData.episode_title || fileData.file_name }}
           </h2>
 
-          <!-- 播出日期 + 评分 -->
-          <div class="ep-meta-row" v-if="nfoAired || nfoRating">
+          <!-- 副标题 -->
+          <p v-if="metadata?.sub_title" class="ep-subtitle">{{ metadata.sub_title }}</p>
+
+          <!-- 播出日期 + 评分 + 时长 -->
+          <div class="ep-meta-row" v-if="nfoAired || nfoRating || metadata?.duration">
             <span v-if="nfoAired" class="meta-item">
               <el-icon><Calendar /></el-icon> {{ nfoAired }}
             </span>
             <span v-if="nfoRating" class="rating-inline">
               ★ {{ Number(nfoRating).toFixed(1) }}
+            </span>
+            <span v-if="metadata?.duration" class="meta-item">
+              <el-icon><Timer /></el-icon> {{ formatDuration(metadata.duration) }}
             </span>
           </div>
 
@@ -91,22 +106,96 @@
         <span class="action-hint">强制覆盖已有图片和 NFO</span>
       </div>
 
-      <!-- 文件信息（折叠） -->
-      <el-collapse class="file-collapse">
-        <el-collapse-item title="文件信息" name="file">
-          <el-descriptions :column="2" size="small" border>
-            <el-descriptions-item label="文件名" :span="2">
-              <span class="mono">{{ fileData.file_name }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="大小">{{ formatFileSize(fileData.file_size) }}</el-descriptions-item>
-            <el-descriptions-item label="分辨率">{{ fileData.resolution || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="集数">
-              {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="集标题">{{ fileData.episode_title || '-' }}</el-descriptions-item>
-          </el-descriptions>
-        </el-collapse-item>
-      </el-collapse>
+      <!-- 文件路径信息 -->
+      <div class="info-section">
+        <div class="info-section-title">
+          <el-icon><Folder /></el-icon>
+          <span>文件路径</span>
+        </div>
+        <div class="path-list">
+          <div class="path-item">
+            <span class="path-label">原始路径</span>
+            <span class="path-value mono">{{ metadata?.file_path || '-' }}</span>
+          </div>
+          <div v-if="metadata?.organized_path" class="path-item">
+            <span class="path-label">整理路径</span>
+            <div class="path-value-row">
+              <span class="path-value mono">{{ metadata.organized_path }}</span>
+              <el-tag v-if="metadata.organize_mode" size="small" type="info" effect="plain">
+                {{ metadata.organize_mode }}
+              </el-tag>
+            </div>
+          </div>
+          <div class="path-item">
+            <span class="path-label">NFO 文件</span>
+            <span class="path-value mono" :class="{ 'path-missing': !metadata?.nfo_path }">
+              {{ metadata?.nfo_path || '未生成' }}
+            </span>
+          </div>
+          <div class="path-item">
+            <span class="path-label">缩略图</span>
+            <span class="path-value mono" :class="{ 'path-missing': !metadata?.poster_file_path }">
+              {{ metadata?.poster_file_path || '未下载' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文件详细信息 -->
+      <div class="info-section">
+        <div class="info-section-title">
+          <el-icon><Document /></el-icon>
+          <span>文件信息</span>
+        </div>
+        <el-descriptions :column="2" size="small" border>
+          <el-descriptions-item label="文件名" :span="2">
+            <span class="mono">{{ fileData.file_name }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="大小">{{ formatFileSize(fileData.file_size) }}</el-descriptions-item>
+          <el-descriptions-item label="分辨率">{{ fileData.resolution || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="视频编码">{{ metadata?.video_codec || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="时长">{{ metadata?.duration ? formatDuration(metadata.duration) : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="集数">
+            {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="集标题">{{ fileData.episode_title || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag size="small" :type="statusTagType(metadata?.status)">{{ statusLabel(metadata?.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="媒体类型">{{ mediaTypeLabel(metadata?.media_type) }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <!-- NFO 详细内容（如果存在） -->
+      <div v-if="metadata?.nfo_data && Object.keys(metadata.nfo_data).length > 0" class="info-section">
+        <div class="info-section-title">
+          <el-icon><Tickets /></el-icon>
+          <span>NFO 元数据</span>
+        </div>
+        <el-descriptions :column="2" size="small" border>
+          <el-descriptions-item v-if="metadata.nfo_data.title" label="标题" :span="2">
+            {{ metadata.nfo_data.title }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.originaltitle" label="原始标题" :span="2">
+            {{ metadata.nfo_data.originaltitle }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.aired" label="播出日期">
+            {{ metadata.nfo_data.aired }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.rating" label="评分">
+            ★ {{ Number(metadata.nfo_data.rating).toFixed(1) }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.director" label="导演">
+            {{ metadata.nfo_data.director }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.studio" label="制作公司">
+            {{ metadata.nfo_data.studio }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.plot" label="简介" :span="2">
+            <span class="nfo-plot-text">{{ metadata.nfo_data.plot }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
 
     </template>
 
@@ -117,7 +206,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Document, Calendar } from '@element-plus/icons-vue'
+import { Refresh, Document, Calendar, Timer, Folder, Tickets } from '@element-plus/icons-vue'
 import { scrapeMediaFile, generateNFO, getEpisodeMetadata, type EpisodeMetadata } from '@/api/modules/media'
 import type { EpisodeTreeNode } from './DirectoryTree.vue'
 
@@ -217,6 +306,54 @@ const formatFileSize = (bytes: number): string => {
   return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i]
 }
 
+const formatDuration = (seconds: number): string => {
+  if (!seconds) return '-'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
+const statusLabel = (status?: string | null): string => {
+  const map: Record<string, string> = {
+    discovered: '已发现',
+    identifying: '识别中',
+    identified: '已识别',
+    organizing: '整理中',
+    scraping: '刮削中',
+    completed: '已完成',
+    failed: '失败',
+    ignored: '已忽略',
+  }
+  return map[status || ''] || status || '-'
+}
+
+const statusTagType = (status?: string | null): string => {
+  const map: Record<string, string> = {
+    completed: 'success',
+    failed: 'danger',
+    ignored: 'info',
+    identified: '',
+    discovered: 'warning',
+  }
+  return map[status || ''] || ''
+}
+
+const mediaTypeLabel = (type?: string | null): string => {
+  const map: Record<string, string> = {
+    movie: '电影',
+    tv: '剧集',
+    anime: '动画',
+    music: '音乐',
+    book: '电子书',
+    adult: '成人',
+    unknown: '未知',
+  }
+  return map[type || ''] || type || '-'
+}
+
 watch(() => props.episode, loadMetadata, { immediate: true })
 </script>
 
@@ -306,6 +443,14 @@ watch(() => props.episode, loadMetadata, { immediate: true })
   word-break: break-word;
 }
 
+.ep-subtitle {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .ep-meta-row {
   display: flex;
   align-items: center;
@@ -358,26 +503,69 @@ watch(() => props.episode, loadMetadata, { immediate: true })
   }
 }
 
-/* 文件信息折叠 */
-.file-collapse {
-  border: none;
+/* 信息区块 */
+.info-section {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 16px;
 
-  :deep(.el-collapse-item__header) {
-    font-size: 13px;
+  .info-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    margin-bottom: 12px;
+  }
+}
+
+/* 路径列表 */
+.path-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  .path-label {
+    flex-shrink: 0;
+    width: 70px;
+    font-size: 12px;
     color: var(--el-text-color-secondary);
-    background: transparent;
-    border: none;
-    padding: 0;
-    height: 32px;
+    line-height: 20px;
+    text-align: right;
   }
 
-  :deep(.el-collapse-item__wrap) {
-    border: none;
-    background: transparent;
+  .path-value {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--el-text-color-regular);
+    word-break: break-all;
   }
 
-  :deep(.el-collapse-item__content) {
-    padding-bottom: 0;
+  .path-value-row {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+
+    .path-value {
+      flex: 1;
+    }
+  }
+
+  .path-missing {
+    color: var(--el-text-color-placeholder);
+    font-style: italic;
   }
 }
 
@@ -385,5 +573,13 @@ watch(() => props.episode, loadMetadata, { immediate: true })
   font-family: monospace;
   font-size: 12px;
   word-break: break-all;
+}
+
+.nfo-plot-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.6;
 }
 </style>

@@ -54,10 +54,11 @@ class ScraperService:
             "errors": [],
         }
 
-        # 检查文件是否已整理
-        if not media_file.organized_path:
+        # 确定实际文件路径（优先使用整理后路径，回退到原始路径）
+        actual_path = media_file.organized_path or media_file.file_path
+        if not actual_path:
             result["success"] = False
-            result["errors"].append("媒体文件未整理，无法刮削")
+            result["errors"].append("媒体文件路径为空，无法刮削")
             return result
 
         # 检查文件是否已识别
@@ -67,8 +68,8 @@ class ScraperService:
             return result
 
         try:
-            # 获取目标目录（整理后的文件所在目录）
-            organized_path = Path(media_file.organized_path)
+            # 获取目标目录（文件所在目录）
+            organized_path = Path(actual_path)
             target_dir = organized_path.parent
 
             # 根据统一资源表名获取元数据
@@ -679,8 +680,8 @@ class ScraperService:
             "error": None,
         }
 
-        if not media_file.organized_path:
-            result["error"] = "媒体文件未整理，无法生成NFO"
+        if not media_file.organized_path and not media_file.file_path:
+            result["error"] = "媒体文件路径为空，无法生成NFO"
             return result
 
         try:
