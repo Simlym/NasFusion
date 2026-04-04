@@ -126,7 +126,7 @@ class MTeamAdapter(BasePTSiteAdapter):
                     proxy_url = f"{p_type}://{auth_part}{p_host}:{p_port}"
 
             if proxy_url:
-                self.client_config["proxies"] = proxy_url
+                self.client_config["proxy"] = proxy_url
                 # logger.info(f"Proxy configured: {proxy_url}") # Security risk to log full url with password
 
         # MTeam API端点
@@ -316,8 +316,8 @@ class MTeamAdapter(BasePTSiteAdapter):
 
         async with httpx.AsyncClient(**self.client_config) as client:
             logger.debug(f"Making {method} request to {url}")
-            if "proxies" in self.client_config:
-                logger.info(f"Using proxy: {self.client_config['proxies']}")
+            if "proxy" in self.client_config:
+                logger.info(f"Using proxy: {self.client_config['proxy']}")
             else:
                 logger.debug("No proxy configured for this request")
 

@@ -155,7 +155,7 @@ class TVDBAdapter:
         if self.proxy_config and self.proxy_config.get("enabled"):
             proxy_url = self.proxy_config.get("url")
             if proxy_url:
-                config["proxies"] = proxy_url
+                config["proxy"] = proxy_url
 
         return config
 
