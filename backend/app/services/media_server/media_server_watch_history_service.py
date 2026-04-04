@@ -530,32 +530,27 @@ class MediaServerWatchHistoryService:
         
         if config_id_filter:
             # 特定服务器视图：仅应用该服务器的排除规则
-            config = await MediaServerConfigService.get_by_id(db, config_id_filter)
-            if config and config.server_config and config.server_config.get("excluded_library_ids"):
-                excluded_ids = config.server_config["excluded_library_ids"]
-                if excluded_ids:
-                    query = query.where(or_(
-                        MediaServerWatchHistory.library_id == None,
-                        MediaServerWatchHistory.library_id.not_in(excluded_ids)
-                    ))
+            excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id_filter)
+            if excluded_ids:
+                query = query.where(or_(
+                    MediaServerWatchHistory.library_id == None,
+                    MediaServerWatchHistory.library_id.not_in(excluded_ids)
+                ))
         else:
-            # “仪表盘”或“全部服务器”视图：应用该用户所有服务器配置各自的排除规则
+            # “仪表盘”或”全部服务器”视图：应用该用户所有服务器配置各自的排除规则
             configs = await MediaServerConfigService.get_by_user_id(db, user_id)
             exclusion_clauses = []
             for config in configs:
-                if config.server_config and config.server_config.get("excluded_library_ids"):
-                    ex_ids = config.server_config["excluded_library_ids"]
-                    if ex_ids:
-                        # 找出需要被排除的记录：(属于该服务器 AND 属于该已被排除的库)
-                        exclusion_clauses.append(
-                            and_(
-                                MediaServerWatchHistory.media_server_config_id == config.id,
-                                MediaServerWatchHistory.library_id.in_(ex_ids)
-                            )
+                ex_ids = await MediaServerConfigService.get_excluded_library_ids(db, config.id)
+                if ex_ids:
+                    exclusion_clauses.append(
+                        and_(
+                            MediaServerWatchHistory.media_server_config_id == config.id,
+                            MediaServerWatchHistory.library_id.in_(ex_ids)
                         )
-            
+                    )
+
             if exclusion_clauses:
-                # 最终查询：排除掉命中任何一条规则的记录
                 query = query.where(not_(or_(*exclusion_clauses)))
 
         # 获取总数

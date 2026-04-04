@@ -54,15 +54,10 @@ class MediaServerLibraryService:
             ]
             
             if not include_hidden:
-                # 获取配置以检查排除列表
-                config = await MediaServerConfigService.get_by_id(db, config_id)
-                if config and config.server_config:
-                    excluded_ids = config.server_config.get("excluded_library_ids")
-                    if excluded_ids:
-                        if isinstance(excluded_ids, str):
-                            excluded_ids = [i.strip() for i in excluded_ids.split(",") if i.strip()]
-                        results = [l for l in results if l["id"] not in excluded_ids]
-            
+                excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id)
+                if excluded_ids:
+                    results = [l for l in results if l["id"] not in excluded_ids]
+
             return results
 
         # 如果数据库没有，则实时同步一次
@@ -152,12 +147,8 @@ class MediaServerLibraryService:
             logger.info(f"Synced {len(synced_libraries)} libraries from {config.name}")
 
             if not include_hidden:
-                # 过滤排除的库
-                excluded_ids = config.server_config.get("excluded_library_ids") if config.server_config else None
+                excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id)
                 if excluded_ids:
-                    if isinstance(excluded_ids, str):
-                        excluded_ids = [i.strip() for i in excluded_ids.split(",") if i.strip()]
-                    
                     synced_libraries = [l for l in synced_libraries if l["id"] not in excluded_ids]
 
             return synced_libraries

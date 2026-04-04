@@ -27,6 +27,28 @@ class MediaServerConfigService:
     """媒体服务器配置服务（通用）"""
 
     @staticmethod
+    async def get_excluded_library_ids(db: AsyncSession, config_id: int) -> List[str]:
+        """
+        获取指定配置的排除媒体库ID列表
+
+        Args:
+            db: 数据库会话
+            config_id: 配置ID
+
+        Returns:
+            List[str]: 排除的媒体库ID列表
+        """
+        config = await MediaServerConfigService.get_by_id(db, config_id)
+        if not config or not config.server_config:
+            return []
+        excluded = config.server_config.get("excluded_library_ids")
+        if not excluded:
+            return []
+        if isinstance(excluded, str):
+            return [i.strip() for i in excluded.split(",") if i.strip()]
+        return list(excluded)
+
+    @staticmethod
     async def get_by_id(db: AsyncSession, config_id: int) -> Optional[MediaServerConfig]:
         """
         根据ID获取配置

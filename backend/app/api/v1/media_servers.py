@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 import httpx
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -356,6 +356,14 @@ async def get_media_server_latest(
     if item_type:
         query = query.where(MediaServerItem.item_type == item_type)
 
+    # 应用媒体库显示设置过滤
+    excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id)
+    if excluded_ids:
+        query = query.where(or_(
+            MediaServerItem.library_id == None,
+            MediaServerItem.library_id.not_in(excluded_ids)
+        ))
+
     result = await db.execute(
         query.order_by(desc(MediaServerItem.date_created)).limit(limit)
     )
@@ -671,6 +679,9 @@ async def get_media_server_library_items(
     if config.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Permission denied")
 
+    # 应用媒体库显示设置过滤
+    excluded_ids = await MediaServerConfigService.get_excluded_library_ids(db, config_id) or None
+
     # 查询媒体项
     items, total = await MediaServerItemService.get_list(
         db=db,
@@ -682,6 +693,7 @@ async def get_media_server_library_items(
         has_media_file=has_media_file,
         has_unified_resource=has_unified_resource,
         keyword=keyword,
+        excluded_library_ids=excluded_ids,
         page=page,
         page_size=page_size,
         order_by=order_by,

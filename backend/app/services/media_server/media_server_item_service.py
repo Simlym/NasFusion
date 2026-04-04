@@ -69,6 +69,7 @@ class MediaServerItemService:
         has_media_file: Optional[bool] = None,
         has_unified_resource: Optional[bool] = None,
         keyword: Optional[str] = None,
+        excluded_library_ids: Optional[List[str]] = None,
         page: int = 1,
         page_size: int = 100,
         order_by: str = "synced_at",
@@ -117,6 +118,13 @@ class MediaServerItemService:
                 conditions.append(MediaServerItem.unified_resource_id.isnot(None))
             else:
                 conditions.append(MediaServerItem.unified_resource_id.is_(None))
+        if excluded_library_ids:
+            conditions.append(
+                or_(
+                    MediaServerItem.library_id == None,
+                    MediaServerItem.library_id.not_in(excluded_library_ids)
+                )
+            )
         if keyword:
             conditions.append(
                 or_(

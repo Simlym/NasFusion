@@ -7,7 +7,7 @@
   >
     <div class="filter-tip">
       <el-alert
-        title="默认全部显示，取消勾选的媒体库将不在最近观看中显示"
+        title="默认全部显示，取消勾选的媒体库将不在最近观看、最近添加和媒体库浏览中显示"
         type="info"
         show-icon
         :closable="false"

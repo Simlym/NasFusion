@@ -61,10 +61,10 @@
     <el-dialog v-model="libraryScanDialog.visible" title="扫描媒体库" width="500px">
       <el-form label-width="100px">
         <el-form-item label="扫描范围">
-          <div v-if="libraryScanDialog.directory" style="display: flex; align-items: center; gap: 8px; width: 100%">
-            <el-tag type="primary" closable @close="clearScanDirectory">
+          <div v-if="libraryScanDialog.directory" class="scan-directory-info">
+            <el-tag type="primary" closable @close="clearScanDirectory" class="scan-directory-tag">
               <el-icon style="margin-right: 4px"><FolderOpened /></el-icon>
-              {{ libraryScanDialog.directoryName }}
+              <span class="scan-directory-name">{{ libraryScanDialog.directoryName }}</span>
             </el-tag>
             <el-text size="small" type="info">仅扫描选中目录</el-text>
           </div>
@@ -421,6 +421,30 @@ async function pollTaskStatus(executionId: number, label: string) {
     flex: 1;
     overflow: hidden;
     padding: 0;
+  }
+}
+
+.scan-directory-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+
+  .scan-directory-tag {
+    max-width: 280px;
+    display: inline-flex;
+    align-items: center;
+
+    .scan-directory-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .el-text {
+    flex-shrink: 0;
+    line-height: 24px;
   }
 }
 </style>
