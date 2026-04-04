@@ -229,7 +229,7 @@ async def init_media_server_tasks(db: AsyncSession):
     if not sync_result.scalar():
         sync_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC,
-            task_name="媒体服务器观看历史定时同步",
+            task_name="观看历史同步",
             description="定期检查所有已启用的媒体服务器，同步最新的观看历史数据",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
             schedule_config={"interval": 30, "unit": "minutes"},
@@ -249,7 +249,7 @@ async def init_media_server_tasks(db: AsyncSession):
     if not stats_result.scalar():
         stats_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE,
-            task_name="媒体服务器库统计定时更新",
+            task_name="库统计更新",
             description="定期更新所有媒体服务器的媒体库统计数据（电影/剧集数量等）",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
             schedule_config={"interval": 6, "unit": "hours"},
@@ -269,7 +269,7 @@ async def init_media_server_tasks(db: AsyncSession):
     if not library_sync_result.scalar():
         library_sync_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC,
-            task_name="媒体服务器媒体库定时同步",
+            task_name="媒体库同步",
             description="定期同步所有已启用的媒体服务器的媒体库数据",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
             schedule_config={"interval": 6, "unit": "hours"},

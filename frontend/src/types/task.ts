@@ -49,10 +49,10 @@ export const TaskTypeNames: Record<string, string> = {
   [TaskType.TASK_EXECUTION_CLEANUP]: '任务执行记录清理',
   [TaskType.DOWNLOAD_CREATE]: '创建下载任务',
   [TaskType.DOWNLOAD_STATUS_SYNC]: '同步下载状态',
-  [TaskType.MEDIA_SERVER_WATCH_HISTORY_SYNC]: '媒体服务器观看历史同步',
-  [TaskType.MEDIA_SERVER_LIBRARY_STATS_UPDATE]: '媒体服务器库统计更新',
+  [TaskType.MEDIA_SERVER_WATCH_HISTORY_SYNC]: '[媒体服务器] 观看历史同步',
+  [TaskType.MEDIA_SERVER_LIBRARY_STATS_UPDATE]: '[媒体服务器] 库统计更新',
   // 媒体服务器同步类型
-  'media_server_library_sync': '媒体服务器媒体库同步',
+  'media_server_library_sync': '[媒体服务器] 媒体库同步',
   'trending_sync': '流行趋势同步',
   'trending_detail_sync': '流行详情同步',
   [TaskType.CREDITS_BACKFILL]: '演职员关系回填',
