@@ -42,10 +42,9 @@ async def init_subscription_check_task(db: AsyncSession):
 
     创建一个定时任务，定期扫描所有需要检查的订阅（next_check_at <= now()）
     """
-    # 检查是否已存在订阅检查任务（使用 task_name 检查，因为它有 UNIQUE 约束）
-    task_name = "订阅自动检查（全局）"
+    # 通过 task_type 检查是否已存在，避免用户修改名称后重复创建
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_SUBSCRIPTION_CHECK)
     )
     existing_task = result.scalar_one_or_none()
 
@@ -55,6 +54,7 @@ async def init_subscription_check_task(db: AsyncSession):
 
     # 创建全局订阅检查任务
     check_interval = 5
+    task_name = "订阅自动检查（全局）"
 
     task = ScheduledTask(
         task_type=TASK_TYPE_SUBSCRIPTION_CHECK,
@@ -92,15 +92,16 @@ async def init_download_sync_task(db: AsyncSession):
 
     创建一个定时任务，每分钟检查所有进行中的下载任务
     """
-    task_name = "监听下载完成"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_DOWNLOAD_STATUS_SYNC)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"下载同步任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "监听下载完成"
 
     # 创建下载状态同步任务
     task = ScheduledTask(
@@ -131,15 +132,16 @@ async def init_cleanup_task(db: AsyncSession):
 
     创建一个定时任务，每天凌晨清理旧的执行记录
     """
-    task_name = "清理任务执行历史"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_TASK_EXECUTION_CLEANUP)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"清理任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "清理任务执行历史"
 
     # 创建清理任务（每天凌晨3点执行）
     task = ScheduledTask(
@@ -176,15 +178,16 @@ async def init_resource_identify_task(db: AsyncSession):
 
     创建一个手动触发的任务，允许用户批量识别PT资源
     """
-    task_name = "批量识别PT资源"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"批量识别任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "批量识别PT资源"
 
     # 创建手动触发的批量识别任务
     task = ScheduledTask(
@@ -216,69 +219,68 @@ async def init_resource_identify_task(db: AsyncSession):
 async def init_media_server_tasks(db: AsyncSession):
     """
     初始化媒体服务器自动同步任务
+
+    通过 task_type 检查是否已存在，避免用户修改名称后重复创建。
     """
     # 1. 观看历史全局同步任务
-    sync_task_name = "媒体服务器观看历史定时同步"
     sync_result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == sync_task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC)
     )
     if not sync_result.scalar_one_or_none():
         sync_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC,
-            task_name=sync_task_name,
+            task_name="媒体服务器观看历史定时同步",
             description="定期检查所有已启用的媒体服务器，同步最新的观看历史数据",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
-            schedule_config={"interval": 30, "unit": "minutes"},  # 每30分钟检查一次分发
+            schedule_config={"interval": 30, "unit": "minutes"},
             handler=TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC,
-            handler_params={},  # 空参数表示全局同步
+            handler_params={},
             enabled=True,
             priority=3,
             max_retries=1,
         )
         db.add(sync_task)
-        logger.info(f"已创建媒体服务器观看历史同步任务: {sync_task_name}")
+        logger.info("已创建媒体服务器观看历史同步任务")
 
     # 2. 库统计全局更新任务
-    stats_task_name = "媒体服务器库统计定时更新"
     stats_result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == stats_task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE)
     )
     if not stats_result.scalar_one_or_none():
         stats_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE,
-            task_name=stats_task_name,
+            task_name="媒体服务器库统计定时更新",
             description="定期更新所有媒体服务器的媒体库统计数据（电影/剧集数量等）",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
-            schedule_config={"interval": 6, "unit": "hours"},  # 每6小时更新一次
+            schedule_config={"interval": 6, "unit": "hours"},
             handler=TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE,
-            handler_params={},  # 空参数表示全局更新
+            handler_params={},
             enabled=True,
             priority=1,
             max_retries=1,
         )
         db.add(stats_task)
-        logger.info(f"已创建媒体服务器库统计更新任务: {stats_task_name}")
+        logger.info("已创建媒体服务器库统计更新任务")
 
     # 3. 媒体库同步全局任务
-    library_sync_task_name = "媒体服务器媒体库定时同步"
     library_sync_result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == library_sync_task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC)
     )
     if not library_sync_result.scalar_one_or_none():
         library_sync_task = ScheduledTask(
             task_type=TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC,
-            task_name=library_sync_task_name,
+            task_name="媒体服务器媒体库定时同步",
             description="定期同步所有已启用的媒体服务器的媒体库数据",
             schedule_type=SCHEDULE_TYPE_INTERVAL,
-            schedule_config={"interval": 6, "unit": "hours"},  # 每6小时同步一次
+            schedule_config={"interval": 6, "unit": "hours"},
             handler=TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC,
-            handler_params={},  # 空参数表示全局同步
+            handler_params={},
             enabled=True,
             priority=2,
             max_retries=1,
         )
         db.add(library_sync_task)
-        logger.info(f"已创建媒体服务器媒体库同步任务: {library_sync_task_name}")
+        logger.info("已创建媒体服务器媒体库同步任务")
 
     await db.commit()
 
@@ -289,15 +291,16 @@ async def init_trending_sync_task(db: AsyncSession):
 
     创建一个定时任务，每天定时同步豆瓣和TMDB的热门榜单
     """
-    task_name = "榜单自动同步（全局）"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_TRENDING_SYNC)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"榜单同步任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "榜单自动同步（全局）"
 
     # 创建榜单同步任务（每天08:00和20:00执行）
     task = ScheduledTask(
@@ -334,15 +337,16 @@ async def init_trending_detail_sync_task(db: AsyncSession):
 
     创建一个定时任务，异步处理榜单详情同步（阶段二）
     """
-    task_name = "榜单详情同步（异步）"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_TRENDING_DETAIL_SYNC)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"榜单详情同步任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "榜单详情同步（异步）"
 
     # 创建榜单详情同步任务（每30分钟执行一次）
     task = ScheduledTask(
@@ -379,15 +383,16 @@ async def init_person_detail_sync_task(db: AsyncSession):
 
     创建一个定时任务，定期批量从 TMDB 获取人员的 biography/birthday 等详情
     """
-    task_name = "人员详情同步"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_PERSON_DETAIL_SYNC)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"人员详情同步任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "人员详情同步"
 
     task = ScheduledTask(
         task_type=TASK_TYPE_PERSON_DETAIL_SYNC,
@@ -422,15 +427,16 @@ async def init_credits_backfill_task(db: AsyncSession):
 
     一次性手动任务，将已识别资源的 JSON 演员数据回填到 credits 关联表
     """
-    task_name = "演职员关系回填"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_CREDITS_BACKFILL)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"演职员关系回填任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "演职员关系回填"
 
     task = ScheduledTask(
         task_type=TASK_TYPE_CREDITS_BACKFILL,
@@ -463,15 +469,16 @@ async def init_person_merge_task(db: AsyncSession):
 
     手动触发任务，将 name+birthday 相同且 detail_loaded=True 的重复人物记录合并
     """
-    task_name = "重复人物合并"
     result = await db.execute(
-        select(ScheduledTask).where(ScheduledTask.task_name == task_name)
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_PERSON_MERGE)
     )
     existing_task = result.scalar_one_or_none()
 
     if existing_task:
         logger.debug(f"重复人物合并任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
         return existing_task
+
+    task_name = "重复人物合并"
 
     task = ScheduledTask(
         task_type=TASK_TYPE_PERSON_MERGE,
