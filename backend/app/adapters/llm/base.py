@@ -13,9 +13,13 @@ from pydantic import BaseModel
 class ChatMessage(BaseModel):
     """聊天消息"""
     role: str  # system, user, assistant, tool
-    content: str
+    content: str  # 文本内容，或 JSON 字符串（多模态时）
     name: Optional[str] = None  # 工具名称（当 role=tool 时）
     tool_call_id: Optional[str] = None  # 工具调用ID
+    images: Optional[List[str]] = None  # Base64 编码的图片列表（多模态）
+    
+    class Config:
+        extra = "allow"  # 允许额外字段用于多模态
 
 
 class ToolDefinition(BaseModel):

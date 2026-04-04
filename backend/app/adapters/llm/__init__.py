@@ -15,6 +15,7 @@ from app.adapters.llm.base import (
     ToolDefinition,
 )
 from app.adapters.llm.zhipu import ZhipuAdapter
+from app.adapters.llm.openai_compatible import OpenAICompatibleAdapter
 from app.constants.ai_agent import (
     LLM_PROVIDER_ZHIPU,
     LLM_PROVIDER_OPENAI,
@@ -26,9 +27,8 @@ from app.constants.ai_agent import (
 # LLM 适配器注册表
 _LLM_ADAPTER_REGISTRY: Dict[str, Type[BaseLLMAdapter]] = {
     LLM_PROVIDER_ZHIPU: ZhipuAdapter,
-    # 未来扩展:
-    # LLM_PROVIDER_OPENAI: OpenAIAdapter,
-    # LLM_PROVIDER_DEEPSEEK: DeepSeekAdapter,
+    LLM_PROVIDER_OPENAI: OpenAICompatibleAdapter,
+    LLM_PROVIDER_DEEPSEEK: OpenAICompatibleAdapter,  # DeepSeek uses OpenAI-compatible API
 }
 
 
@@ -86,6 +86,7 @@ __all__ = [
     "ToolCall",
     # 适配器
     "ZhipuAdapter",
+    "OpenAICompatibleAdapter",
     # 工厂函数
     "get_llm_adapter",
     "register_llm_adapter",

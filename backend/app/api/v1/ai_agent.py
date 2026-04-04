@@ -364,6 +364,75 @@ async def chat_stream(
     )
 
 
+# ==================== 归档管理 ====================
+
+@router.post("/conversations/{conversation_id}/archive")
+async def archive_conversation(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """归档对话"""
+    from app.services.ai_agent.conversation_archive import ConversationArchiveService
+    
+    conversation = await AIAgentService.get_conversation(
+        db, conversation_id, current_user.id
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="对话不存在",
+        )
+    
+    await ConversationArchiveService.archive_conversation(
+        db, conversation, reason="manual"
+    )
+    return {"message": "对话已归档"}
+
+
+@router.post("/conversations/{conversation_id}/unarchive")
+async def unarchive_conversation(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """恢复归档的对话"""
+    from app.services.ai_agent.conversation_archive import ConversationArchiveService
+    
+    conversation = await AIAgentService.get_conversation(
+        db, conversation_id, current_user.id
+    )
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="对话不存在",
+        )
+    
+    await ConversationArchiveService.unarchive_conversation(db, conversation)
+    return {"message": "对话已恢复"}
+
+
+@router.get("/conversations/archived")
+async def list_archived_conversations(
+    page: int = 1,
+    page_size: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """获取归档对话列表"""
+    from app.services.ai_agent.conversation_archive import ConversationArchiveService
+    
+    conversations, total = await ConversationArchiveService.list_archived_conversations(
+        db, current_user.id, page=page, page_size=page_size
+    )
+    return AIConversationListResponse(
+        items=[AIConversationResponse.model_validate(c) for c in conversations],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
 # ==================== 工具信息 ====================
 
 @router.get("/tools")

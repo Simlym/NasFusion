@@ -22,6 +22,7 @@ from app.constants.ai_agent import (
     DEFAULT_CONVERSATION_MAX_TURNS,
 )
 from app.services.ai_agent.prompt_manager import PromptManager
+from app.services.ai_agent.context_compressor import ContextManager
 from app.utils.timezone import now as tz_now
 from app.models import AIAgentConfig, AIConversation, AIMessage, AIToolExecution
 from app.services.ai_agent.mcp_client.client import mcp_client
@@ -82,6 +83,13 @@ class AIAgentService:
         title: Optional[str] = None,
     ) -> AIConversation:
         """创建新对话"""
+        # 检查是否需要自动归档旧对话
+        try:
+            from app.services.ai_agent.conversation_archive import ConversationArchiveService
+            await ConversationArchiveService.run_auto_archive(db, user_id=user_id)
+        except Exception as e:
+            logger.warning(f"自动归档检查失败: {e}")
+        
         conversation = AIConversation(
             user_id=user_id,
             source=source,
@@ -285,29 +293,27 @@ class AIAgentService:
             limit=DEFAULT_CONVERSATION_MAX_TURNS * 2,
         )
 
-        # 构建消息列表
-        messages = []
-
-        # 系统提示词（用户自定义 > YAML 文件 > 硬编码常量）+ Skills 说明
+        # 构建消息列表（带上下文压缩）
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
             {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
         )
         skills_prompt = PromptManager.get_skills_prompt()
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
-        messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
-        # 历史消息
-        for msg in history_messages:
-            if msg.role == MESSAGE_ROLE_TOOL:
-                messages.append(ChatMessage(
-                    role=MESSAGE_ROLE_TOOL,
-                    content=msg.content or "",  # content 可能为 None
-                    tool_call_id=msg.tool_call_id,
-                    name=msg.tool_name,
-                ))
-            else:
-                messages.append(ChatMessage(role=msg.role, content=msg.content or ""))
+        # 使用上下文管理器构建消息（自动压缩长对话）
+        messages, new_summary = await ContextManager.build_messages(
+            db,
+            conversation,
+            history_messages,
+            config,
+            system_prompt,
+            enable_compression=True,
+        )
+
+        # 如果有新的摘要，保存到对话
+        if new_summary:
+            await ContextManager.update_conversation_summary(db, conversation, new_summary)
 
         # 获取LLM适配器
         try:
@@ -410,6 +416,7 @@ class AIAgentService:
                 messages.append(ChatMessage(
                     role=MESSAGE_ROLE_ASSISTANT,
                     content=response.content or "",  # 工具调用时 content 可能为 None
+                    tool_calls=[tc.model_dump() for tc in response.tool_calls],
                 ))
                 messages.append(ChatMessage(
                     role=MESSAGE_ROLE_TOOL,
@@ -538,26 +545,27 @@ class AIAgentService:
             limit=DEFAULT_CONVERSATION_MAX_TURNS * 2,
         )
 
-        # 构建消息列表
-        messages = []
+        # 构建消息列表（带上下文压缩）
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
             {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
         )
         skills_prompt = PromptManager.get_skills_prompt()
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
-        messages.append(ChatMessage(role=MESSAGE_ROLE_SYSTEM, content=system_prompt))
 
-        for msg in history_messages:
-            if msg.role == MESSAGE_ROLE_TOOL:
-                messages.append(ChatMessage(
-                    role=MESSAGE_ROLE_TOOL,
-                    content=msg.content or "",  # content 可能为 None
-                    tool_call_id=msg.tool_call_id,
-                    name=msg.tool_name,
-                ))
-            else:
-                messages.append(ChatMessage(role=msg.role, content=msg.content or ""))
+        # 使用上下文管理器构建消息（自动压缩长对话）
+        messages, new_summary = await ContextManager.build_messages(
+            db,
+            conversation,
+            history_messages,
+            config,
+            system_prompt,
+            enable_compression=True,
+        )
+
+        # 如果有新的摘要，保存到对话
+        if new_summary:
+            await ContextManager.update_conversation_summary(db, conversation, new_summary)
 
         # 获取LLM适配器
         try:
@@ -633,7 +641,7 @@ class AIAgentService:
                     finish_reason="tool_calls",
                 )
 
-                # 通知前端开始工具调用
+                # 通知前端开始工具调用（整体）
                 yield {
                     "type": "tool_calls",
                     "tool_calls": [{"id": tc.id, "name": tc.name, "arguments": tc.arguments} for tc in tool_calls_result],
@@ -643,56 +651,113 @@ class AIAgentService:
                 messages.append(ChatMessage(
                     role=MESSAGE_ROLE_ASSISTANT,
                     content=full_content or "",
+                    tool_calls=[tc.model_dump() for tc in tool_calls_result],
                 ))
 
-                # 逐个执行工具
-                for tool_call in tool_calls_result:
-                    start_time = time.time()
-
-                    result = await mcp_client.call_tool(
-                        tool_call.name,
-                        tool_call.arguments,
-                        db,
-                        user_id,
-                    )
-
-                    execution_time = int((time.time() - start_time) * 1000)
-
-                    # 记录工具执行
-                    tool_execution = AIToolExecution(
-                        message_id=assistant_message.id,
-                        conversation_id=conversation.id,
-                        user_id=user_id,
-                        tool_name=tool_call.name,
-                        tool_call_id=tool_call.id,
-                        arguments=tool_call.arguments,
-                        result=result,
-                        status="completed" if result.get("success") else "failed",
-                        error_message=result.get("error"),
-                        execution_time_ms=execution_time,
-                    )
-                    db.add(tool_execution)
-
-                    # 添加工具结果消息
-                    await AIAgentService.add_message(
-                        db,
-                        conversation.id,
-                        MESSAGE_ROLE_TOOL,
-                        json.dumps(result, ensure_ascii=False),
-                        tool_call_id=tool_call.id,
-                        tool_name=tool_call.name,
-                    )
-
-                    # 通知前端工具执行结果
+                # 并行执行所有工具
+                async def run_tool_with_events(tool_call):
+                    """执行工具并产生事件，返回结果"""
+                    # 通知前端此工具开始执行
                     yield {
-                        "type": "tool_result",
+                        "type": "tool_start",
                         "tool_call_id": tool_call.id,
                         "tool_name": tool_call.name,
-                        "result": result,
-                        "execution_time_ms": execution_time,
                     }
-
-                    # 更新消息列表
+                    
+                    start_time = time.time()
+                    result = None
+                    
+                    try:
+                        result = await mcp_client.call_tool(
+                            tool_call.name,
+                            tool_call.arguments,
+                            db,
+                            user_id,
+                        )
+                        execution_time = int((time.time() - start_time) * 1000)
+                        
+                        # 记录工具执行
+                        tool_execution = AIToolExecution(
+                            message_id=assistant_message.id,
+                            conversation_id=conversation.id,
+                            user_id=user_id,
+                            tool_name=tool_call.name,
+                            tool_call_id=tool_call.id,
+                            arguments=tool_call.arguments,
+                            result=result,
+                            status="completed" if result.get("success") else "failed",
+                            error_message=result.get("error"),
+                            execution_time_ms=execution_time,
+                        )
+                        db.add(tool_execution)
+                        
+                        # 添加工具结果消息到数据库
+                        await AIAgentService.add_message(
+                            db,
+                            conversation.id,
+                            MESSAGE_ROLE_TOOL,
+                            json.dumps(result, ensure_ascii=False),
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_call.name,
+                        )
+                        
+                        # 通知前端工具执行完成
+                        yield {
+                            "type": "tool_end",
+                            "tool_call_id": tool_call.id,
+                            "tool_name": tool_call.name,
+                            "result": result,
+                            "execution_time_ms": execution_time,
+                        }
+                        
+                    except Exception as e:
+                        execution_time = int((time.time() - start_time) * 1000)
+                        result = {"success": False, "error": str(e)}
+                        
+                        # 记录失败
+                        tool_execution = AIToolExecution(
+                            message_id=assistant_message.id,
+                            conversation_id=conversation.id,
+                            user_id=user_id,
+                            tool_name=tool_call.name,
+                            tool_call_id=tool_call.id,
+                            arguments=tool_call.arguments,
+                            result=result,
+                            status="failed",
+                            error_message=str(e),
+                            execution_time_ms=execution_time,
+                        )
+                        db.add(tool_execution)
+                        
+                        await AIAgentService.add_message(
+                            db,
+                            conversation.id,
+                            MESSAGE_ROLE_TOOL,
+                            json.dumps(result, ensure_ascii=False),
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_call.name,
+                        )
+                        
+                        yield {
+                            "type": "tool_end",
+                            "tool_call_id": tool_call.id,
+                            "tool_name": tool_call.name,
+                            "result": result,
+                            "execution_time_ms": execution_time,
+                            "error": str(e),
+                        }
+                
+                # 执行所有工具（目前是顺序执行，但带有开始/结束事件）
+                tool_results_map = {}
+                for tool_call in tool_calls_result:
+                    async for event in run_tool_with_events(tool_call):
+                        yield event
+                        if event["type"] == "tool_end":
+                            tool_results_map[tool_call.id] = event.get("result", {})
+                
+                # 更新消息列表（按 tool_calls 顺序）
+                for tool_call in tool_calls_result:
+                    result = tool_results_map.get(tool_call.id, {})
                     messages.append(ChatMessage(
                         role=MESSAGE_ROLE_TOOL,
                         content=json.dumps(result, ensure_ascii=False),

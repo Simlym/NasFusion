@@ -32,6 +32,8 @@ def _ensure_tools_registered():
     from app.services.ai_agent import tools  # noqa: F401 触发工具注册
 
 
+# ===== Tools =====
+
 @mcp_server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
     """列出所有可用工具（映射自 ToolRegistry）"""
@@ -78,6 +80,109 @@ async def handle_call_tool(
 
     return [types.TextContent(type="text", text=json.dumps(result, ensure_ascii=False))]
 
+
+# ===== Resources =====
+
+@mcp_server.list_resources()
+async def handle_list_resources() -> list[types.Resource]:
+    """
+    列出所有可用资源
+    
+    外部 MCP Client 可以读取这些资源了解 NasFusion 的状态。
+    """
+    from app.services.ai_agent.mcp_server.resources import MCPResourceProvider
+
+    resources = MCPResourceProvider.list_resources()
+    return [
+        types.Resource(
+            uri=r["uri"],
+            name=r["name"],
+            description=r["description"],
+            mimeType=r["mimeType"],
+        )
+        for r in resources
+    ]
+
+
+@mcp_server.read_resource()
+async def handle_read_resource(uri: str) -> str:
+    """
+    读取资源内容
+    
+    Args:
+        uri: 资源 URI，如 nasfusion://downloads/pending
+        
+    Returns:
+        资源内容（JSON 字符串）
+    """
+    from app.services.ai_agent.mcp_server.resources import MCPResourceProvider
+
+    ctx = get_user_context()
+    content = await MCPResourceProvider.read_resource(ctx.db, ctx.user_id, uri)
+    
+    if content is None:
+        raise ValueError(f"未知资源: {uri}")
+    
+    return content
+
+
+# ===== Prompts =====
+
+@mcp_server.list_prompts()
+async def handle_list_prompts() -> list[types.Prompt]:
+    """
+    列出所有可用提示词
+    
+    外部 MCP Client 可以使用这些预设的角色提示词。
+    """
+    from app.services.ai_agent.mcp_server.prompts import MCPPromptProvider
+
+    prompts = MCPPromptProvider.list_prompts()
+    return [
+        types.Prompt(
+            name=p["name"],
+            description=p["description"],
+        )
+        for p in prompts
+    ]
+
+
+@mcp_server.get_prompt()
+async def handle_get_prompt(name: str, arguments: dict | None = None) -> types.GetPromptResult:
+    """
+    获取提示词内容
+    
+    Args:
+        name: 提示词名称
+        arguments: 可选的参数
+        
+    Returns:
+        提示词内容
+    """
+    from app.services.ai_agent.mcp_server.prompts import MCPPromptProvider
+
+    prompt_data = MCPPromptProvider.get_prompt(name, arguments)
+    
+    if prompt_data is None:
+        raise ValueError(f"未知提示词: {name}")
+    
+    # 转换为 MCP Message 类型
+    messages = []
+    for msg in prompt_data["messages"]:
+        messages.append(
+            types.PromptMessage(
+                role=msg["role"],
+                content=types.TextContent(type="text", text=msg["content"]),
+            )
+        )
+    
+    return types.GetPromptResult(
+        description=prompt_data["description"],
+        messages=messages,
+    )
+
+
+# ===== SSE Connection Handlers =====
 
 async def handle_sse_connection(scope, receive, send) -> None:
     """
