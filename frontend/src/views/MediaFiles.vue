@@ -60,6 +60,16 @@
     <!-- 媒体库扫描对话框 -->
     <el-dialog v-model="libraryScanDialog.visible" title="扫描媒体库" width="500px">
       <el-form label-width="100px">
+        <el-form-item label="扫描范围">
+          <div v-if="libraryScanDialog.directory" style="display: flex; align-items: center; gap: 8px; width: 100%">
+            <el-tag type="primary" closable @close="clearScanDirectory">
+              <el-icon style="margin-right: 4px"><FolderOpened /></el-icon>
+              {{ libraryScanDialog.directoryName }}
+            </el-tag>
+            <el-text size="small" type="info">仅扫描选中目录</el-text>
+          </div>
+          <el-text v-else type="info">全部媒体库目录</el-text>
+        </el-form-item>
         <el-form-item label="媒体类型">
           <el-select v-model="libraryScanDialog.mediaType" clearable placeholder="全部">
             <el-option label="电影" value="movie" />
@@ -69,7 +79,7 @@
             <el-option label="电子书" value="book" />
           </el-select>
         </el-form-item>
-        <el-form-item label="扫描模式">
+        <el-form-item v-if="!libraryScanDialog.directory" label="扫描模式">
           <el-radio-group v-model="libraryScanDialog.scanMode">
             <el-radio value="full">
               <span>全量扫描</span>
@@ -117,12 +127,15 @@ const libraryMediaType = ref<string>('movie')
 const selectedIssues = ref<string[]>([])
 const issueCounts = ref<Record<string, number>>({})
 const currentDirectoryId = ref<number | null>(null)
+const currentNodeData = ref<{ directory_path: string; directory_name: string } | null>(null)
 const currentEpisode = ref<EpisodeTreeNode | null>(null)
 
 const libraryScanDialog = reactive({
   visible: false,
   mediaType: '',
-  scanMode: 'incremental'
+  scanMode: 'incremental',
+  directory: '' as string,       // 选中目录的物理路径
+  directoryName: '' as string    // 选中目录的显示名称
 })
 
 onMounted(() => {
@@ -139,10 +152,15 @@ onMounted(() => {
 const handleNodeClick = (node: AnyTreeNode) => {
   if (node._node_type === 'episode') {
     currentDirectoryId.value = null
+    currentNodeData.value = null
     currentEpisode.value = node as EpisodeTreeNode
   } else {
     currentEpisode.value = null
     currentDirectoryId.value = node.id
+    currentNodeData.value = {
+      directory_path: (node as any).directory_path,
+      directory_name: (node as any).directory_name
+    }
   }
 }
 
@@ -174,6 +192,7 @@ const handleLibraryRefresh = () => {
 const handleLibraryMediaTypeChange = () => {
   // 重置选中的目录
   currentDirectoryId.value = null
+  currentNodeData.value = null
   currentEpisode.value = null
   // 重置问题筛选
   selectedIssues.value = []
@@ -230,20 +249,48 @@ const handleDetectIssues = async () => {
  */
 function handleOpenLibraryScanDialog() {
   libraryScanDialog.mediaType = libraryMediaType.value
-  libraryScanDialog.scanMode = 'incremental'
+  // 如果当前选中了目录，默认扫描该目录（全量）
+  if (currentDirectoryId.value && currentNodeData.value) {
+    libraryScanDialog.directory = currentNodeData.value.directory_path
+    libraryScanDialog.directoryName = currentNodeData.value.directory_name
+    libraryScanDialog.scanMode = 'full'
+  } else {
+    libraryScanDialog.directory = ''
+    libraryScanDialog.directoryName = ''
+    libraryScanDialog.scanMode = 'incremental'
+  }
   libraryScanDialog.visible = true
+}
+
+/**
+ * 清除扫描对话框中的目录选择
+ */
+function clearScanDirectory() {
+  libraryScanDialog.directory = ''
+  libraryScanDialog.directoryName = ''
+  libraryScanDialog.scanMode = 'incremental'
 }
 
 /**
  * 确认媒体库扫描
  */
 async function confirmLibraryScan() {
-  await startScanTask({
-    mount_type: 'library',
-    label: '媒体库',
-    scanMode: libraryScanDialog.scanMode,
-    mediaType: libraryScanDialog.mediaType || undefined
-  })
+  if (libraryScanDialog.directory) {
+    // 单目录扫描，固定全量模式
+    await startScanTask({
+      directory: libraryScanDialog.directory,
+      label: libraryScanDialog.directoryName,
+      scanMode: 'full',
+      mediaType: libraryScanDialog.mediaType || undefined
+    })
+  } else {
+    await startScanTask({
+      mount_type: 'library',
+      label: '媒体库',
+      scanMode: libraryScanDialog.scanMode,
+      mediaType: libraryScanDialog.mediaType || undefined
+    })
+  }
   libraryScanDialog.visible = false
 }
 

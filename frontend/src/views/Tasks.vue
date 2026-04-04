@@ -1356,25 +1356,33 @@ const taskStats = computed(() => {
 
 // 业务分组映射：task_type → 分组 key
 const TASK_CATEGORY_MAP: Record<string, string> = {
-  pt_resource_sync: 'pt',
-  pt_resource_identify: 'pt',
-  pt_sync: 'pt',
-  batch_identify: 'pt',
+  // 资源同步
+  pt_resource_sync: 'pt_sync',
+  pt_sync: 'pt_sync',
+  unified_resource_refresh: 'pt_sync',
+  // 资源识别
+  pt_resource_identify: 'pt_identify',
+  batch_identify: 'pt_identify',
+  person_detail_sync: 'pt_identify',
+  trending_sync: 'pt_identify',
+  trending_detail_sync: 'pt_identify',
+  // 订阅与下载
   subscription_check: 'download',
   download_create: 'download',
   download_status_sync: 'download',
   sync_download_status: 'download',
   create_download: 'download',
+  // 媒体服务器
   media_server_watch_history_sync: 'media_server',
   media_server_library_stats_update: 'media_server',
   media_server_library_sync: 'media_server',
+  // 媒体元数据
   media_file_scan: 'metadata',
+  media_file_auto_organize: 'metadata',
   scan_media: 'metadata',
   credits_backfill: 'metadata',
   person_merge: 'metadata',
-  person_detail_sync: 'metadata',
-  trending_sync: 'metadata',
-  trending_detail_sync: 'metadata',
+  // 系统
   task_execution_cleanup: 'system',
   cleanup: 'system',
   notification_send: 'system',
@@ -1382,7 +1390,8 @@ const TASK_CATEGORY_MAP: Record<string, string> = {
 }
 
 const TASK_CATEGORY_NAMES: Record<string, string> = {
-  pt: 'PT 资源',
+  pt_sync: '资源同步',
+  pt_identify: '资源识别',
   download: '订阅与下载',
   media_server: '媒体服务器',
   metadata: '媒体元数据',
@@ -1390,14 +1399,15 @@ const TASK_CATEGORY_NAMES: Record<string, string> = {
 }
 
 const TASK_CATEGORY_COLORS: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'danger'> = {
-  pt: 'primary',
+  pt_sync: 'primary',
+  pt_identify: 'primary',
   download: 'warning',
   media_server: 'success',
   metadata: 'info',
   system: 'info',
 }
 
-const TASK_CATEGORY_ORDER = ['pt', 'download', 'media_server', 'metadata', 'system']
+const TASK_CATEGORY_ORDER = ['pt_sync', 'pt_identify', 'download', 'media_server', 'metadata', 'system']
 
 const getCategoryColor = (category: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
   TASK_CATEGORY_COLORS[category] || 'info'
