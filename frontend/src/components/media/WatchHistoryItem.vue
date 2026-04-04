@@ -74,21 +74,6 @@
               {{ history.server_name }}
             </span>
           </div>
-          <!-- 匹配状态 -->
-          <div class="match-status">
-            <el-tooltip v-if="history.unified_resource_id" content="已匹配到本地资源" placement="top">
-              <el-tag type="success" size="small" effect="plain" class="match-tag">
-                <el-icon><CircleCheckFilled /></el-icon>
-                <span>已匹配</span>
-              </el-tag>
-            </el-tooltip>
-            <el-tooltip v-else content="未匹配到本地资源，可尝试重新匹配" placement="top">
-              <el-tag type="info" size="small" effect="plain" class="match-tag">
-                <el-icon><WarningFilled /></el-icon>
-                <span>未匹配</span>
-              </el-tag>
-            </el-tooltip>
-          </div>
         </div>
       </div>
     </div>
@@ -98,8 +83,6 @@
 <script setup lang="ts">
 import {
   Timer,
-  CircleCheckFilled,
-  WarningFilled,
   CaretRight
 } from '@element-plus/icons-vue'
 import type { ViewingHistory } from '@/types/mediaServer'
@@ -342,23 +325,6 @@ const handlePlay = () => {
 .server-badge.jellyfin { border-left: 3px solid #00a4dc; }
 .server-badge.emby { border-left: 3px solid #52b54b; }
 .server-badge.plex { border-left: 3px solid #e5a00d; }
-
-.match-status {
-  flex-shrink: 0;
-}
-
-.match-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 2px 6px;
-  cursor: pointer;
-}
-
-.match-tag .el-icon {
-  font-size: 12px;
-}
 
 html.dark .history-item-card {
   background: var(--bg-color-overlay);

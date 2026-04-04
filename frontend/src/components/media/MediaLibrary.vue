@@ -192,14 +192,6 @@
                 {{ item.season_count }}季 · {{ item.episode_count }}集
               </div>
 
-              <div class="assoc-badges">
-                <el-tooltip v-if="item.media_file_id" content="已关联本地文件" placement="top">
-                  <span class="assoc-dot dot-file"></span>
-                </el-tooltip>
-                <el-tooltip v-if="item.unified_resource_id" content="已关联统一资源" placement="top">
-                  <span class="assoc-dot dot-resource"></span>
-                </el-tooltip>
-              </div>
             </div>
 
             <div class="card-info">
@@ -273,14 +265,6 @@
                 {{ item.season_count }}季 · {{ item.episode_count }}集
               </div>
 
-              <div class="assoc-badges">
-                <el-tooltip v-if="item.media_file_id" content="已关联本地文件" placement="top">
-                  <span class="assoc-dot dot-file"></span>
-                </el-tooltip>
-                <el-tooltip v-if="item.unified_resource_id" content="已关联统一资源" placement="top">
-                  <span class="assoc-dot dot-resource"></span>
-                </el-tooltip>
-              </div>
             </div>
 
             <div class="card-info">
@@ -426,14 +410,6 @@
           </div>
 
           <div class="episode-actions">
-            <div class="assoc-dots">
-              <el-tooltip v-if="ep.media_file_id" content="已关联本地文件" placement="top">
-                <span class="assoc-dot dot-file"></span>
-              </el-tooltip>
-              <el-tooltip v-if="ep.unified_resource_id" content="已关联统一资源" placement="top">
-                <span class="assoc-dot dot-resource"></span>
-              </el-tooltip>
-            </div>
             <el-button
               v-if="ep.web_url"
               type="primary"
@@ -1097,39 +1073,6 @@ onUnmounted(() => {
   font-weight: 500;
   text-align: center;
   z-index: 2;
-}
-
-/* 关联状态角标 */
-.assoc-badges {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 2;
-}
-
-.assoc-dot {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-
-  &.dot-file {
-    background: var(--el-color-success);
-  }
-
-  &.dot-resource {
-    background: var(--el-color-primary);
-  }
-}
-
-.assoc-dots {
-  display: flex;
-  gap: 4px;
-  align-items: center;
 }
 
 /* 卡片底部文字 */
