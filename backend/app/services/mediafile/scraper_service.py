@@ -61,11 +61,19 @@ class ScraperService:
             result["errors"].append("媒体文件路径为空，无法刮削")
             return result
 
-        # 检查文件是否已识别
+        # 检查文件是否已识别，未识别则尝试自动识别（基于文件名+TMDB搜索）
         if not media_file.unified_resource_id or not media_file.unified_table_name:
-            result["success"] = False
-            result["errors"].append("媒体文件未识别，无法刮削")
-            return result
+            identify_result = await ScraperService._auto_identify_for_scrape(db, media_file)
+            if not identify_result["success"]:
+                result["success"] = False
+                result["errors"].append(
+                    f"媒体文件未识别且自动识别失败: {identify_result.get('error', '未知原因')}"
+                )
+                return result
+            logger.info(
+                f"刮削前自动识别成功: {media_file.file_name} -> "
+                f"{media_file.unified_table_name}:{media_file.unified_resource_id}"
+            )
 
         try:
             # 获取目标目录（文件所在目录）
@@ -165,6 +173,82 @@ class ScraperService:
             result["success"] = False
             result["errors"].append(f"刮削失败: {str(e)}")
             return result
+
+    @staticmethod
+    async def _auto_identify_for_scrape(
+        db: AsyncSession,
+        media_file: MediaFile,
+    ) -> Dict[str, Any]:
+        """
+        刮削前自动识别媒体文件（类似TMM功能）
+
+        对于本地扫描的文件，通过文件名解析+TMDB搜索自动识别并关联统一资源。
+        识别成功后 media_file 的 unified_resource_id/unified_table_name 等字段会被更新。
+
+        Args:
+            db: 数据库会话
+            media_file: 媒体文件对象
+
+        Returns:
+            {"success": bool, "error": str|None}
+        """
+        from app.services.identification.media_identify_service import media_identify_service
+
+        try:
+            # 调用已有的识别服务（支持下载任务关联、文件名解析、TMDB搜索）
+            identify_result = await media_identify_service.identify_media_file(db, media_file)
+
+            if not identify_result.get("success"):
+                return {"success": False, "error": identify_result.get("error", "识别服务返回失败")}
+
+            # 识别服务可能已经完成了关联（如成人资源的 _identify_adult）
+            if media_file.unified_resource_id and media_file.unified_table_name:
+                return {"success": True, "error": None}
+
+            # 如果自动匹配成功，关联到统一资源
+            if identify_result.get("auto_matched") and identify_result.get("candidates"):
+                matched = identify_result["candidates"][0]
+                parsed_info = identify_result.get("parsed_info") or {}
+
+                # 确定媒体类型
+                from app.services.common.filename_parser_service import FilenameParserService
+                media_type = media_file.media_type
+                if media_type in ("unknown", None):
+                    media_type = FilenameParserService.guess_media_type(parsed_info)
+
+                # 关联到统一资源（会创建或复用 UnifiedMovie/UnifiedTVSeries）
+                unified_id = await media_identify_service.link_to_unified_resource(
+                    db, media_file, matched, media_type
+                )
+
+                if unified_id:
+                    # link_to_unified_resource 已更新 media_file 字段并 commit
+                    # 补充季集号（如果文件名解析出来了但 link 时没设置）
+                    if parsed_info.get("season") and not media_file.season_number:
+                        media_file.season_number = parsed_info["season"]
+                    if parsed_info.get("episode") and not media_file.episode_number:
+                        media_file.episode_number = parsed_info["episode"]
+                    if parsed_info.get("resolution") and not media_file.resolution:
+                        media_file.resolution = parsed_info["resolution"]
+                    await db.commit()
+                    return {"success": True, "error": None}
+
+                return {"success": False, "error": "关联统一资源失败"}
+
+            # 有候选但未自动匹配（需要人工选择）
+            if identify_result.get("candidates"):
+                candidate_titles = [c.get("title", "?") for c in identify_result["candidates"][:3]]
+                return {
+                    "success": False,
+                    "error": f"找到{len(identify_result['candidates'])}个候选但无法自动匹配，"
+                             f"请手动识别。候选: {', '.join(candidate_titles)}"
+                }
+
+            return {"success": False, "error": "未找到匹配的TMDB资源"}
+
+        except Exception as e:
+            logger.warning(f"刮削前自动识别失败: {media_file.file_name}, 错误: {e}")
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     async def download_image(

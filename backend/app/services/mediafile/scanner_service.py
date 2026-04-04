@@ -396,9 +396,39 @@ class MediaScannerService:
             else:
                  # 检查是否需要更新关联
                  f = db_file_map[name]
+                 updated = False
                  if f.media_directory_id != directory_id:
                      f.media_directory_id = directory_id
                      f.directory = dir_path # 确保path也更新
+                     updated = True
+
+                 # 对已有但缺少识别信息的文件，尝试从原始文件继承
+                 if not f.unified_resource_id:
+                     source_file = await MediaScannerService._find_source_file(db, f.file_path)
+                     if source_file:
+                         f.media_type = source_file.media_type
+                         f.unified_table_name = source_file.unified_table_name
+                         f.unified_resource_id = source_file.unified_resource_id
+                         f.match_method = source_file.match_method
+                         f.match_confidence = source_file.match_confidence
+                         f.season_number = source_file.season_number
+                         f.episode_number = source_file.episode_number
+                         f.episode_title = source_file.episode_title
+                         f.resolution = source_file.resolution
+                         f.video_codec = source_file.video_codec
+                         f.organized = True
+                         f.organized_path = f.file_path
+                         f.organized_at = source_file.organized_at
+                         f.organize_mode = source_file.organize_mode
+                         if f.status == "discovered":
+                             f.status = source_file.status if source_file.status in ("completed",) else "discovered"
+                         updated = True
+                         logger.info(
+                             f"补全已有文件识别信息: {name} (id={f.id}) <- source_id={source_file.id}, "
+                             f"unified={source_file.unified_table_name}:{source_file.unified_resource_id}"
+                         )
+
+                 if updated:
                      db.add(f)
         
         # 2. 找出消失的文件
@@ -409,7 +439,11 @@ class MediaScannerService:
 
     @staticmethod
     async def _create_file(db: AsyncSession, entry: os.DirEntry, directory_id: int, media_type: Optional[str] = None):
-        """创建单个文件记录"""
+        """创建单个文件记录
+
+        如果该文件是某个已有文件整理（硬链接/reflink等）后的产物，
+        则自动继承原始文件的识别信息（媒体类型、统一资源关联、季集号等）。
+        """
         from app.utils.file_operations import get_file_type
 
         ext = Path(entry.name).suffix.lower()
@@ -437,5 +471,52 @@ class MediaScannerService:
             status="discovered", # 默认状态
             organized=False
         )
+
+        # 检查是否存在以该路径为 organized_path 的原始文件，继承其识别信息
+        source_file = await MediaScannerService._find_source_file(db, file_path)
+        if source_file:
+            media_file.media_type = source_file.media_type
+            media_file.unified_table_name = source_file.unified_table_name
+            media_file.unified_resource_id = source_file.unified_resource_id
+            media_file.match_method = source_file.match_method
+            media_file.match_confidence = source_file.match_confidence
+            media_file.season_number = source_file.season_number
+            media_file.episode_number = source_file.episode_number
+            media_file.episode_title = source_file.episode_title
+            media_file.resolution = source_file.resolution
+            media_file.video_codec = source_file.video_codec
+            media_file.organized = True
+            media_file.organized_path = file_path
+            media_file.organized_at = source_file.organized_at
+            media_file.organize_mode = source_file.organize_mode
+            media_file.status = source_file.status if source_file.status in ("completed",) else "discovered"
+            logger.info(
+                f"继承原始文件识别信息: {entry.name} <- source_id={source_file.id}, "
+                f"unified={source_file.unified_table_name}:{source_file.unified_resource_id}"
+            )
+
         db.add(media_file)
+
+    @staticmethod
+    async def _find_source_file(db: AsyncSession, file_path: str) -> Optional[MediaFile]:
+        """
+        查找以 file_path 为 organized_path 的原始文件
+
+        当目录扫描发现一个新文件时，检查该文件是否是某个已有文件
+        通过整理（硬链接/reflink/copy等）产生的副本。
+
+        Args:
+            db: 数据库会话
+            file_path: 新发现文件的路径
+
+        Returns:
+            原始文件对象，如果没有匹配则返回 None
+        """
+        stmt = select(MediaFile).where(
+            MediaFile.organized_path == file_path,
+            MediaFile.organized == True,
+            MediaFile.unified_resource_id.isnot(None),
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
 
