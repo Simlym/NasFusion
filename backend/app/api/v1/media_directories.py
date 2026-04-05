@@ -39,7 +39,7 @@ def check_episode_metadata(file_path: Optional[str]) -> dict:
     import os
     from pathlib import Path as _Path
 
-    result = {"has_nfo": False, "has_poster": False}
+    result = {"has_nfo": False, "has_poster": False, "has_subtitle": False, "subtitle_paths": []}
     if not file_path or not os.path.exists(file_path):
         return result
 
@@ -60,6 +60,13 @@ def check_episode_metadata(file_path: Optional[str]) -> dict:
         if (parent / name).exists():
             result["has_poster"] = True
             break
+
+    # 外挂字幕文件
+    subtitle_exts = (".srt", ".ass", ".ssa", ".sub", ".idx", ".sup", ".vtt")
+    for child in parent.iterdir():
+        if child.is_file() and child.stem.startswith(stem) and child.suffix.lower() in subtitle_exts:
+            result["has_subtitle"] = True
+            result["subtitle_paths"].append(str(child))
 
     return result
 
@@ -270,6 +277,8 @@ async def get_directory_detail(
                 meta = check_episode_metadata(actual_path)
                 resp.has_nfo = meta["has_nfo"]
                 resp.has_poster = meta["has_poster"]
+                resp.has_subtitle = meta.get("has_subtitle", False)
+                resp.subtitle_paths = meta.get("subtitle_paths") or None
                 files_response.append(resp)
             except Exception as e:
                 logger.error(f"文件序列化失败: file_id={f.id}, file_path={f.file_path}, 错误: {e}")
