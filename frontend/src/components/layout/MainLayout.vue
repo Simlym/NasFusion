@@ -545,7 +545,7 @@ onUnmounted(() => {
 /* ========== Main Content ========== */
 .main-content {
   background-color: var(--bg-color, #F8FAFC);
-  padding: var(--spacing-lg, 24px);
+  padding: 12px 24px 24px;
 }
 
 .main-content.no-padding {

@@ -265,7 +265,7 @@ onMounted(() => {
 
 <style scoped>
 .media-server-overview {
-  padding: 24px;
+  padding: 8px 24px;
 }
 
 .stats-row {
@@ -315,7 +315,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 32px 0 16px;
+  margin: 16px 0 16px;
 }
 
 .section-title h3 {

@@ -205,7 +205,7 @@ onUnmounted(() => {
 
 <style scoped>
 .watch-history-view {
-  padding: 20px 24px;
+  padding: 8px 24px;
 }
 
 /* ====== 工具栏 ====== */

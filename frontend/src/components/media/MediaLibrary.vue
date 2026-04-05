@@ -860,7 +860,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .media-library-page {
-  padding: 20px;
+  padding: 8px 24px;
   background: var(--nf-bg-page);
   min-height: 100vh;
 }
