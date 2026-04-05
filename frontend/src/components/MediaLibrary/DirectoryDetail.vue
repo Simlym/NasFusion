@@ -23,7 +23,18 @@
 
           <!-- 右侧信息 -->
           <div class="info-wrapper">
-            <h1 class="title">
+            <!-- 已关联资源时，显示资源标题并可跳转 -->
+            <router-link
+              v-if="detail.unified_resource"
+              :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
+              class="title linked-title"
+            >
+              {{ detail.unified_resource.title }}
+              <span v-if="detail.unified_resource.year" class="year">({{ detail.unified_resource.year }})</span>
+              <el-tag size="small" type="success" effect="plain" class="linked-tag">已关联</el-tag>
+            </router-link>
+            <!-- 未关联时，显示NFO标题或目录名 -->
+            <h1 v-else class="title">
               {{ detail.nfo_data?.title || detail.directory.directory_name }}
               <span v-if="detail.nfo_data?.year" class="year">({{ detail.nfo_data.year }})</span>
             </h1>
@@ -105,13 +116,13 @@
 
               <!-- 识别关联按钮 -->
               <el-button
-                v-if="isSeasonDirectory"
                 size="small"
                 plain
+                :type="detail.unified_resource ? 'success' : 'warning'"
                 style="margin-left: 8px"
                 @click="showLinkDialog = true"
               >
-                识别关联
+                {{ detail.unified_resource ? '重新关联' : '识别关联' }}
               </el-button>
             </div>
 
@@ -166,9 +177,17 @@
                 </el-text>
               </div>
               <div class="episodes-actions">
-                <el-text v-if="detail.directory.unified_resource_id" type="success" size="small">
-                  已关联资源 #{{ detail.directory.unified_resource_id }}
-                </el-text>
+                <template v-if="detail.unified_resource">
+                  <router-link
+                    :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
+                    style="text-decoration: none"
+                  >
+                    <el-tag type="success" effect="plain" size="small" style="cursor: pointer">
+                      {{ detail.unified_resource.title }}
+                      <span v-if="detail.unified_resource.year"> ({{ detail.unified_resource.year }})</span>
+                    </el-tag>
+                  </router-link>
+                </template>
                 <el-text v-else type="warning" size="small">
                   未关联资源
                 </el-text>
@@ -800,7 +819,7 @@ async function handleSearch() {
 
     // 处理本地结果
     if (localRes.status === 'fulfilled' && localRes.value?.data) {
-      const items = localRes.value.data.items || localRes.value.data?.results || []
+      const items = localRes.value.data.items || []
       const tableName = mediaType === 'movie' ? 'unified_movies' : 'unified_tv_series'
       localResultsRaw.value = items.map((item: any) => ({
         ...item,
@@ -998,6 +1017,23 @@ defineExpose({ refresh })
     opacity: 0.8;
     margin-left: 10px;
   }
+}
+
+.title.linked-title {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+.linked-tag {
+  vertical-align: middle;
+  margin-left: 8px;
+  font-size: 11px;
 }
 
 .meta-row {

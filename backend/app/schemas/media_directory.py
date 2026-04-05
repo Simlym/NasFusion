@@ -86,6 +86,7 @@ class DirectoryDetailResponse(BaseModel):
     statistics: DirectoryStatistics
     files: List[Any] = Field(default_factory=list, description="文件列表")
     nfo_data: Optional[Dict[str, Any]] = Field(None, description="NFO解析数据")
+    unified_resource: Optional[Dict[str, Any]] = Field(None, description="关联的统一资源信息（标题、海报、评分等）")
 
 
 class DirectoryTreeQuery(BaseModel):

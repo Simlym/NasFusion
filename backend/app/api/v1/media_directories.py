@@ -275,11 +275,44 @@ async def get_directory_detail(
                 logger.error(f"文件序列化失败: file_id={f.id}, file_path={f.file_path}, 错误: {e}")
                 continue
 
+        # 获取关联的统一资源信息
+        unified_resource = None
+        if directory.unified_table_name and directory.unified_resource_id:
+            try:
+                from app.constants import UNIFIED_TABLE_MOVIES, UNIFIED_TABLE_TV
+                if directory.unified_table_name == UNIFIED_TABLE_MOVIES:
+                    from app.models.unified_movie import UnifiedMovie
+                    stmt = select(UnifiedMovie).where(UnifiedMovie.id == directory.unified_resource_id)
+                    result = await db.execute(stmt)
+                    resource = result.scalar_one_or_none()
+                elif directory.unified_table_name == UNIFIED_TABLE_TV:
+                    from app.models.unified_tv_series import UnifiedTVSeries
+                    stmt = select(UnifiedTVSeries).where(UnifiedTVSeries.id == directory.unified_resource_id)
+                    result = await db.execute(stmt)
+                    resource = result.scalar_one_or_none()
+
+                if resource:
+                    unified_resource = {
+                        "id": resource.id,
+                        "title": resource.title,
+                        "original_title": getattr(resource, 'original_title', None),
+                        "year": resource.year,
+                        "poster_url": getattr(resource, 'poster_url', None),
+                        "backdrop_url": getattr(resource, 'backdrop_url', None),
+                        "rating": getattr(resource, 'rating_tmdb', None),
+                        "genres": getattr(resource, 'genres', None),
+                        "overview": getattr(resource, 'overview', None),
+                        "media_type": "movie" if directory.unified_table_name == UNIFIED_TABLE_MOVIES else "tv",
+                    }
+            except Exception as e:
+                logger.warning(f"获取统一资源信息失败: {e}")
+
         return DirectoryDetailResponse(
             directory=MediaDirectoryResponse.model_validate(directory),
             statistics=detail["statistics"],
             files=files_response,
-            nfo_data=nfo_data
+            nfo_data=nfo_data,
+            unified_resource=unified_resource,
         )
     except HTTPException:
         raise

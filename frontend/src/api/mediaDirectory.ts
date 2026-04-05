@@ -89,6 +89,18 @@ export interface DirectoryDetailResponse {
   }
   files: any[]
   nfo_data?: NFOData | null
+  unified_resource?: {
+    id: number
+    title: string
+    original_title?: string | null
+    year?: number | null
+    poster_url?: string | null
+    backdrop_url?: string | null
+    rating?: number | null
+    genres?: string[] | null
+    overview?: string | null
+    media_type?: string
+  } | null
 }
 
 /**
