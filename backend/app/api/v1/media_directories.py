@@ -55,6 +55,10 @@ def check_episode_metadata(file_path: Optional[str]) -> dict:
     for name in (
         f"{stem}-thumb.jpg", f"{stem}-thumb.jpeg", f"{stem}-thumb.png",
         f"{stem}-thumb.webp",
+        f"{stem}-poster.jpg", f"{stem}-poster.jpeg", f"{stem}-poster.png",
+        f"{stem}-poster.webp",
+        f"{stem}-fanart.jpg", f"{stem}-fanart.jpeg", f"{stem}-fanart.png",
+        f"{stem}-fanart.webp",
         f"{stem}.jpg", f"{stem}.jpeg", f"{stem}.png",
     ):
         if (parent / name).exists():

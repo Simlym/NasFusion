@@ -440,13 +440,13 @@
                   <span v-if="item.rating" class="result-rating">
                     <span class="star-icon">★</span> {{ Number(item.rating).toFixed(1) }}
                   </span>
-                  <el-tag size="small" type="success" effect="plain">{{ item.unified_table_name === 'unified_movies' ? '电影' : '剧集' }} #{{ item.id }}</el-tag>
+                  <el-tag size="small" effect="plain" round>{{ item.unified_table_name === 'unified_movies' ? '电影' : '剧集' }}</el-tag>
                 </div>
                 <div v-if="item.genres?.length" class="result-genres">
                   <el-tag v-for="g in item.genres.slice(0, 4)" :key="g" size="small" effect="plain" round>{{ g }}</el-tag>
                 </div>
               </div>
-              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24"><CircleCheck /></el-icon>
             </div>
           </div>
         </template>
@@ -484,14 +484,14 @@
                   <span v-if="item.rating_tmdb" class="result-rating">
                     <span class="star-icon">★</span> {{ Number(item.rating_tmdb).toFixed(1) }}
                   </span>
-                  <el-tag size="small" type="info">TMDB: {{ item.tmdb_id }}</el-tag>
+                  <el-tag size="small" type="info" effect="plain" round>TMDB</el-tag>
                 </div>
                 <div v-if="item.genres?.length" class="result-genres">
                   <el-tag v-for="g in item.genres.slice(0, 4)" :key="g" size="small" effect="plain" round>{{ g }}</el-tag>
                 </div>
                 <div v-if="item.overview" class="result-overview">{{ item.overview }}</div>
               </div>
-              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24"><CircleCheck /></el-icon>
             </div>
           </div>
         </template>
@@ -528,11 +528,11 @@
                   <span v-if="item.rating_douban" class="result-rating">
                     <span class="star-icon">★</span> {{ Number(item.rating_douban).toFixed(1) }}
                   </span>
-                  <el-tag size="small" type="warning">豆瓣: {{ item.douban_id }}</el-tag>
+                  <el-tag size="small" type="warning" effect="plain" round>豆瓣</el-tag>
                 </div>
                 <div v-if="item.overview" class="result-overview">{{ item.overview }}</div>
               </div>
-              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24"><CircleCheck /></el-icon>
             </div>
           </div>
         </template>
@@ -905,9 +905,11 @@ async function handleSearch() {
           ...item,
           source: 'local',
           unified_table_name: tableName,
-          poster_url: item.posterUrl || item.poster_url,
-          original_title: item.originalTitle || item.original_title,
-          rating: item.ratingTmdb || item.rating_tmdb || item.rating,
+          poster_url: item.posterUrl || item.poster_url || item.localPosterUrl || '',
+          original_title: item.originalTitle || item.original_title || '',
+          rating: item.ratingTmdb || item.rating_tmdb || item.rating || null,
+          genres: Array.isArray(item.genres) ? item.genres : [],
+          overview: item.overview || item.plot || '',
         }))
 
         if (localResultsRaw.value.length === 1) {
@@ -1476,5 +1478,6 @@ defineExpose({ refresh })
   position: absolute;
   top: 10px;
   right: 10px;
+  color: var(--el-color-success);
 }
 </style>
