@@ -1337,8 +1337,8 @@ defineExpose({ refresh })
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--el-color-success-light-9);
-  border: 1px solid var(--el-color-success-light-7);
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-color-success);
   border-radius: var(--nf-radius-sm, 6px);
   margin-bottom: 12px;
   font-size: 14px;
@@ -1399,7 +1399,7 @@ defineExpose({ refresh })
 
   &.selected {
     border-color: var(--el-color-success);
-    background: var(--el-color-success-light-9);
+    background: var(--el-fill-color-lighter);
     box-shadow: 0 0 0 1px var(--el-color-success-light-5);
   }
 }
