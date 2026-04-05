@@ -31,10 +31,12 @@ class MediaDirectoryUpdate(BaseModel):
 
 
 class MediaDirectoryLinkRequest(BaseModel):
-    """目录关联到统一资源请求（通过TMDB/豆瓣ID）"""
+    """目录关联到统一资源请求（通过TMDB/豆瓣ID或直接指定统一资源）"""
     tmdb_id: Optional[int] = Field(None, description="TMDB ID")
     douban_id: Optional[str] = Field(None, description="豆瓣 ID")
     media_type: str = Field(default="tv", description="媒体类型: movie 或 tv")
+    unified_table_name: Optional[str] = Field(None, description="统一资源表名（直接关联已有资源时使用）")
+    unified_resource_id: Optional[int] = Field(None, description="统一资源ID（直接关联已有资源时使用）")
 
 
 class MediaDirectoryResponse(MediaDirectoryBase):

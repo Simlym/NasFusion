@@ -13,6 +13,7 @@ export interface MovieFilter {
   excludeGenre?: string
   country?: string
   search?: string
+  search?: string
   sortBy?: string
   order?: string
   minRating?: number

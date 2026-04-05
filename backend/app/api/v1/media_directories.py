@@ -2,6 +2,7 @@
 """
 媒体目录API路由
 """
+from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -348,10 +349,13 @@ async def link_directory_to_resource(
     current_user: User = Depends(get_current_user)
 ):
     """
-    将目录关联到统一资源（通过TMDB ID或豆瓣ID）
+    将目录关联到统一资源（通过TMDB ID、豆瓣ID 或 直接关联已有统一资源）
 
     用于Season层维护识别信息，方便后续刮削。
-    支持直接传tmdb_id或douban_id，系统自动获取元数据并关联。
+    支持三种模式：
+    1. 直接传 unified_table_name + unified_resource_id（关联本地已有资源）
+    2. 传 tmdb_id（通过TMDB ID获取/创建资源并关联）
+    3. 传 douban_id（通过豆瓣ID转换后关联）
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -360,8 +364,54 @@ async def link_directory_to_resource(
     if not directory:
         raise HTTPException(status_code=404, detail="目录不存在")
 
+    # 模式1：直接关联已有统一资源
+    if request.unified_table_name and request.unified_resource_id:
+        from app.constants import UNIFIED_TABLE_MOVIES, UNIFIED_TABLE_TV
+
+        if request.unified_table_name == UNIFIED_TABLE_MOVIES:
+            from app.models.unified_movie import UnifiedMovie
+            unified = await db.get(UnifiedMovie, request.unified_resource_id)
+        elif request.unified_table_name == UNIFIED_TABLE_TV:
+            from app.models.unified_tv_series import UnifiedTVSeries
+            unified = await db.get(UnifiedTVSeries, request.unified_resource_id)
+        else:
+            raise HTTPException(status_code=400, detail=f"不支持的资源表: {request.unified_table_name}")
+
+        if not unified:
+            raise HTTPException(status_code=404, detail="统一资源不存在")
+
+        directory.unified_table_name = request.unified_table_name
+        directory.unified_resource_id = unified.id
+        if hasattr(unified, 'title') and unified.title:
+            directory.series_name = unified.title
+
+        # 同时更新该目录下所有文件的关联
+        from app.models import MediaFile
+        files_result = await db.execute(
+            select(MediaFile).where(MediaFile.media_directory_id == directory_id)
+        )
+        files = files_result.scalars().all()
+        media_type = "movie" if request.unified_table_name == UNIFIED_TABLE_MOVIES else "tv"
+        for f in files:
+            if not f.unified_resource_id:
+                f.unified_table_name = request.unified_table_name
+                f.unified_resource_id = unified.id
+                if f.media_type in ("unknown", None):
+                    f.media_type = media_type
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "unified_resource_id": unified.id,
+            "unified_table_name": request.unified_table_name,
+            "title": getattr(unified, 'title', None),
+            "message": f"成功关联到 {getattr(unified, 'title', unified.id)}"
+        }
+
+    # 模式2/3：通过TMDB/豆瓣ID
     if not request.tmdb_id and not request.douban_id:
-        raise HTTPException(status_code=400, detail="请提供 tmdb_id 或 douban_id")
+        raise HTTPException(status_code=400, detail="请提供 tmdb_id、douban_id 或 unified_table_name + unified_resource_id")
 
     try:
         from app.services.identification.media_identify_service import media_identify_service
@@ -420,6 +470,14 @@ async def link_directory_to_resource(
             )
             unified = existing.scalar_one_or_none()
             if not unified:
+                # 将日期字符串转换为 date 对象（兼容 SQLite）
+                for date_field in ("first_air_date", "last_air_date"):
+                    val = tmdb_data.get(date_field)
+                    if isinstance(val, str):
+                        try:
+                            tmdb_data[date_field] = datetime.strptime(val, "%Y-%m-%d").date()
+                        except (ValueError, TypeError):
+                            tmdb_data[date_field] = None
                 unified = UnifiedTVSeries(tmdb_id=tmdb_id, **{
                     k: v for k, v in tmdb_data.items()
                     if k != "tmdb_id" and hasattr(UnifiedTVSeries, k)

@@ -2,6 +2,7 @@
  * 媒体目录 API
  */
 import request from './request'
+import type { TMDBSearchResponse } from '@/types/media'
 
 /**
  * 目录树节点
@@ -140,12 +141,14 @@ export function detectIssues(data?: { directory_id?: number | null; media_type?:
 }
 
 /**
- * 关联目录到统一资源（通过TMDB/豆瓣ID）
+ * 关联目录到统一资源（通过TMDB/豆瓣ID 或 直接关联已有资源）
  */
 export function linkDirectoryToResource(id: number, data: {
   tmdb_id?: number | null
   douban_id?: string | null
   media_type?: string
+  unified_table_name?: string | null
+  unified_resource_id?: number | null
 }) {
   return request.put<{
     success: boolean
@@ -154,6 +157,13 @@ export function linkDirectoryToResource(id: number, data: {
     title: string | null
     message: string
   }>(`/media-directories/${id}/link`, data)
+}
+
+/**
+ * 搜索TMDB（用于目录识别关联）
+ */
+export function searchTMDBForDirectory(data: { title: string; year?: number; media_type: string }) {
+  return request.post<TMDBSearchResponse>('/media-files/search-tmdb', data)
 }
 
 /**

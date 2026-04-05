@@ -255,7 +255,18 @@ class MediaScannerService:
                 if sorted_files:
                     await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files, directory.media_type, directory.season_number)
                     stats["files"] += len(sorted_files)
-                
+
+                # 3.5 尝试从NFO自动识别关联（仅对季度目录且未关联的情况）
+                if (directory.season_number is not None
+                        and not directory.unified_resource_id
+                        and nfo_file):
+                    try:
+                        await MediaScannerService._auto_identify_from_nfo(
+                            db, directory, nfo_file
+                        )
+                    except Exception as e:
+                        logger.warning(f"NFO自动识别失败: {current_path}, 错误: {e}")
+
                 # 更新统计信息
                 directory.scanned_at = now()
                 directory.total_files = len(sorted_files)
@@ -584,4 +595,201 @@ class MediaScannerService:
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
+
+    @staticmethod
+    def _convert_date_fields(data: dict) -> dict:
+        """
+        将字典中的日期字符串转换为 Python date 对象（兼容 SQLite）
+
+        SQLite Date 类型只接受 Python date 对象，不接受字符串。
+        TMDB API 返回的 first_air_date / last_air_date 是 "YYYY-MM-DD" 格式的字符串。
+
+        Args:
+            data: 包含可能为字符串日期的字典
+
+        Returns:
+            转换后的字典（原地修改并返回）
+        """
+        for field in ("first_air_date", "last_air_date"):
+            val = data.get(field)
+            if isinstance(val, str):
+                try:
+                    data[field] = datetime.strptime(val, "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    data[field] = None
+            elif val is not None and not isinstance(val, type(None)):
+                # 不是字符串也不是None，尝试转换
+                try:
+                    data[field] = datetime.strptime(str(val)[:10], "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    data[field] = None
+        return data
+
+    @staticmethod
+    async def _auto_identify_from_nfo(
+        db: AsyncSession,
+        directory: MediaDirectory,
+        nfo_path: str,
+    ):
+        """
+        从NFO文件自动识别并关联季度目录
+
+        策略：
+        1. 解析NFO中的TMDB ID，如果有则直接关联
+        2. 如果NFO无TMDB ID，尝试用NFO标题+目录名搜索TMDB自动匹配
+
+        Args:
+            db: 数据库会话
+            directory: 目录对象（季度目录）
+            nfo_path: NFO文件路径
+        """
+        from app.services.mediafile.nfo_parser_service import NFOParserService
+        from app.models.unified_tv_series import UnifiedTVSeries
+        from app.constants import UNIFIED_TABLE_TV
+
+        nfo_data = await NFOParserService.parse_nfo(nfo_path)
+        if not nfo_data:
+            return
+
+        tmdb_id = None
+        media_type = "tv"  # 季度目录默认为TV
+
+        # 1. 优先使用NFO中的TMDB ID
+        raw_tmdb_id = nfo_data.get("tmdb_id")
+        if raw_tmdb_id:
+            try:
+                tmdb_id = int(raw_tmdb_id)
+            except (ValueError, TypeError):
+                pass
+
+        if tmdb_id:
+            # 直接用TMDB ID关联
+            try:
+                unified_table = UNIFIED_TABLE_TV
+                existing = await db.execute(
+                    select(UnifiedTVSeries).where(UnifiedTVSeries.tmdb_id == tmdb_id)
+                )
+                unified = existing.scalar_one_or_none()
+
+                if not unified:
+                    # 尝试从TMDB获取详情并创建
+                    from app.services.identification.media_identify_service import media_identify_service
+                    tmdb_adapter = await media_identify_service._get_tmdb_adapter(db)
+                    tmdb_detail = await tmdb_adapter.get_tv_details(tmdb_id)
+                    if tmdb_detail:
+                        MediaScannerService._convert_date_fields(tmdb_detail)
+                        unified = UnifiedTVSeries(tmdb_id=tmdb_id, **{
+                            k: v for k, v in tmdb_detail.items()
+                            if k != "tmdb_id" and hasattr(UnifiedTVSeries, k)
+                        })
+                        db.add(unified)
+                        await db.flush()
+
+                if unified:
+                    directory.unified_table_name = unified_table
+                    directory.unified_resource_id = unified.id
+                    if hasattr(unified, 'title') and unified.title:
+                        directory.series_name = unified.title
+                    # 同时更新该目录下所有文件
+                    await MediaScannerService._link_directory_files(
+                        db, directory.id, unified_table, unified.id, media_type
+                    )
+                    logger.info(
+                        f"NFO自动识别成功(TMDB ID): {directory.directory_path} -> "
+                        f"{unified.title} (TMDB: {tmdb_id})"
+                    )
+                    return
+            except Exception as e:
+                logger.warning(f"NFO TMDB ID关联失败: {e}")
+
+        # 2. NFO无TMDB ID，尝试用名称搜索
+        title = nfo_data.get("title") or directory.directory_name
+        if not title:
+            return
+
+        try:
+            from app.services.identification.media_identify_service import media_identify_service
+            candidates = await media_identify_service.search_and_get_candidates(
+                db, title, media_type=media_type
+            )
+
+            if not candidates:
+                logger.debug(f"NFO名称搜索无结果: {title}")
+                return
+
+            # 只有唯一结果时自动匹配
+            if len(candidates) == 1:
+                best = candidates[0]
+            else:
+                # 多个结果时尝试精确匹配标题
+                best = None
+                title_lower = title.lower().strip()
+                for c in candidates:
+                    c_title = (c.get("title") or "").lower().strip()
+                    c_orig = (c.get("original_title") or "").lower().strip()
+                    if title_lower == c_title or title_lower == c_orig:
+                        best = c
+                        break
+
+            if not best:
+                logger.debug(
+                    f"NFO名称搜索有{len(candidates)}个结果，无法自动匹配，等待用户选择: {title}"
+                )
+                return
+
+            match_tmdb_id = best.get("tmdb_id")
+            if not match_tmdb_id:
+                return
+
+            unified_table = UNIFIED_TABLE_TV
+            existing = await db.execute(
+                select(UnifiedTVSeries).where(UnifiedTVSeries.tmdb_id == match_tmdb_id)
+            )
+            unified = existing.scalar_one_or_none()
+
+            if not unified:
+                tmdb_adapter = await media_identify_service._get_tmdb_adapter(db)
+                tmdb_detail = await tmdb_adapter.get_tv_details(match_tmdb_id)
+                if tmdb_detail:
+                    MediaScannerService._convert_date_fields(tmdb_detail)
+                    unified = UnifiedTVSeries(tmdb_id=match_tmdb_id, **{
+                        k: v for k, v in tmdb_detail.items()
+                        if k != "tmdb_id" and hasattr(UnifiedTVSeries, k)
+                    })
+                    db.add(unified)
+                    await db.flush()
+
+            if unified:
+                directory.unified_table_name = unified_table
+                directory.unified_resource_id = unified.id
+                if hasattr(unified, 'title') and unified.title:
+                    directory.series_name = unified.title
+                await MediaScannerService._link_directory_files(
+                    db, directory.id, unified_table, unified.id, media_type
+                )
+                logger.info(
+                    f"NFO自动识别成功(名称搜索): {directory.directory_path} -> "
+                    f"{unified.title} (TMDB: {match_tmdb_id})"
+                )
+        except Exception as e:
+            logger.warning(f"NFO名称搜索匹配失败: {title}, 错误: {e}")
+
+    @staticmethod
+    async def _link_directory_files(
+        db: AsyncSession,
+        directory_id: int,
+        unified_table: str,
+        unified_resource_id: int,
+        media_type: str,
+    ):
+        """将目录下所有文件关联到统一资源"""
+        stmt = select(MediaFile).where(MediaFile.media_directory_id == directory_id)
+        files_result = await db.execute(stmt)
+        files = files_result.scalars().all()
+        for f in files:
+            if not f.unified_resource_id:
+                f.unified_table_name = unified_table
+                f.unified_resource_id = unified_resource_id
+                if f.media_type in ("unknown", None):
+                    f.media_type = media_type
 

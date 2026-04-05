@@ -339,36 +339,143 @@
     <el-empty v-else description="请选择一个目录查看详情" />
 
     <!-- 识别关联对话框 -->
-    <el-dialog v-model="showLinkDialog" title="识别关联" width="460px" destroy-on-close>
-      <el-form label-width="90px" size="default">
-        <el-form-item label="TMDB ID">
-          <el-input-number
-            v-model="linkForm.tmdb_id"
-            :min="1"
-            controls-position="right"
-            placeholder="输入TMDB ID"
-            style="width: 100%"
+    <el-dialog v-model="showLinkDialog" title="识别关联" width="700px" destroy-on-close @open="onLinkDialogOpen">
+      <!-- 搜索区域 -->
+      <el-form :inline="true" size="default" @submit.prevent="handleSearch">
+        <el-form-item label="名称">
+          <el-input
+            v-model="linkForm.search_keyword"
+            placeholder="输入名称搜索"
+            clearable
+            style="width: 260px"
           />
         </el-form-item>
-        <el-form-item label="豆瓣 ID">
-          <el-input v-model="linkForm.douban_id" placeholder="输入豆瓣ID（可选）" />
-        </el-form-item>
-        <el-form-item label="媒体类型">
+        <el-form-item label="类型">
           <el-radio-group v-model="linkForm.media_type">
             <el-radio value="tv">剧集</el-radio>
             <el-radio value="movie">电影</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="detail?.directory.unified_resource_id">
-          <el-text type="info" size="small">
-            当前已关联: {{ detail.directory.unified_table_name }} #{{ detail.directory.unified_resource_id }}
-            {{ detail.directory.series_name ? `(${detail.directory.series_name})` : '' }}
-          </el-text>
+        <el-form-item>
+          <el-button type="primary" :loading="searching" @click="handleSearch">搜索</el-button>
         </el-form-item>
       </el-form>
+
+      <!-- 当前关联状态 -->
+      <div v-if="detail?.directory.unified_resource_id" style="margin-bottom: 12px;">
+        <el-text type="info" size="small">
+          当前已关联: {{ detail.directory.unified_table_name }} #{{ detail.directory.unified_resource_id }}
+          {{ detail.directory.series_name ? `(${detail.directory.series_name})` : '' }}
+        </el-text>
+      </div>
+
+      <!-- 选中状态 -->
+      <div v-if="selectedItem" class="selected-preview">
+        <el-tag type="success" effect="dark" size="small" style="margin-right: 6px">
+          {{ selectedItem.source === 'local' ? '本地资源' : 'TMDB' }}
+        </el-tag>
+        <span>{{ selectedItem.title }}</span>
+        <span v-if="selectedItem.year" style="color: var(--el-text-color-secondary); margin-left: 4px">({{ selectedItem.year }})</span>
+        <el-button link type="danger" size="small" style="margin-left: 8px" @click="clearSelection">取消选择</el-button>
+      </div>
+
+      <!-- 搜索结果列表 -->
+      <div v-loading="searching" class="search-results-container">
+        <el-empty v-if="!searching && localResults.length === 0 && tmdbResults.length === 0 && searchPerformed" description="未找到匹配结果，请尝试修改关键词" />
+
+        <template v-if="localResults.length > 0">
+          <div class="result-section-title">
+            <el-tag type="success" effect="plain" size="small">本地资源库</el-tag>
+            <span class="result-section-hint">已存在的统一资源，可直接关联</span>
+          </div>
+          <div class="search-results-list">
+            <div
+              v-for="item in localResults"
+              :key="'local-' + item.unified_table_name + '-' + item.id"
+              class="search-result-card"
+              :class="{ selected: isSelected(item) }"
+              @click="selectItem(item)"
+            >
+              <el-image
+                :src="item.poster_url || ''"
+                fit="cover"
+                class="result-poster"
+                lazy
+              >
+                <template #error>
+                  <div class="result-poster-placeholder">
+                    <el-icon :size="24"><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div class="result-info">
+                <div class="result-title">{{ item.title }}</div>
+                <div v-if="item.original_title && item.original_title !== item.title" class="result-original-title">{{ item.original_title }}</div>
+                <div class="result-meta">
+                  <span v-if="item.year">{{ item.year }}</span>
+                  <span v-if="item.rating" class="result-rating">
+                    <span class="star-icon">★</span> {{ item.rating.toFixed(1) }}
+                  </span>
+                  <el-tag size="small" type="success" effect="plain">{{ item.unified_table_name === 'unified_movies' ? '电影' : '剧集' }} #{{ item.id }}</el-tag>
+                </div>
+                <div v-if="item.genres?.length" class="result-genres">
+                  <el-tag v-for="g in item.genres.slice(0, 4)" :key="g" size="small" effect="plain" round>{{ g }}</el-tag>
+                </div>
+              </div>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="tmdbResults.length > 0">
+          <div class="result-section-title" :style="{ marginTop: localResults.length > 0 ? '16px' : '0' }">
+            <el-tag type="primary" effect="plain" size="small">TMDB 在线搜索</el-tag>
+            <span class="result-section-hint">从TMDB获取并创建新资源</span>
+          </div>
+          <div class="search-results-list">
+            <div
+              v-for="item in tmdbResults"
+              :key="'tmdb-' + item.tmdb_id"
+              class="search-result-card"
+              :class="{ selected: isSelected(item) }"
+              @click="selectItem(item)"
+            >
+              <el-image
+                :src="item.poster_url || ''"
+                fit="cover"
+                class="result-poster"
+                lazy
+              >
+                <template #error>
+                  <div class="result-poster-placeholder">
+                    <el-icon :size="24"><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div class="result-info">
+                <div class="result-title">{{ item.title }}</div>
+                <div v-if="item.original_title && item.original_title !== item.title" class="result-original-title">{{ item.original_title }}</div>
+                <div class="result-meta">
+                  <span v-if="item.year">{{ item.year }}</span>
+                  <span v-if="item.rating_tmdb" class="result-rating">
+                    <span class="star-icon">★</span> {{ item.rating_tmdb.toFixed(1) }}
+                  </span>
+                  <el-tag size="small" type="info">TMDB: {{ item.tmdb_id }}</el-tag>
+                </div>
+                <div v-if="item.genres?.length" class="result-genres">
+                  <el-tag v-for="g in item.genres.slice(0, 4)" :key="g" size="small" effect="plain" round>{{ g }}</el-tag>
+                </div>
+                <div v-if="item.overview" class="result-overview">{{ item.overview }}</div>
+              </div>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+            </div>
+          </div>
+        </template>
+      </div>
+
       <template #footer>
         <el-button @click="showLinkDialog = false">取消</el-button>
-        <el-button type="primary" :loading="linking" @click="handleLinkDirectory">确认关联</el-button>
+        <el-button type="primary" :loading="linking" :disabled="!selectedItem" @click="handleLinkDirectory">确认关联</el-button>
       </template>
     </el-dialog>
   </div>
@@ -385,7 +492,10 @@ import {
   Minus,
   ArrowDown
 } from '@element-plus/icons-vue'
-import { getDirectoryDetail, linkDirectoryToResource, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import { getDirectoryDetail, linkDirectoryToResource, searchTMDBForDirectory, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import type { TMDBCandidate } from '@/types/media'
+import { getMovieList } from '@/api/modules/movie'
+import { getTVList } from '@/api/modules/tv'
 import { scrapeMediaFile, generateNFO, batchScrapeMediaFiles } from '@/api/modules/media'
 import { getProxiedImageUrl } from '@/utils'
 
@@ -409,9 +519,30 @@ const defaultPoster = 'https://via.placeholder.com/300x450?text=No+Poster'
 // 识别关联对话框
 const showLinkDialog = ref(false)
 const linking = ref(false)
+const searching = ref(false)
+const searchPerformed = ref(false)
+const localResultsRaw = ref<any[]>([])
+const tmdbResultsRaw = ref<TMDBCandidate[]>([])
+const search_keyword = ref('')
+
+// 统一的选中项类型
+interface SelectedItem {
+  source: 'local' | 'tmdb'
+  id?: number
+  tmdb_id?: number
+  title: string
+  original_title?: string
+  year?: number
+  poster_url?: string
+  rating?: number
+  genres?: string[]
+  overview?: string
+  unified_table_name?: string
+  unified_resource_id?: number
+}
+const selectedItem = ref<SelectedItem | null>(null)
 const linkForm = reactive({
-  tmdb_id: null as number | null,
-  douban_id: '' as string,
+  search_keyword: '' as string,
   media_type: 'tv' as string,
 })
 
@@ -579,19 +710,150 @@ async function handleDirectoryAction(command: string) {
 
 // ===== 识别关联 =====
 
+// 统一的搜索结果：本地 + TMDB
+const localResults = computed(() => localResultsRaw.value)
+const tmdbResults = computed(() => tmdbResultsRaw.value)
+
+function isSelected(item: any): boolean {
+  if (!selectedItem.value) return false
+  if (item.source === 'local' || item.unified_table_name) {
+    return selectedItem.value.source === 'local'
+      && selectedItem.value.unified_table_name === item.unified_table_name
+      && selectedItem.value.unified_resource_id === item.id
+  }
+  return selectedItem.value.source === 'tmdb' && selectedItem.value.tmdb_id === item.tmdb_id
+}
+
+function selectItem(item: any) {
+  if (item.source === 'local' || item.unified_table_name) {
+    selectedItem.value = {
+      source: 'local',
+      id: item.id,
+      title: item.title,
+      original_title: item.original_title || item.originalTitle,
+      year: item.year,
+      poster_url: item.poster_url || item.posterUrl,
+      rating: item.rating || item.ratingTmdb,
+      genres: item.genres,
+      unified_table_name: item.unified_table_name,
+      unified_resource_id: item.id,
+    }
+  } else {
+    selectedItem.value = {
+      source: 'tmdb',
+      tmdb_id: item.tmdb_id,
+      title: item.title,
+      original_title: item.original_title,
+      year: item.year,
+      poster_url: item.poster_url,
+      rating: item.rating_tmdb,
+      genres: item.genres,
+      overview: item.overview,
+    }
+  }
+}
+
+function clearSelection() {
+  selectedItem.value = null
+}
+
+function onLinkDialogOpen() {
+  const nfoTitle = detail.value?.nfo_data?.title
+  const dirName = detail.value?.directory.directory_name || ''
+  linkForm.search_keyword = nfoTitle || dirName
+  selectedItem.value = null
+  localResultsRaw.value = []
+  tmdbResultsRaw.value = []
+  searchPerformed.value = false
+
+  if (linkForm.search_keyword) {
+    handleSearch()
+  }
+}
+
+async function handleSearch() {
+  if (!linkForm.search_keyword.trim()) {
+    ElMessage.warning('请输入搜索关键词')
+    return
+  }
+  searching.value = true
+  searchPerformed.value = true
+  selectedItem.value = null
+  localResultsRaw.value = []
+  tmdbResultsRaw.value = []
+
+  try {
+    // 并行搜索本地资源和TMDB
+    const keyword = linkForm.search_keyword.trim()
+    const mediaType = linkForm.media_type
+
+    const localPromise = mediaType === 'movie'
+      ? getMovieList({ page: 1, pageSize: 10, search: keyword })
+      : getTVList({ page: 1, pageSize: 10, search: keyword })
+
+    const tmdbPromise = searchTMDBForDirectory({
+      title: keyword,
+      media_type: mediaType,
+    })
+
+    const [localRes, tmdbRes] = await Promise.allSettled([localPromise, tmdbPromise])
+
+    // 处理本地结果
+    if (localRes.status === 'fulfilled' && localRes.value?.data) {
+      const items = localRes.value.data.items || localRes.value.data?.results || []
+      const tableName = mediaType === 'movie' ? 'unified_movies' : 'unified_tv_series'
+      localResultsRaw.value = items.map((item: any) => ({
+        ...item,
+        source: 'local',
+        unified_table_name: tableName,
+        poster_url: item.posterUrl || item.poster_url,
+        original_title: item.originalTitle || item.original_title,
+        rating: item.ratingTmdb || item.rating_tmdb || item.rating,
+      }))
+    }
+
+    // 处理TMDB结果
+    if (tmdbRes.status === 'fulfilled' && tmdbRes.value?.data) {
+      tmdbResultsRaw.value = (tmdbRes.value.data.results || []).map((item: any) => ({
+        ...item,
+        source: 'tmdb',
+      }))
+    }
+
+    // 如果本地只有一个结果，自动选中
+    if (localResultsRaw.value.length === 1 && tmdbResultsRaw.value.length === 0) {
+      selectItem(localResultsRaw.value[0])
+    }
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '搜索失败')
+  } finally {
+    searching.value = false
+  }
+}
+
 async function handleLinkDirectory() {
   if (!detail.value || !props.directoryId) return
-  if (!linkForm.tmdb_id && !linkForm.douban_id) {
-    ElMessage.warning('请输入 TMDB ID 或豆瓣 ID')
+  if (!selectedItem.value) {
+    ElMessage.warning('请选择一个匹配结果')
     return
   }
   linking.value = true
   try {
-    const res = await linkDirectoryToResource(props.directoryId, {
-      tmdb_id: linkForm.tmdb_id,
-      douban_id: linkForm.douban_id || null,
-      media_type: linkForm.media_type,
-    })
+    let res: any
+    if (selectedItem.value.source === 'local') {
+      // 直接关联本地资源
+      res = await linkDirectoryToResource(props.directoryId, {
+        unified_table_name: selectedItem.value.unified_table_name,
+        unified_resource_id: selectedItem.value.unified_resource_id,
+        media_type: linkForm.media_type,
+      })
+    } else {
+      // 通过TMDB ID关联
+      res = await linkDirectoryToResource(props.directoryId, {
+        tmdb_id: selectedItem.value.tmdb_id,
+        media_type: linkForm.media_type,
+      })
+    }
     if (res.data.success) {
       ElMessage.success(res.data.message || '关联成功')
       showLinkDialog.value = false
@@ -931,5 +1193,139 @@ defineExpose({ refresh })
 :deep(.el-tabs__item) {
   font-size: 16px;
   font-weight: 500;
+}
+
+/* 选中预览 */
+.selected-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--el-color-success-light-9);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+/* 搜索结果区域标题 */
+.result-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .result-section-hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+/* 搜索结果 */
+.search-results-container {
+  min-height: 120px;
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-result-card {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border: 2px solid var(--el-border-color-light);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+
+  &:hover {
+    border-color: var(--el-color-primary-light-3);
+    background: var(--el-fill-color-light);
+  }
+
+  &.selected {
+    border-color: var(--el-color-success);
+    background: var(--el-color-success-light-9);
+  }
+}
+
+.result-poster {
+  flex-shrink: 0;
+  width: 60px;
+  height: 90px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--el-fill-color);
+}
+
+.result-poster-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: var(--el-text-color-placeholder);
+  background: var(--el-fill-color);
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+
+.result-original-title {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 4px;
+}
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  margin-bottom: 4px;
+
+  .result-rating {
+    .star-icon {
+      color: #ff9900;
+      font-size: 12px;
+    }
+  }
+}
+
+.result-genres {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.result-overview {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
 </style>
