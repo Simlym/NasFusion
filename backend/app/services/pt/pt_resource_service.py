@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.utils.timezone import now, to_system_tz
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -328,6 +328,88 @@ class PTResourceService:
             await db.refresh(resource)
 
             return resource, "created"
+
+    @staticmethod
+    async def batch_upsert_resources(
+        db: AsyncSession, resources_data: List[dict]
+    ) -> Tuple[int, int]:
+        """
+        批量创建或更新资源（高性能版本，单次 SELECT + 单次 COMMIT）
+
+        Args:
+            db: 数据库会话
+            resources_data: 资源数据字典列表
+
+        Returns:
+            Tuple[int, int]: (新建数量, 更新数量)
+        """
+        if not resources_data:
+            return 0, 0
+
+        # 更新字段列表（与 upsert_resource 保持一致）
+        update_fields = [
+            "title", "subtitle", "seeders", "leechers", "completions",
+            "promotion_type", "promotion_expire_at", "is_free", "is_discount",
+            "is_double_upload", "size_bytes", "download_url", "detail_url",
+            "original_category_id", "subcategory",
+        ]
+        preserve_if_set_fields = {"douban_id", "douban_rating", "imdb_id", "imdb_rating"}
+
+        # 1. 提取所有 (site_id, torrent_id) 对
+        keys = [(d["site_id"], d["torrent_id"]) for d in resources_data]
+
+        # 2. 批量查询已存在记录（分块处理，兼容 SQLite 的变量限制）
+        CHUNK_SIZE = 450
+        existing_map: Dict[Tuple[int, str], PTResource] = {}
+
+        for i in range(0, len(keys), CHUNK_SIZE):
+            chunk = keys[i:i + CHUNK_SIZE]
+            result = await db.execute(
+                select(PTResource).where(
+                    tuple_(PTResource.site_id, PTResource.torrent_id).in_(chunk)
+                )
+            )
+            for row in result.scalars().all():
+                existing_map[(row.site_id, row.torrent_id)] = row
+
+        # 3. 区分新建和更新
+        new_resources: List[PTResource] = []
+        new_count = 0
+        updated_count = 0
+
+        for resource_data in resources_data:
+            key = (resource_data["site_id"], resource_data["torrent_id"])
+            existing = existing_map.get(key)
+
+            if existing:
+                # 更新
+                for field in update_fields:
+                    if field in resource_data and resource_data[field] is not None:
+                        setattr(existing, field, resource_data[field])
+
+                # 豆瓣/IMDB信息只在原值为空时更新
+                for field in preserve_if_set_fields:
+                    if field in resource_data and resource_data[field] is not None:
+                        current_value = getattr(existing, field)
+                        if current_value is None or current_value == 0:
+                            setattr(existing, field, resource_data[field])
+
+                existing.last_check_at = now()
+                updated_count += 1
+            else:
+                # 新建
+                resource = PTResource(**resource_data)
+                new_resources.append(resource)
+                new_count += 1
+
+        # 4. 批量添加新建记录
+        if new_resources:
+            db.add_all(new_resources)
+
+        # 5. 单次提交
+        await db.commit()
+
+        return new_count, updated_count
 
     @staticmethod
     def _validate_and_filter_params(
@@ -680,36 +762,29 @@ class PTResourceService:
 
                 stats["found"] += len(resources)
 
-                # 记录本页处理前的统计值，用于计算增量
-                prev_new = stats["new"]
-                prev_updated = stats["updated"]
+                # 批量处理资源（单次 SELECT + 单次 COMMIT）
+                for resource_data in resources:
+                    resource_data["site_id"] = site.id
 
-                # 处理每个资源
-                for idx, resource_data in enumerate(resources, 1):
-                    try:
-                        resource_data["site_id"] = site.id
-                        _, action = await PTResourceService.upsert_resource(db, resource_data)
-
-                        if action == "created":
-                            stats["new"] += 1
-                        elif action == "updated":
-                            stats["updated"] += 1
-
-                    except Exception as e:
-                        logger.error(f"Error processing resource: {str(e)}")
-                        stats["error"] += 1
-
-                # 计算本页的增量
-                page_new = stats["new"] - prev_new
-                page_updated = stats["updated"] - prev_updated
+                try:
+                    page_new, page_updated = await PTResourceService.batch_upsert_resources(
+                        db, resources
+                    )
+                    stats["new"] += page_new
+                    stats["updated"] += page_updated
+                except Exception as e:
+                    logger.error(f"Error batch processing resources: {str(e)}")
+                    page_new = 0
+                    page_updated = 0
+                    stats["error"] += len(resources)
 
                 # 页面处理完成，更新进度
                 stats["pages_processed"] = page - start_page + 1
 
                 # 更新任务进度（如果有task_execution_id）
                 if task_execution_id:
-                    # 计算进度百分比：优先使用API返回的总页数，其次使用用户指定的max_pages
-                    effective_total_pages = api_total_pages or max_pages
+                    # 计算进度百分比：优先使用用户指定的max_pages，其次使用API返回的总页数
+                    effective_total_pages = max_pages or api_total_pages
                     if effective_total_pages and effective_total_pages > 0:
                         # 计算从start_page到effective_total_pages的进度
                         pages_to_process = effective_total_pages - start_page + 1

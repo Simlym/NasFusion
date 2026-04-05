@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     DECIMAL,
+    UniqueConstraint,
 )
 
 from app.core.db_types import JSON, TZDateTime
@@ -23,6 +24,9 @@ class PTResource(BaseModel):
     """PT原始资源表"""
 
     __tablename__ = "pt_resources"
+    __table_args__ = (
+        UniqueConstraint("site_id", "torrent_id", name="uq_pt_resources_site_torrent"),
+    )
 
     # 站点关联
     site_id = Column(
