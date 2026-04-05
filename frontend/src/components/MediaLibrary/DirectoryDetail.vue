@@ -221,7 +221,20 @@
                 </template>
               </el-table-column>
 
-              <el-table-column prop="resolution" label="分辨率" width="90" align="center" />
+              <el-table-column label="分辨率" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag
+                    v-if="row.resolution"
+                    :type="resolutionTagType(row.resolution)"
+                    size="small"
+                    effect="dark"
+                    disable-transitions
+                  >
+                    {{ row.resolution }}
+                  </el-tag>
+                  <span v-else style="color: #909399">-</span>
+                </template>
+              </el-table-column>
 
               <el-table-column label="NFO" width="60" align="center">
                 <template #default="{ row }">
@@ -243,9 +256,17 @@
 
               <el-table-column label="字幕" width="60" align="center">
                 <template #default="{ row }">
-                  <el-icon :color="row.has_subtitle ? '#67c23a' : '#909399'" :size="18">
-                    <CircleCheck v-if="row.has_subtitle" />
-                    <Minus v-else />
+                  <el-tooltip
+                    v-if="row.has_subtitle"
+                    :content="row.subtitle_paths && row.subtitle_paths.length > 0 ? '外挂字幕' : '内嵌字幕'"
+                    placement="top"
+                  >
+                    <el-icon :color="'#67c23a'" :size="18">
+                      <CircleCheck />
+                    </el-icon>
+                  </el-tooltip>
+                  <el-icon v-else :color="'#909399'" :size="18">
+                    <Minus />
                   </el-icon>
                 </template>
               </el-table-column>
@@ -1012,6 +1033,14 @@ const getFileTypeTag = (row: any): string => {
   if (['nfo', 'xml'].includes(ext)) return 'warning'
   if (['srt', 'ass', 'ssa', 'sub', 'vtt'].includes(ext)) return 'success'
   if (['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) return 'primary'
+  return 'info'
+}
+
+const resolutionTagType = (resolution: string): string => {
+  const r = resolution.toLowerCase()
+  if (r === '2160p' || r === '4k') return 'danger'
+  if (r === '1080p') return 'warning'
+  if (r === '720p') return 'success'
   return 'info'
 }
 

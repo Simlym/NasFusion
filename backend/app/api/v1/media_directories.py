@@ -30,16 +30,17 @@ from app.constants import MEDIA_TYPE_ADULT
 router = APIRouter(prefix="/media-directories", tags=["media_directories"])
 
 
-def check_episode_metadata(file_path: Optional[str]) -> dict:
+def check_episode_metadata(file_path: Optional[str], tech_info: Optional[dict] = None) -> dict:
     """
     实时检查剧集文件旁边是否存在 NFO 和缩略图文件。
     NFO:  {stem}.nfo
     图片:  {stem}-thumb.jpg / {stem}.jpg 等常见命名
+    字幕:  外挂文件 + 内嵌轨道（通过 tech_info 或 pymediainfo）
     """
     import os
     from pathlib import Path as _Path
 
-    result = {"has_nfo": False, "has_poster": False, "has_subtitle": False, "subtitle_paths": []}
+    result = {"has_nfo": False, "has_poster": False, "has_subtitle": False, "subtitle_paths": [], "embedded_subtitle": False}
     if not file_path or not os.path.exists(file_path):
         return result
 
@@ -71,6 +72,28 @@ def check_episode_metadata(file_path: Optional[str]) -> dict:
         if child.is_file() and child.stem.startswith(stem) and child.suffix.lower() in subtitle_exts:
             result["has_subtitle"] = True
             result["subtitle_paths"].append(str(child))
+
+    # 内嵌字幕检测：优先从 tech_info JSON，否则用 pymediainfo 轻量探测
+    if not result["has_subtitle"]:
+        detected = False
+        # 1) 从已缓存的 tech_info 中读取
+        if tech_info:
+            subtitle_tracks = tech_info.get("subtitle_tracks")
+            if subtitle_tracks and len(subtitle_tracks) > 0:
+                detected = True
+        # 2) tech_info 为空时，用 pymediainfo 快速探测字幕轨
+        if not detected:
+            try:
+                from app.utils.mediainfo_parser import is_mediainfo_available, parse_media_file
+                if is_mediainfo_available() and p.suffix.lower() in (".mkv", ".mp4", ".avi", ".ts", ".m2ts", ".wmv", ".flv"):
+                    parsed = parse_media_file(file_path)
+                    if parsed and parsed.get("subtitle"):
+                        detected = True
+            except Exception:
+                pass  # 探测失败不影响主流程
+        if detected:
+            result["has_subtitle"] = True
+            result["embedded_subtitle"] = True
 
     return result
 
@@ -272,17 +295,33 @@ async def get_directory_detail(
         directory.backdrop_path = convert_file_path_to_url(metadata["backdrop_path"]) if metadata["backdrop_path"] else None
 
         # 转换文件列表，处理可能的验证错误，并实时检查每个文件的 NFO/图片状态
+        import re as _re
+        _resolution_pattern = _re.compile(r'(2160p|1080[pi]|720p|480p|4K)', _re.IGNORECASE)
+
         files_response = []
         for f in detail["files"]:
             try:
                 resp = MediaFileResponse.model_validate(f)
-                # 实时检查该文件旁边的 NFO 和缩略图
+                # 实时检查该文件旁边的 NFO 和缩略图（含字幕检测）
                 actual_path = f.organized_path or f.file_path
-                meta = check_episode_metadata(actual_path)
+                meta = check_episode_metadata(actual_path, tech_info=f.tech_info)
                 resp.has_nfo = meta["has_nfo"]
                 resp.has_poster = meta["has_poster"]
                 resp.has_subtitle = meta.get("has_subtitle", False)
                 resp.subtitle_paths = meta.get("subtitle_paths") or None
+
+                # 分辨率回退：DB 为空时从文件名提取
+                if not resp.resolution and f.file_name:
+                    m = _resolution_pattern.search(f.file_name)
+                    if m:
+                        tag = m.group(1)
+                        # 统一为标准标签
+                        if tag.upper() == "4K":
+                            tag = "2160p"
+                        elif tag.lower() == "1080i":
+                            tag = "1080p"
+                        resp.resolution = tag
+
                 files_response.append(resp)
             except Exception as e:
                 logger.error(f"文件序列化失败: file_id={f.id}, file_path={f.file_path}, 错误: {e}")

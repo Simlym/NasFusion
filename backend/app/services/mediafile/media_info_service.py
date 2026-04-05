@@ -76,20 +76,24 @@ class MediaInfoService:
             # 提取简化信息
             simplified = extract_simplified_info(parsed_data)
 
-            # 更新MediaFile字段
+            # 写入模型实际列：resolution、video_codec、duration
             media_file.duration = simplified.get("duration")
             media_file.resolution = simplified.get("resolution")
-            media_file.width = simplified.get("width")
-            media_file.height = simplified.get("height")
-            media_file.codec_video = simplified.get("codec_video")
-            media_file.codec_audio = simplified.get("codec_audio")
-            media_file.bitrate_video = simplified.get("bitrate_video")
-            media_file.bitrate_audio = simplified.get("bitrate_audio")
-            media_file.fps = simplified.get("fps")
-            media_file.audio_channels = simplified.get("audio_channels")
-            media_file.audio_tracks = simplified.get("audio_tracks")
-            media_file.subtitle_tracks = simplified.get("subtitle_tracks")
-            media_file.mediainfo_full = simplified.get("mediainfo_full")
+            media_file.video_codec = simplified.get("codec_video")
+
+            # 其余技术信息写入 tech_info JSON 列
+            tech_info = {
+                "width": simplified.get("width"),
+                "height": simplified.get("height"),
+                "codec_audio": simplified.get("codec_audio"),
+                "bitrate_video": simplified.get("bitrate_video"),
+                "bitrate_audio": simplified.get("bitrate_audio"),
+                "fps": simplified.get("fps"),
+                "audio_channels": simplified.get("audio_channels"),
+                "audio_tracks": simplified.get("audio_tracks"),
+                "subtitle_tracks": simplified.get("subtitle_tracks"),
+            }
+            media_file.tech_info = tech_info
 
             await db.commit()
             await db.refresh(media_file)
