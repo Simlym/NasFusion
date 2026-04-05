@@ -1376,13 +1376,12 @@ const TASK_CATEGORY_MAP: Record<string, string> = {
   media_server_watch_history_sync: 'media_server',
   media_server_library_stats_update: 'media_server',
   media_server_library_sync: 'media_server',
-  // 媒体元数据
-  media_file_scan: 'metadata',
-  media_file_auto_organize: 'metadata',
-  scan_media: 'metadata',
-  credits_backfill: 'metadata',
-  person_merge: 'metadata',
-  // 系统
+  // 系统（含媒体元数据）
+  media_file_scan: 'system',
+  media_file_auto_organize: 'system',
+  scan_media: 'system',
+  credits_backfill: 'system',
+  person_merge: 'system',
   task_execution_cleanup: 'system',
   cleanup: 'system',
   notification_send: 'system',
@@ -1394,7 +1393,6 @@ const TASK_CATEGORY_NAMES: Record<string, string> = {
   pt_identify: '资源识别',
   download: '订阅与下载',
   media_server: '媒体服务器',
-  metadata: '媒体元数据',
   system: '系统',
 }
 
@@ -1403,11 +1401,10 @@ const TASK_CATEGORY_COLORS: Record<string, 'primary' | 'success' | 'warning' | '
   pt_identify: 'primary',
   download: 'warning',
   media_server: 'success',
-  metadata: 'info',
   system: 'info',
 }
 
-const TASK_CATEGORY_ORDER = ['pt_sync', 'pt_identify', 'download', 'media_server', 'metadata', 'system']
+const TASK_CATEGORY_ORDER = ['pt_sync', 'pt_identify', 'download', 'media_server', 'system']
 
 const getCategoryColor = (category: string): 'primary' | 'success' | 'warning' | 'info' | 'danger' =>
   TASK_CATEGORY_COLORS[category] || 'info'
@@ -3634,11 +3631,11 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.pill-indicator--pt { background: #6366f1; }
-.pill-indicator--download { background: #f59e0b; }
-.pill-indicator--media_server { background: #10b981; }
-.pill-indicator--metadata { background: #6b7280; }
-.pill-indicator--system { background: #9ca3af; }
+.pill-indicator--pt_sync { background: #38BDF8; }
+.pill-indicator--pt_identify { background: #60A5FA; }
+.pill-indicator--download { background: #FBBF24; }
+.pill-indicator--media_server { background: #34D399; }
+.pill-indicator--system { background: #94A3B8; }
 
 .group-pill--active .pill-indicator {
   background: rgba(255, 255, 255, 0.8);
