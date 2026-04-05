@@ -206,8 +206,8 @@
             </div>
           </div>
 
-          <div class="scheduled-actions">
-            <el-select v-model="historyFilters.status" placeholder="全部状态" clearable style="width: 130px">
+          <div class="scheduled-actions history-actions">
+            <el-select v-model="historyFilters.status" placeholder="全部状态" clearable class="history-filter-select">
               <el-option label="已完成" value="completed" />
               <el-option label="失败" value="failed" />
               <el-option label="已取消" value="cancelled" />
@@ -218,7 +218,7 @@
               v-model="historyFilters.keyword"
               placeholder="搜索任务名称"
               clearable
-              style="width: 160px"
+              class="history-filter-input"
               @keyup.enter="loadHistory"
             >
               <template #prefix><el-icon><Search /></el-icon></template>
@@ -229,7 +229,7 @@
               range-separator="至"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
-              style="width: 240px"
+              class="history-date-picker"
               clearable
             />
             <el-button type="primary" :icon="Search" @click="loadHistory">查询</el-button>
@@ -244,9 +244,9 @@
            </el-tag>
         </div>
 
-        <!-- 历史记录表格 -->
+        <!-- 桌面端：历史记录表格 -->
         <el-table
-          v-if="historyList.length > 0"
+          v-if="historyList.length > 0 && !isMobile"
           :data="historyList"
           :style="{ width: '100%' }"
         >
@@ -310,9 +310,35 @@
           </el-table-column>
         </el-table>
 
+        <!-- 移动端：历史记录卡片列表 -->
+        <div v-if="historyList.length > 0 && isMobile" class="history-cards-mobile">
+          <div v-for="row in historyList" :key="row.id" class="history-card-mobile" @click="handleViewDetail(row.id)">
+            <div class="history-card-top">
+              <span class="history-card-name">{{ row.task_name }}</span>
+              <el-tag :type="getStatusTagType(row.status)" size="small">
+                {{ getStatusName(row.status) }}
+              </el-tag>
+            </div>
+            <div class="history-card-meta">
+              <el-tag :type="getTaskTypeColor(row.task_type)" size="small" effect="light">
+                {{ getTaskTypeName(row.task_type) }}
+              </el-tag>
+              <span v-if="['completed', 'failed', 'cancelled'].includes(row.status)" class="history-card-duration">
+                耗时 {{ formatDuration(row.duration) }}
+              </span>
+            </div>
+            <div class="history-card-time">
+              <span>{{ formatDate(row.created_at) }}</span>
+              <span v-if="['completed', 'failed', 'cancelled'].includes(row.status)">
+                → {{ formatDate(row.completed_at || row.updated_at) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- 空状态 -->
         <el-empty
-          v-else
+          v-if="historyList.length === 0"
           description="暂无历史记录"
           :image-size="100"
         />
@@ -324,7 +350,8 @@
             v-model:page-size="historyPagination.page_size"
             :total="historyPagination.total"
             :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
+            :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+            :small="isMobile"
             @size-change="loadHistory"
             @current-change="loadHistory"
           />
@@ -3573,6 +3600,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.history-filter-select {
+  width: 130px;
+}
+
+.history-filter-input {
+  width: 160px;
+}
+
+.history-date-picker {
+  width: 240px;
 }
 
 /* ==================== 快速筛选胶囊 ==================== */
@@ -3824,6 +3864,68 @@ onUnmounted(() => {
 }
 
 
+/* ==================== 历史记录移动端卡片 ==================== */
+.history-cards-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-card-mobile {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: box-shadow 0.18s;
+}
+
+.history-card-mobile:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.history-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.history-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.history-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.history-card-duration {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.history-card-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ==================== 分页 ==================== */
 .pagination-container {
   margin-top: 20px;
@@ -3985,7 +4087,48 @@ onUnmounted(() => {
   }
 
   .scheduled-actions {
-    justify-content: flex-end;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  /* 历史记录筛选在移动端自适应宽度 */
+  .history-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .history-filter-select {
+    width: 100% !important;
+  }
+
+  .history-filter-input {
+    width: 100% !important;
+  }
+
+  .history-date-picker {
+    width: 100% !important;
+    grid-column: 1 / -1;
+  }
+
+  .history-actions .el-button {
+    flex: 1;
+  }
+
+  /* 移动端卡片列表去内边距 */
+  .scheduled-cards-mobile {
+    padding: 0;
+  }
+
+  /* lq-header 移动端换行 */
+  .lq-header {
+    flex-wrap: wrap;
+  }
+
+  .lq-stats {
+    flex: 1;
+    min-width: 0;
   }
 
   /* 概览卡片移动端 */

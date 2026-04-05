@@ -45,7 +45,7 @@
                   v-model="messageFilter.status"
                   placeholder="全部状态"
                   clearable
-                  style="width: 120px; margin-right: 10px"
+                  class="filter-select"
                   @change="loadMessages"
                 >
                   <el-option label="全部" value="" />
@@ -59,8 +59,9 @@
             </div>
           </template>
 
-          <!-- 消息列表 -->
+          <!-- 桌面端：消息表格 -->
           <el-table
+            v-if="!isMobile"
             v-loading="messagesLoading"
             :data="messages"
             style="width: 100%"
@@ -118,6 +119,37 @@
             </el-table-column>
           </el-table>
 
+          <!-- 移动端：消息卡片列表 -->
+          <div v-if="isMobile" v-loading="messagesLoading" class="msg-cards-mobile">
+            <div
+              v-for="msg in messages"
+              :key="msg.id"
+              class="msg-card-mobile"
+              :class="{ 'msg-card-mobile--unread': msg.status === 'unread' }"
+              @click="viewMessage(msg)"
+            >
+              <div class="msg-card-top">
+                <div class="msg-card-title-row">
+                  <div v-if="msg.status === 'unread'" class="unread-indicator"></div>
+                  <span class="msg-card-title" :class="{ 'unread-text': msg.status === 'unread' }">{{ msg.title }}</span>
+                </div>
+                <el-tag :type="getPriorityTag(msg.priority)" size="small">
+                  {{ getPriorityName(msg.priority) }}
+                </el-tag>
+              </div>
+              <div class="msg-card-meta">
+                <el-tag :type="getEventTypeTag(msg.notificationType)" size="small">
+                  {{ getEventTypeName(msg.notificationType) }}
+                </el-tag>
+                <span class="msg-card-time">{{ formatDateTime(msg.createdAt) }}</span>
+              </div>
+              <div class="msg-card-actions">
+                <el-button link type="primary" size="small" @click.stop="viewMessage(msg)">查看</el-button>
+                <el-button link type="danger" size="small" @click.stop="deleteMessage(msg)">删除</el-button>
+              </div>
+            </div>
+          </div>
+
           <!-- 分页 -->
           <el-pagination
             v-if="messagePagination.total > 0"
@@ -125,8 +157,9 @@
             v-model:page-size="messagePagination.pageSize"
             :total="messagePagination.total"
             :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next"
-            style="margin-top: 20px; justify-content: flex-end"
+            :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next'"
+            :small="isMobile"
+            class="notification-pagination"
             @size-change="loadMessages"
             @current-change="loadMessages"
           />
@@ -147,7 +180,7 @@
                   v-model="externalFilter.status"
                   placeholder="全部状态"
                   clearable
-                  style="width: 120px; margin-right: 10px"
+                  class="filter-select"
                   @change="loadExternalMessages"
                 >
                   <el-option label="全部" value="" />
@@ -159,7 +192,7 @@
                   v-model="externalFilter.channelType"
                   placeholder="全部渠道"
                   clearable
-                  style="width: 120px; margin-right: 10px"
+                  class="filter-select"
                   @change="loadExternalMessages"
                 >
                   <el-option label="全部" value="" />
@@ -172,8 +205,9 @@
             </div>
           </template>
 
-          <!-- 站外消息列表 -->
+          <!-- 桌面端：站外消息表格 -->
           <el-table
+            v-if="!isMobile"
             v-loading="externalLoading"
             :data="externalMessages"
             style="width: 100%"
@@ -212,6 +246,29 @@
             </el-table-column>
           </el-table>
 
+          <!-- 移动端：站外消息卡片列表 -->
+          <div v-if="isMobile" v-loading="externalLoading" class="msg-cards-mobile">
+            <div
+              v-for="msg in externalMessages"
+              :key="msg.id"
+              class="msg-card-mobile"
+              @click="viewExternalMessage(msg)"
+            >
+              <div class="msg-card-top">
+                <span class="msg-card-title">{{ msg.title }}</span>
+              </div>
+              <div class="msg-card-meta">
+                <el-tag :type="getChannelTypeTag(msg.channelType)" size="small">
+                  {{ getChannelTypeName(msg.channelType) }}
+                </el-tag>
+                <el-tag :type="getExternalStatusTag(msg.status)" size="small">
+                  {{ getExternalStatusName(msg.status) }}
+                </el-tag>
+                <span class="msg-card-time">{{ msg.sentAt ? formatDateTime(msg.sentAt) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 分页 -->
           <el-pagination
             v-if="externalPagination.total > 0"
@@ -219,8 +276,9 @@
             v-model:page-size="externalPagination.pageSize"
             :total="externalPagination.total"
             :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            style="margin-top: 20px; justify-content: flex-end"
+            :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+            :small="isMobile"
+            class="notification-pagination"
             @size-change="loadExternalMessages"
             @current-change="loadExternalMessages"
           />
@@ -235,7 +293,7 @@
     <el-dialog
       v-model="messageDialogVisible"
       :title="currentMessage?.title"
-      width="600px"
+      :width="isMobile ? '95%' : '600px'"
     >
       <div v-if="currentMessage" class="message-detail">
         <el-descriptions :column="1" border>
@@ -274,10 +332,10 @@
     <el-dialog
       v-model="externalDialogVisible"
       :title="currentExternalMessage?.title"
-      width="700px"
+      :width="isMobile ? '95%' : '700px'"
     >
       <div v-if="currentExternalMessage" class="external-message-detail">
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="isMobile ? 1 : 2" border>
           <el-descriptions-item label="消息类型">
             <el-tag :type="getEventTypeTag(currentExternalMessage.notificationType)" size="small">
               {{ getEventTypeName(currentExternalMessage.notificationType) }}
@@ -323,7 +381,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -343,6 +401,12 @@ import {
 import { formatDateTime } from '@/utils'
 
 const router = useRouter()
+
+// 移动端检测
+const isMobile = ref(window.innerWidth <= 768)
+const handleMobileResize = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // Tab 状态
 const activeTab = ref('messages')
@@ -623,6 +687,11 @@ const getExternalStatusName = (status: string) => {
 // ==================== 生命周期 ====================
 onMounted(() => {
   loadMessages()
+  window.addEventListener('resize', handleMobileResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleMobileResize)
 })
 </script>
 
@@ -659,11 +728,24 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-select {
+  width: 120px;
+}
+
+.notification-pagination {
+  margin-top: 20px;
+  justify-content: flex-end;
 }
 
 .badge-margin {
@@ -765,5 +847,115 @@ onMounted(() => {
 
 .message-response h4 {
   margin-bottom: 10px;
+}
+
+/* ==================== 移动端卡片视图 ==================== */
+.msg-cards-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.msg-card-mobile {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: box-shadow 0.18s;
+}
+
+.msg-card-mobile:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.msg-card-mobile--unread {
+  border-left: 3px solid #409EFF;
+}
+
+.msg-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.msg-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.msg-card-title {
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.msg-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.msg-card-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-left: auto;
+}
+
+.msg-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .filter-select {
+    width: 100px;
+  }
+
+  .notification-pagination {
+    justify-content: center;
+  }
+
+  .message-content pre {
+    font-size: 13px;
+    padding: 10px;
+  }
 }
 </style>
