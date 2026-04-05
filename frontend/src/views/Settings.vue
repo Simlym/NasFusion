@@ -18,6 +18,7 @@
       <SystemSettings v-else-if="activeTab === 'advanced'" />
       <UsersManagement v-else-if="activeTab === 'users' && isAdmin" />
       <MCPServerSettings v-else-if="activeTab === 'mcp-servers'" />
+      <LLMSettings v-else-if="activeTab === 'llm'" />
       <LoginSecurity v-else-if="activeTab === 'login-security'" />
     </div>
   </div>
@@ -34,6 +35,7 @@ import SystemSettings from '@/components/settings/SystemSettings.vue'
 import StorageSettings from '@/components/settings/StorageSettings.vue'
 import LoginSecurity from '@/components/settings/LoginSecurity.vue'
 import MCPServerSettings from '@/components/settings/MCPServerSettings.vue'
+import LLMSettings from '@/components/settings/LLMSettings.vue'
 
 const route = useRoute()
 const router = useRouter()

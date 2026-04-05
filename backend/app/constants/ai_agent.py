@@ -77,6 +77,30 @@ ZHIPU_MODEL_DISPLAY_NAMES = {
     ZHIPU_MODEL_GLM_4: "GLM-4 (标准)",
 }
 
+# ===== 供应商类型信息 =====
+LLM_PROVIDER_TYPE_INFO = {
+    LLM_PROVIDER_ZHIPU: {
+        "has_predefined_models": True,
+        "default_api_base": "https://open.bigmodel.cn/api/paas/v4",
+    },
+    LLM_PROVIDER_OPENAI: {
+        "has_predefined_models": False,
+        "default_api_base": "https://api.openai.com/v1",
+    },
+    LLM_PROVIDER_DEEPSEEK: {
+        "has_predefined_models": False,
+        "default_api_base": "https://api.deepseek.com/v1",
+    },
+    LLM_PROVIDER_ANTHROPIC: {
+        "has_predefined_models": False,
+        "default_api_base": "https://api.anthropic.com/v1",
+    },
+    LLM_PROVIDER_QWEN: {
+        "has_predefined_models": False,
+        "default_api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    },
+}
+
 # ===== Agent 工具类型 =====
 AGENT_TOOL_MOVIE_RECOMMEND = "movie_recommend"
 AGENT_TOOL_TV_RECOMMEND = "tv_recommend"

@@ -23,6 +23,7 @@ import * as aiAgentApi from './modules/aiAgent'
 import * as personApi from './modules/person'
 import * as loginHistoryApi from './modules/loginHistory'
 import * as mcpServerApi from './modules/mcpServer'
+import * as llmConfigApi from './modules/llmConfig'
 
 
 export default {
@@ -47,6 +48,7 @@ export default {
   person: personApi,
   loginHistory: loginHistoryApi,
   mcpServer: mcpServerApi,
+  llmConfig: llmConfigApi,
 }
 
 

@@ -233,6 +233,7 @@ const routes: RouteRecordRaw[] = [
               { name: 'media-scraping', label: '媒体刮削', icon: 'lucide:scan-search' },
               { name: 'notifications', label: '通知设置', icon: 'lucide:bell-ring' },
               { name: 'mcp-servers', label: 'MCP服务', icon: 'lucide:plug' },
+              { name: 'llm', label: 'LLM 配置', icon: 'lucide:brain' },
               { name: 'login-security', label: '登录安全', icon: 'lucide:shield-check' }
             ]
           }

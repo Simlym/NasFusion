@@ -21,6 +21,8 @@ export interface LLMProvider {
 export interface AIAgentConfig {
   id: number
   user_id: number
+  llm_config_id?: number | null
+  llm_config_name?: string | null
   provider: string
   api_base?: string
   proxy?: string
@@ -40,11 +42,12 @@ export interface AIAgentConfig {
 }
 
 export interface AIAgentConfigCreate {
-  provider: string
-  api_key: string
+  llm_config_id?: number | null
+  provider?: string
+  api_key?: string
   api_base?: string
   proxy?: string
-  model: string
+  model?: string
   temperature?: string
   max_tokens?: number
   top_p?: string
@@ -55,6 +58,7 @@ export interface AIAgentConfigCreate {
 }
 
 export interface AIAgentConfigUpdate {
+  llm_config_id?: number | null
   provider?: string
   api_key?: string
   api_base?: string
@@ -146,6 +150,14 @@ export interface AITool {
   name: string
   description: string
   parameters: any
+}
+
+export interface LLMConfigOption {
+  id: number
+  name: string
+  provider: string
+  model: string
+  is_enabled: boolean
 }
 
 // ==================== API 请求 ====================
@@ -254,4 +266,11 @@ export function getChatStreamUrl() {
  */
 export function getTools() {
   return request.get<{ tools: AITool[] }>('/ai-agent/tools')
+}
+
+/**
+ * 获取已启用的全局 LLM 配置列表（给 AI 助手选择用）
+ */
+export function getLLMOptions() {
+  return request.get<LLMConfigOption[]>('/ai-agent/llm-options')
 }

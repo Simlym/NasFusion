@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     ai_agent,
     auth,
+    llm_config,
     mcp,
     telegram_webhook,
     download_tasks,
@@ -78,5 +79,6 @@ api_router.include_router(storage_mounts.router)
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(login_history.router)
 api_router.include_router(ai_agent.router)
+api_router.include_router(llm_config.router)
 api_router.include_router(mcp.router)
 api_router.include_router(telegram_webhook.router)

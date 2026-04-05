@@ -31,7 +31,9 @@ from app.schemas.ai_agent import (
     LLMProviderInfo,
     LLMProvidersResponse,
 )
+from app.schemas.llm_config import LLMConfigBrief
 from app.services.ai_agent import AIAgentService
+from app.services.llm_config_service import LLMConfigService
 from app.adapters.llm import get_llm_adapter, get_supported_providers
 from app.constants.ai_agent import (
     LLM_PROVIDER_DISPLAY_NAMES,
@@ -67,6 +69,16 @@ async def get_providers():
     return LLMProvidersResponse(providers=providers)
 
 
+@router.get("/llm-options", response_model=list[LLMConfigBrief])
+async def get_llm_options(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """获取已启用的全局 LLM 配置列表（给 AI 助手选择用）"""
+    configs = await LLMConfigService.list_enabled(db)
+    return [LLMConfigBrief.model_validate(c) for c in configs]
+
+
 # ==================== 配置管理 ====================
 
 @router.get("/config", response_model=Optional[AIAgentConfigResponse])
@@ -78,7 +90,13 @@ async def get_config(
     config = await AIAgentService.get_config(db, current_user.id)
     if not config:
         return None
-    return AIAgentConfigResponse.model_validate(config)
+    response = AIAgentConfigResponse.model_validate(config)
+    # 填充 llm_config_name
+    if config.llm_config_id:
+        llm_cfg = await LLMConfigService.get_by_id(db, config.llm_config_id)
+        if llm_cfg:
+            response.llm_config_name = llm_cfg.name
+    return response
 
 
 @router.post("/config", response_model=AIAgentConfigResponse)

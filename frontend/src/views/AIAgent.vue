@@ -159,60 +159,25 @@
       width="min(600px, 95vw)"
     >
       <el-form :model="configForm" label-width="120px">
-        <el-form-item label="LLM 供应商">
-          <el-select v-model="configForm.provider" @change="onProviderChange">
-            <el-option
-              v-for="p in providers"
-              :key="p.provider"
-              :label="p.display_name"
-              :value="p.provider"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="模型">
-          <el-select v-model="configForm.model">
-            <el-option
-              v-for="m in currentModels"
-              :key="m.id"
-              :label="m.name"
-              :value="m.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="API Key" :required="!config">
-          <el-input
-            v-model="configForm.api_key"
-            type="password"
-            show-password
-            :placeholder="config ? '已设置（留空则不修改）' : '请输入 API Key'"
-          />
-        </el-form-item>
-
-        <el-form-item label="API 地址">
-          <el-input
-            v-model="configForm.api_base"
-            placeholder="可选，使用默认地址"
-          />
-        </el-form-item>
-
-        <el-form-item label="代理">
-          <el-input
-            v-model="configForm.proxy"
-            placeholder="可选，如 http://127.0.0.1:7890"
-          />
-        </el-form-item>
-
-        <el-form-item label="温度">
-          <el-slider
-            v-model="configForm.temperature"
-            :min="0"
-            :max="1"
-            :step="0.1"
-            show-input
+        <el-form-item label="LLM 配置">
+          <el-select
+            v-model="configForm.llm_config_id"
+            placeholder="选择已配置的 LLM"
+            clearable
             style="width: 100%"
-          />
+          >
+            <el-option
+              v-for="opt in llmOptions"
+              :key="opt.id"
+              :label="`${opt.name} (${opt.model})`"
+              :value="opt.id"
+            />
+          </el-select>
+          <div v-if="llmOptions.length === 0" class="form-tip" style="margin-top: 8px;">
+            暂无可用的 LLM 配置，请前往
+            <router-link to="/settings?tab=llm" style="color: var(--el-color-primary);">系统设置 &gt; LLM 配置</router-link>
+            添加供应商
+          </div>
         </el-form-item>
 
         <el-form-item label="启用">
@@ -231,9 +196,6 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="testConfig" :loading="testLoading">
-          测试连接
-        </el-button>
         <el-button @click="showConfigDialog = false">取消</el-button>
         <el-button type="primary" @click="saveConfig" :loading="saveLoading">
           保存
@@ -263,13 +225,12 @@ import type {
   AIAgentConfig,
   AIConversation,
   AIMessage,
-  LLMProvider,
+  LLMConfigOption,
 } from '@/api/modules/aiAgent'
 
 // ==================== 状态 ====================
 
 const loading = ref(false)
-const testLoading = ref(false)
 const saveLoading = ref(false)
 const showConfigDialog = ref(false)
 const messageListRef = ref<HTMLElement>()
@@ -281,7 +242,7 @@ const streamingToolCalls = ref<Array<{ name: string; status: string; result?: an
 
 
 const config = ref<AIAgentConfig | null>(null)
-const providers = ref<LLMProvider[]>([])
+const llmOptions = ref<LLMConfigOption[]>([])
 const conversations = ref<AIConversation[]>([])
 const messages = ref<AIMessage[]>([])
 const currentConversationId = ref<number | null>(null)
@@ -289,13 +250,7 @@ const inputMessage = ref('')
 const sidebarVisible = ref(false)
 
 const configForm = ref({
-  provider: 'zhipu',
-  model: 'glm-5',
-  api_key: '',
-  api_base: '',
-  proxy: '',
-  temperature: 0.7,
-  max_tokens: 2048,
+  llm_config_id: null as number | null,
   is_enabled: true,
   enable_tools: true,
   enable_streaming: true,
@@ -318,11 +273,6 @@ const toolDisplayNames: Record<string, string> = {
 }
 
 // ==================== 计算属性 ====================
-
-const currentModels = computed(() => {
-  const provider = providers.value.find(p => p.provider === configForm.value.provider)
-  return provider?.models || []
-})
 
 // 过滤掉 tool 角色的消息（这些是技术细节，用户不需要看到）
 const visibleMessages = computed(() => {
@@ -362,13 +312,13 @@ const scrollToBottom = () => {
   })
 }
 
-// 加载供应商列表
-const loadProviders = async () => {
+// 加载 LLM 配置选项
+const loadLLMOptions = async () => {
   try {
-    const res = await api.aiAgent.getProviders()
-    providers.value = res.data.providers
+    const res = await api.aiAgent.getLLMOptions()
+    llmOptions.value = res.data || []
   } catch (error) {
-    console.error('加载供应商失败:', error)
+    console.error('加载 LLM 选项失败:', error)
   }
 }
 
@@ -379,13 +329,7 @@ const loadConfig = async () => {
     config.value = res.data
     if (res.data) {
       configForm.value = {
-        provider: res.data.provider,
-        model: res.data.model,
-        api_key: '',
-        api_base: res.data.api_base || '',
-        proxy: res.data.proxy || '',
-        temperature: parseFloat(res.data.temperature),
-        max_tokens: res.data.max_tokens,
+        llm_config_id: res.data.llm_config_id ?? null,
         is_enabled: res.data.is_enabled,
         enable_tools: res.data.enable_tools,
         enable_streaming: res.data.enable_streaming ?? true,
@@ -620,72 +564,25 @@ const sendMessageStream = async (message: string, tempUserMessage: AIMessage) =>
   }
 }
 
-// 供应商改变
-const onProviderChange = () => {
-  const provider = providers.value.find(p => p.provider === configForm.value.provider)
-  if (provider?.models?.length) {
-    configForm.value.model = provider.models[0].id
-  }
-}
-
-// 测试连接
-const testConfig = async () => {
-  if (!configForm.value.api_key) {
-    ElMessage.warning('请输入 API Key')
-    return
-  }
-
-  testLoading.value = true
-  try {
-    const res = await api.aiAgent.testConnection({
-      provider: configForm.value.provider,
-      api_key: configForm.value.api_key,
-      api_base: configForm.value.api_base || undefined,
-      proxy: configForm.value.proxy || undefined,
-      model: configForm.value.model,
-    })
-
-    if (res.data.success) {
-      ElMessage.success(`连接成功！延迟: ${res.data.latency_ms}ms`)
-    } else {
-      ElMessage.error(res.data.message)
-    }
-  } catch (error) {
-    ElMessage.error('测试失败')
-  } finally {
-    testLoading.value = false
-  }
-}
-
 // 保存配置
 const saveConfig = async () => {
-  if (!configForm.value.api_key && !config.value) {
-    ElMessage.warning('请输入 API Key')
+  if (!configForm.value.llm_config_id) {
+    ElMessage.warning('请选择 LLM 配置')
     return
   }
 
   saveLoading.value = true
   try {
     const data: any = {
-      provider: configForm.value.provider,
-      model: configForm.value.model,
-      api_base: configForm.value.api_base || undefined,
-      proxy: configForm.value.proxy || undefined,
-      temperature: configForm.value.temperature.toString(),
-      max_tokens: configForm.value.max_tokens,
+      llm_config_id: configForm.value.llm_config_id,
       is_enabled: configForm.value.is_enabled,
       enable_tools: configForm.value.enable_tools,
       enable_streaming: configForm.value.enable_streaming,
     }
 
-    if (configForm.value.api_key) {
-      data.api_key = configForm.value.api_key
-    }
-
     if (config.value) {
       await api.aiAgent.updateConfig(data)
     } else {
-      data.api_key = configForm.value.api_key
       await api.aiAgent.createConfig(data)
     }
 
@@ -702,7 +599,7 @@ const saveConfig = async () => {
 // ==================== 生命周期 ====================
 
 onMounted(async () => {
-  await loadProviders()
+  await loadLLMOptions()
   await loadConfig()
   await loadConversations()
 })

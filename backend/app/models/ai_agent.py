@@ -131,8 +131,18 @@ class AIAgentConfig(BaseModel):
         comment="自定义系统提示词",
     )
 
+    # 全局 LLM 配置关联
+    llm_config_id = Column(
+        Integer,
+        ForeignKey("llm_configs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联的全局LLM配置ID",
+    )
+
     # 关系
     user = relationship("User", backref="ai_agent_configs")
+    llm_config = relationship("LLMConfig")
 
 
 class AIConversation(BaseModel):

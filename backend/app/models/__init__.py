@@ -49,6 +49,7 @@ from app.models.ai_agent import (
     AIMessage,
     AIToolExecution,
 )
+from app.models.llm_config import LLMConfig
 from app.models.mcp_server import MCPExternalServer
 
 __all__ = [
@@ -98,5 +99,6 @@ __all__ = [
     "AIConversation",
     "AIMessage",
     "AIToolExecution",
+    "LLMConfig",
     "MCPExternalServer",
 ]

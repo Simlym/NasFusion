@@ -27,6 +27,7 @@ from app.utils.timezone import now as tz_now
 from app.models import AIAgentConfig, AIConversation, AIMessage, AIToolExecution
 from app.services.ai_agent.mcp_client.client import mcp_client
 from app.utils.timezone import now
+from app.services.llm_config_service import LLMConfigService
 
 
 logger = logging.getLogger(__name__)
@@ -239,6 +240,45 @@ class AIAgentService:
     # ==================== Agent 执行 ====================
 
     @staticmethod
+    async def _resolve_llm_adapter(db: AsyncSession, config: AIAgentConfig):
+        """
+        解析 LLM 适配器
+
+        优先使用全局 LLM 配置，如果没有则 fallback 到 per-user 配置
+        """
+        # 优先使用全局 LLM 配置
+        if config.llm_config_id:
+            resolved = await LLMConfigService.get_resolved_config(db, config.llm_config_id)
+            if resolved:
+                # 使用全局配置的默认值，但允许 per-user 覆盖
+                return get_llm_adapter(
+                    resolved["provider"],
+                    {
+                        "api_key": resolved["api_key"],
+                        "api_base": resolved["api_base"],
+                        "proxy": resolved["proxy"],
+                        "model": config.model or resolved["model"],
+                        "temperature": float(config.temperature),
+                        "max_tokens": config.max_tokens,
+                        "top_p": float(config.top_p),
+                    }
+                )
+
+        # Fallback: 使用 per-user 配置
+        return get_llm_adapter(
+            config.provider,
+            {
+                "api_key": config.api_key,
+                "api_base": config.api_base,
+                "proxy": config.proxy,
+                "model": config.model,
+                "temperature": float(config.temperature),
+                "max_tokens": config.max_tokens,
+                "top_p": float(config.top_p),
+            }
+        )
+
+    @staticmethod
     async def chat(
         db: AsyncSession,
         user_id: int,
@@ -315,20 +355,9 @@ class AIAgentService:
         if new_summary:
             await ContextManager.update_conversation_summary(db, conversation, new_summary)
 
-        # 获取LLM适配器
+        # 获取LLM适配器（优先使用全局 LLM 配置，fallback 到 per-user）
         try:
-            adapter = get_llm_adapter(
-                config.provider,
-                {
-                    "api_key": config.api_key,
-                    "api_base": config.api_base,
-                    "proxy": config.proxy,
-                    "model": config.model,
-                    "temperature": float(config.temperature),
-                    "max_tokens": config.max_tokens,
-                    "top_p": float(config.top_p),
-                }
-            )
+            adapter = await AIAgentService._resolve_llm_adapter(db, config)
         except Exception as e:
             logger.exception("创建LLM适配器失败")
             return {
@@ -567,20 +596,9 @@ class AIAgentService:
         if new_summary:
             await ContextManager.update_conversation_summary(db, conversation, new_summary)
 
-        # 获取LLM适配器
+        # 获取LLM适配器（优先使用全局 LLM 配置，fallback 到 per-user）
         try:
-            adapter = get_llm_adapter(
-                config.provider,
-                {
-                    "api_key": config.api_key,
-                    "api_base": config.api_base,
-                    "proxy": config.proxy,
-                    "model": config.model,
-                    "temperature": float(config.temperature),
-                    "max_tokens": config.max_tokens,
-                    "top_p": float(config.top_p),
-                }
-            )
+            adapter = await AIAgentService._resolve_llm_adapter(db, config)
         except Exception as e:
             yield {
                 "type": "error",

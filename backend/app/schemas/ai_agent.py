@@ -14,7 +14,7 @@ from app.schemas.base import BaseResponseSchema
 
 class AIAgentConfigBase(BaseModel):
     """AI Agent 配置基础"""
-    provider: str = Field(default="zhipu", description="LLM供应商")
+    llm_config_id: Optional[int] = Field(default=None, description="关联的全局LLM配置ID")
     model: str = Field(default="glm-4-flash", description="模型")
     temperature: str = Field(default="0.7", description="温度参数")
     max_tokens: int = Field(default=2048, description="最大Token数")
@@ -27,13 +27,16 @@ class AIAgentConfigBase(BaseModel):
 
 class AIAgentConfigCreate(AIAgentConfigBase):
     """创建 AI Agent 配置"""
-    api_key: str = Field(..., description="API密钥")
-    api_base: Optional[str] = Field(default=None, description="API基础URL")
-    proxy: Optional[str] = Field(default=None, description="代理服务器")
+    # 向后兼容：仍然支持直接传入供应商信息
+    provider: Optional[str] = Field(default=None, description="LLM供应商（兼容旧模式）")
+    api_key: Optional[str] = Field(default=None, description="API密钥（兼容旧模式）")
+    api_base: Optional[str] = Field(default=None, description="API基础URL（兼容旧模式）")
+    proxy: Optional[str] = Field(default=None, description="代理服务器（兼容旧模式）")
 
 
 class AIAgentConfigUpdate(BaseModel):
     """更新 AI Agent 配置"""
+    llm_config_id: Optional[int] = None
     provider: Optional[str] = None
     api_key: Optional[str] = None
     api_base: Optional[str] = None
@@ -52,6 +55,8 @@ class AIAgentConfigResponse(BaseResponseSchema):
     """AI Agent 配置响应"""
     id: int
     user_id: int
+    llm_config_id: Optional[int]
+    llm_config_name: Optional[str] = None
     provider: str
     api_base: Optional[str]
     proxy: Optional[str]
