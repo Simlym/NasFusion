@@ -134,9 +134,13 @@ class NFOParserService:
         data["poster"] = NFOParserService._get_text(root, "thumb")
         data["fanart"] = NFOParserService._get_text(root, "fanart")
 
-        # IMDB/TMDB ID
+        # IMDB/TMDB/Douban ID
         data["imdb_id"] = NFOParserService._get_text(root, "id")
         data["tmdb_id"] = NFOParserService._get_text(root, "tmdbid")
+        data["douban_id"] = NFOParserService._get_text(root, "doubanid")
+
+        # 从 <uniqueid> 标签提取ID（TMM等工具的标准格式）
+        NFOParserService._parse_unique_ids(root, data)
 
         return data
 
@@ -193,6 +197,10 @@ class NFOParserService:
         data["tvdb_id"] = NFOParserService._get_text(root, "id")
         data["tmdb_id"] = NFOParserService._get_text(root, "tmdbid")
         data["imdb_id"] = NFOParserService._get_text(root, "imdbid")
+        data["douban_id"] = NFOParserService._get_text(root, "doubanid")
+
+        # 从 <uniqueid> 标签提取ID（TMM等工具的标准格式）
+        NFOParserService._parse_unique_ids(root, data)
 
         return data
 
@@ -299,6 +307,34 @@ class NFOParserService:
                 data["poster"] = poster.text.strip()
 
         return data
+
+    @staticmethod
+    def _parse_unique_ids(root: ET.Element, data: Dict[str, Any]):
+        """
+        从 <uniqueid> 标签提取各平台ID
+
+        TMM/Kodi标准格式：
+          <uniqueid type="tmdb">12345</uniqueid>
+          <uniqueid type="imdb">tt1234567</uniqueid>
+          <uniqueid type="douban">1234567</uniqueid>
+          <uniqueid type="tvdb">12345</uniqueid>
+
+        只在对应字段为空时才填充，避免覆盖已解析的专用标签值。
+        """
+        for uid_elem in root.findall("uniqueid"):
+            uid_type = (uid_elem.get("type") or "").lower()
+            uid_value = uid_elem.text.strip() if uid_elem.text else None
+            if not uid_value:
+                continue
+
+            if uid_type == "tmdb" and not data.get("tmdb_id"):
+                data["tmdb_id"] = uid_value
+            elif uid_type == "imdb" and not data.get("imdb_id"):
+                data["imdb_id"] = uid_value
+            elif uid_type == "douban" and not data.get("douban_id"):
+                data["douban_id"] = uid_value
+            elif uid_type == "tvdb" and not data.get("tvdb_id"):
+                data["tvdb_id"] = uid_value
 
     @staticmethod
     def _get_text(root: ET.Element, tag: str) -> Optional[str]:
