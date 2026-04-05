@@ -31,14 +31,6 @@
       <div class="filter-right">
         <el-button
           v-if="filters.config_id"
-          :icon="Connection"
-          :loading="rematchLoading"
-          @click="handleBatchRematch"
-        >
-          批量重新匹配
-        </el-button>
-        <el-button
-          v-if="filters.config_id"
           :icon="Refresh"
           :loading="syncing"
           class="ml-2"
@@ -78,18 +70,17 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Refresh, Loading, Connection } from '@element-plus/icons-vue'
+import { Refresh, Loading } from '@element-plus/icons-vue'
 import api from '@/api'
 import type { ViewingHistory, MediaServerConfig } from '@/types/mediaServer'
 import WatchHistoryItem from './WatchHistoryItem.vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
 const loading = ref(false)
 const loadingMore = ref(false)
 const noMore = ref(false)
-const rematchLoading = ref(false)
 const syncing = ref(false)
 const history = ref<ViewingHistory[]>([])
 const configs = ref<MediaServerConfig[]>([])
@@ -156,80 +147,6 @@ const handleRefresh = () => {
   loadHistory()
 }
 
-const handleBatchRematch = async () => {
-  if (!filters.config_id) {
-    ElMessage.warning('请先选择媒体服务器')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      '将使用增强的匹配逻辑（Provider IDs、路径映射等）重新匹配观看历史到本地资源。是否继续？',
-      '批量重新匹配',
-      {
-        confirmButtonText: '仅匹配未关联项',
-        cancelButtonText: '取消',
-        distinguishCancelAndClose: true,
-        type: 'info'
-      }
-    )
-
-    // 用户选择"仅匹配未关联项"
-    rematchLoading.value = true
-    const res = await api.mediaServer.batchRematchWatchHistory(filters.config_id, true)
-
-    ElMessage.success(`${res.data.message}，任务ID: ${res.data.execution_id}`)
-
-    // 轮询任务状态
-    pollTaskStatus(res.data.execution_id)
-  } catch (action) {
-    if (action === 'close') {
-      // 用户选择"全部重新匹配"（点击关闭按钮）
-      try {
-        rematchLoading.value = true
-        const res = await api.mediaServer.batchRematchWatchHistory(filters.config_id, false)
-
-        ElMessage.success(`${res.data.message}，任务ID: ${res.data.execution_id}`)
-
-        // 轮询任务状态
-        pollTaskStatus(res.data.execution_id)
-      } catch (err) {
-        rematchLoading.value = false
-        ElMessage.error('创建匹配任务失败')
-      }
-    } else {
-      // 用户取消
-      rematchLoading.value = false
-    }
-  }
-}
-
-const pollTaskStatus = async (executionId: number) => {
-  const poll = async () => {
-    try {
-      const taskRes = await api.task.getTaskExecution(executionId)
-      const task = taskRes.data
-
-      if (task.status === 'completed') {
-        rematchLoading.value = false
-        ElMessage.success('批量匹配完成！正在刷新数据...')
-        await loadHistory()
-      } else if (task.status === 'failed') {
-        rematchLoading.value = false
-        ElMessage.error(`批量匹配失败: ${task.error_message || '未知错误'}`)
-      } else if (task.status === 'running' || task.status === 'pending') {
-        // 继续轮询
-        setTimeout(poll, 2000)
-      }
-    } catch (err) {
-      rematchLoading.value = false
-      ElMessage.error('查询任务状态失败')
-    }
-  }
-
-  await poll()
-}
-
 const handleSync = async () => {
   if (!filters.config_id) {
     ElMessage.warning('请先选择媒体服务器')
@@ -288,31 +205,29 @@ onUnmounted(() => {
 
 <style scoped>
 .watch-history-view {
-  padding: 24px;
+  padding: 20px 24px;
 }
 
+/* ====== 工具栏 ====== */
 .filter-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  background: var(--el-bg-color);
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: var(--box-shadow-xs);
+  margin-bottom: 20px;
+  gap: 12px;
 }
 
 .filter-left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .filter-label {
@@ -323,40 +238,47 @@ onUnmounted(() => {
 }
 
 .filter-select {
-  width: 160px;
+  width: 140px;
 }
 
 .filter-checkbox {
   margin-right: 0;
 }
 
+/* ====== 网格 ====== */
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .load-more-trigger {
   text-align: center;
-  padding: 32px 0;
-  color: var(--text-color-secondary);
+  padding: 28px 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 
 .empty-tip {
-  color: var(--text-color-secondary);
+  color: var(--el-text-color-secondary);
   margin-bottom: 20px;
 }
 
+/* ====== 响应式 ====== */
 @media (max-width: 768px) {
-  .history-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
+  .watch-history-view {
+    padding: 12px;
   }
-  
+
+  .history-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
   .filter-toolbar {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
   }
 }
 </style>
