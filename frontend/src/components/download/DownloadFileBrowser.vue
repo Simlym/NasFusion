@@ -290,6 +290,12 @@
                 <el-option label="电视剧" value="tv" />
               </el-select>
             </el-form-item>
+            <el-form-item label="来源">
+              <el-radio-group v-model="manualSearch.search_source">
+                <el-radio value="tmdb">TMDB</el-radio>
+                <el-radio value="douban">豆瓣</el-radio>
+              </el-radio-group>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="manualSearch.loading" @click="handleManualSearch"
                 >搜索</el-button
@@ -311,10 +317,10 @@
           </div>
           <div v-else class="candidates-list">
             <div
-              v-for="candidate in identifyDialog.candidates"
-              :key="candidate.tmdb_id"
+              v-for="(candidate, idx) in identifyDialog.candidates"
+              :key="(candidate as any)._source === 'douban' ? 'douban-' + (candidate as any)._douban_id : 'tmdb-' + candidate.tmdb_id"
               class="candidate-item"
-              :class="{ selected: identifyDialog.selectedCandidate?.tmdb_id === candidate.tmdb_id }"
+              :class="{ selected: identifyDialog.selectedCandidate === candidate }"
               @click="identifyDialog.selectedCandidate = candidate"
             >
               <el-image
@@ -323,7 +329,10 @@
                 style="width: 100px; height: 150px; border-radius: 4px"
               />
               <div class="candidate-info">
-                <h4>{{ candidate.title }} ({{ candidate.year || '未知年份' }})</h4>
+                <h4>
+                  {{ candidate.title }} ({{ candidate.year || '未知年份' }})
+                  <el-tag v-if="(candidate as any)._source === 'douban'" size="small" type="warning" style="margin-left: 5px">豆瓣</el-tag>
+                </h4>
                 <p v-if="candidate.original_title && candidate.original_title !== candidate.title">
                   原名: {{ candidate.original_title }}
                 </p>
@@ -398,6 +407,7 @@ import {
   identifyMediaFile,
   linkMediaFileToResource,
   searchTMDB,
+  searchDouban,
   scrapeMediaFile,
   batchScrapeMediaFiles,
   generateNFO,
@@ -457,6 +467,7 @@ const manualSearch = reactive({
   title: '',
   year: undefined as number | undefined,
   media_type: 'movie',
+  search_source: 'tmdb' as 'tmdb' | 'douban',
   loading: false
 })
 
@@ -659,16 +670,41 @@ async function handleManualSearch() {
 
   manualSearch.loading = true
   try {
-    const res = await searchTMDB({
-      title: manualSearch.title,
-      year: manualSearch.year,
-      media_type: manualSearch.media_type
-    })
-    identifyDialog.candidates = res.data.results || []
+    if (manualSearch.search_source === 'douban') {
+      const res = await searchDouban({
+        title: manualSearch.title,
+        year: manualSearch.year,
+        media_type: manualSearch.media_type
+      })
+      // 将豆瓣结果转换为统一的候选格式
+      identifyDialog.candidates = (res.data.results || []).map((item: any) => ({
+        tmdb_id: 0,
+        title: item.title,
+        original_title: '',
+        year: item.year,
+        overview: item.overview,
+        poster_url: item.poster_url,
+        rating_tmdb: item.rating_douban,
+        genres: [],
+        media_type: manualSearch.media_type,
+        _source: 'douban' as const,
+        _douban_id: item.douban_id,
+      }))
+    } else {
+      const res = await searchTMDB({
+        title: manualSearch.title,
+        year: manualSearch.year,
+        media_type: manualSearch.media_type
+      })
+      identifyDialog.candidates = (res.data.results || []).map((item: any) => ({
+        ...item,
+        _source: 'tmdb' as const,
+      }))
+    }
     identifyDialog.selectedCandidate = null
 
     if (identifyDialog.candidates.length === 0) {
-      ElMessage.warning('未找到结果，请尝试调整搜索条件')
+      ElMessage.warning('未找到结果，请尝试调整搜索条件或切换来源')
     } else {
       ElMessage.success(`找到 ${identifyDialog.candidates.length} 个结果`)
     }
@@ -687,9 +723,15 @@ async function confirmIdentify() {
 
   identifyDialog.linking = true
   try {
-    const res = await linkMediaFileToResource(identifyDialog.fileId, {
-      tmdb_id: identifyDialog.selectedCandidate.tmdb_id,
-      media_type: identifyDialog.selectedCandidate.media_type
+    const candidate = identifyDialog.selectedCandidate as any
+    if (candidate._source === 'douban') {
+      ElMessage.warning('豆瓣搜索结果暂不支持直接关联，请使用搜索到的标题切换到 TMDB 来源重新搜索')
+      identifyDialog.linking = false
+      return
+    }
+    const res = await linkMediaFileToResource(identifyDialog.fileId!, {
+      tmdb_id: candidate.tmdb_id,
+      media_type: candidate.media_type
     })
 
     if (res.data.success) {

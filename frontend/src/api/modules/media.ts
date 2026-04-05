@@ -110,6 +110,22 @@ export function searchTMDB(data: TMDBSearchRequest) {
   return request.post<TMDBSearchResponse>('/media-files/search-tmdb', data)
 }
 
+// 手动搜索豆瓣
+export function searchDouban(data: { title: string; year?: number; media_type: string }) {
+  return request.post<{
+    results: Array<{
+      douban_id: string
+      title: string
+      year: number | null
+      overview: string | null
+      poster_url: string | null
+      rating_douban: number | null
+      media_type: string | null
+    }>
+    total: number
+  }>('/media-files/search-douban', data)
+}
+
 // 获取剧集文件元数据（NFO内容 + 缩略图）
 export interface EpisodeMetadata {
   has_nfo: boolean

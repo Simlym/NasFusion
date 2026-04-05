@@ -225,6 +225,33 @@ class TMDBSearchResponse(BaseModel):
     total: int = 0
 
 
+class DoubanCandidate(BaseModel):
+    """豆瓣候选项Schema"""
+
+    douban_id: str
+    title: str
+    year: Optional[int] = None
+    overview: Optional[str] = None
+    poster_url: Optional[str] = None
+    rating_douban: Optional[float] = None
+    media_type: Optional[str] = None
+
+
+class DoubanSearchRequest(BaseModel):
+    """手动搜索豆瓣请求Schema"""
+
+    title: str
+    year: Optional[int] = None
+    media_type: str = Field(default="movie", description="媒体类型: movie 或 tv")
+
+
+class DoubanSearchResponse(BaseModel):
+    """手动搜索豆瓣响应Schema"""
+
+    results: List[DoubanCandidate] = []
+    total: int = 0
+
+
 # ========== 刮削相关Schema ==========
 
 

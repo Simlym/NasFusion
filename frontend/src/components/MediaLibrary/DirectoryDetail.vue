@@ -150,11 +150,11 @@
       <div class="content-section">
         <el-tabs v-model="activeTab" class="detail-tabs">
 
-          <!-- 剧集 Tab（仅季度目录显示） -->
-          <el-tab-pane v-if="isSeasonDirectory" name="episodes">
+          <!-- 文件列表 Tab -->
+          <el-tab-pane name="files">
             <template #label>
               <span>
-                剧集
+                文件列表
                 <el-badge
                   v-if="missingNfoCount > 0"
                   :value="missingNfoCount"
@@ -164,9 +164,9 @@
               </span>
             </template>
 
-            <div class="episodes-toolbar">
-              <div class="episodes-summary">
-                <span>{{ videoFiles.length }} 集</span>
+            <div class="files-toolbar">
+              <div class="files-summary">
+                <span>{{ videoFiles.length }} 个视频</span>
                 <span class="sep">·</span>
                 <el-text :type="missingNfoCount > 0 ? 'danger' : 'success'" size="small">
                   NFO: {{ videoFiles.length - missingNfoCount }}/{{ videoFiles.length }}
@@ -175,8 +175,10 @@
                 <el-text :type="missingPosterCount > 0 ? 'warning' : 'success'" size="small">
                   图片: {{ videoFiles.length - missingPosterCount }}/{{ videoFiles.length }}
                 </el-text>
+                <span class="sep">·</span>
+                <span class="total-size">{{ formatFileSize(detail.statistics.total_size) }}</span>
               </div>
-              <div class="episodes-actions">
+              <div class="files-actions">
                 <template v-if="detail.unified_resource">
                   <router-link
                     :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
@@ -194,8 +196,9 @@
               </div>
             </div>
 
-            <el-table :data="sortedEpisodeFiles" stripe style="width: 100%">
-              <el-table-column label="集数" width="70" align="center">
+            <!-- 视频文件表格 -->
+            <el-table :data="sortedVideoFiles" stripe style="width: 100%">
+              <el-table-column v-if="isSeasonDirectory" label="集数" width="70" align="center">
                 <template #default="{ row }">
                   <span class="ep-num">
                     {{ row.episode_number != null ? `E${String(row.episode_number).padStart(2, '0')}` : '-' }}
@@ -209,6 +212,12 @@
                     <div class="ep-title" v-if="row.episode_title">{{ row.episode_title }}</div>
                     <el-text size="small" type="info" class="ep-filename">{{ row.file_name }}</el-text>
                   </div>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="file_size" label="大小" width="90" align="center">
+                <template #default="{ row }">
+                  {{ formatFileSize(row.file_size) }}
                 </template>
               </el-table-column>
 
@@ -273,6 +282,34 @@
                 </template>
               </el-table-column>
             </el-table>
+
+            <!-- 非视频文件（字幕、图片、NFO等） -->
+            <div v-if="nonVideoFiles.length > 0" class="other-files-section">
+              <el-divider content-position="left">
+                <el-text size="small" type="info" @click="showOtherFiles = !showOtherFiles" style="cursor: pointer">
+                  其他文件 ({{ nonVideoFiles.length }})
+                  <el-icon style="margin-left: 4px; vertical-align: middle">
+                    <ArrowDown v-if="!showOtherFiles" />
+                    <ArrowUp v-else />
+                  </el-icon>
+                </el-text>
+              </el-divider>
+              <el-table v-if="showOtherFiles" :data="nonVideoFiles" stripe style="width: 100%" size="small">
+                <el-table-column prop="file_name" label="文件名" min-width="300" show-overflow-tooltip />
+                <el-table-column prop="file_size" label="大小" width="100">
+                  <template #default="{ row }">
+                    {{ formatFileSize(row.file_size) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="extension" label="类型" width="80" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="getFileTypeTag(row)" effect="plain">
+                      {{ (row.extension || '').replace('.', '').toUpperCase() || '-' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </el-tab-pane>
 
           <!-- 演职人员 Tab -->
@@ -289,47 +326,6 @@
               </div>
             </div>
              <el-empty v-else description="暂无演职人员信息" />
-          </el-tab-pane>
-
-          <!-- 文件列表 Tab -->
-          <el-tab-pane label="文件列表" name="files">
-             <div class="files-header">
-                <span>共 {{ detail.files.length }} 个文件</span>
-                <span class="total-size">总大小: {{ formatFileSize(detail.statistics.total_size) }}</span>
-             </div>
-             <el-table :data="detail.files" stripe style="width: 100%">
-              <el-table-column prop="file_name" label="文件名" min-width="300" show-overflow-tooltip />
-               <el-table-column prop="file_size" label="大小" width="100">
-                <template #default="{ row }">
-                  {{ formatFileSize(row.file_size) }}
-                </template>
-              </el-table-column>
-               <el-table-column prop="resolution" label="分辨率" width="100" />
-              <el-table-column prop="status" label="状态" width="100">
-                <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.status)" size="small">
-                    {{ getStatusLabel(row.status) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="200" fixed="right">
-                <template #default="{ row }">
-                  <el-button
-                    v-if="row.jellyfin_web_url"
-                    link
-                    type="success"
-                    size="small"
-                    @click="openInJellyfin(row)"
-                    title="在 Jellyfin 中播放"
-                  >
-                    <el-icon class="el-icon--left"><VideoPlay /></el-icon>
-                    Jellyfin
-                  </el-button>
-                  <el-button link type="primary" size="small">播放</el-button>
-                  <el-button link type="primary" size="small">详情</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
           </el-tab-pane>
 
           <!-- 技术信息 Tab -->
@@ -358,27 +354,36 @@
     <el-empty v-else description="请选择一个目录查看详情" />
 
     <!-- 识别关联对话框 -->
-    <el-dialog v-model="showLinkDialog" title="识别关联" width="700px" destroy-on-close @open="onLinkDialogOpen">
+    <el-dialog v-model="showLinkDialog" title="识别关联" width="700px" destroy-on-close @open="onLinkDialogOpen" class="link-dialog">
       <!-- 搜索区域 -->
-      <el-form :inline="true" size="default" @submit.prevent="handleSearch">
-        <el-form-item label="名称">
-          <el-input
-            v-model="linkForm.search_keyword"
-            placeholder="输入名称搜索"
-            clearable
-            style="width: 260px"
-          />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-radio-group v-model="linkForm.media_type">
-            <el-radio value="tv">剧集</el-radio>
-            <el-radio value="movie">电影</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="searching" @click="handleSearch">搜索</el-button>
-        </el-form-item>
-      </el-form>
+      <div class="search-form-wrapper">
+        <el-form :inline="true" size="default" @submit.prevent="handleSearch">
+          <el-form-item label="名称">
+            <el-input
+              v-model="linkForm.search_keyword"
+              placeholder="输入名称搜索"
+              clearable
+              style="width: 260px"
+            />
+          </el-form-item>
+          <el-form-item label="类型">
+            <el-radio-group v-model="linkForm.media_type">
+              <el-radio value="tv">剧集</el-radio>
+              <el-radio value="movie">电影</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="来源">
+            <el-radio-group v-model="linkForm.search_source">
+              <el-radio value="local">本地资源</el-radio>
+              <el-radio value="tmdb">TMDB</el-radio>
+              <el-radio value="douban">豆瓣</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="searching" @click="handleSearch">搜索</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
 
       <!-- 当前关联状态 -->
       <div v-if="detail?.directory.unified_resource_id" style="margin-bottom: 12px;">
@@ -391,7 +396,7 @@
       <!-- 选中状态 -->
       <div v-if="selectedItem" class="selected-preview">
         <el-tag type="success" effect="dark" size="small" style="margin-right: 6px">
-          {{ selectedItem.source === 'local' ? '本地资源' : 'TMDB' }}
+          {{ selectedItem.source === 'local' ? '本地资源' : selectedItem.source === 'tmdb' ? 'TMDB' : '豆瓣' }}
         </el-tag>
         <span>{{ selectedItem.title }}</span>
         <span v-if="selectedItem.year" style="color: var(--el-text-color-secondary); margin-left: 4px">({{ selectedItem.year }})</span>
@@ -400,7 +405,7 @@
 
       <!-- 搜索结果列表 -->
       <div v-loading="searching" class="search-results-container">
-        <el-empty v-if="!searching && localResults.length === 0 && tmdbResults.length === 0 && searchPerformed" description="未找到匹配结果，请尝试修改关键词" />
+        <el-empty v-if="!searching && localResults.length === 0 && tmdbResults.length === 0 && doubanResults.length === 0 && searchPerformed" description="未找到匹配结果，请尝试修改关键词或切换搜索来源" />
 
         <template v-if="localResults.length > 0">
           <div class="result-section-title">
@@ -433,7 +438,7 @@
                 <div class="result-meta">
                   <span v-if="item.year">{{ item.year }}</span>
                   <span v-if="item.rating" class="result-rating">
-                    <span class="star-icon">★</span> {{ item.rating.toFixed(1) }}
+                    <span class="star-icon">★</span> {{ Number(item.rating).toFixed(1) }}
                   </span>
                   <el-tag size="small" type="success" effect="plain">{{ item.unified_table_name === 'unified_movies' ? '电影' : '剧集' }} #{{ item.id }}</el-tag>
                 </div>
@@ -477,12 +482,53 @@
                 <div class="result-meta">
                   <span v-if="item.year">{{ item.year }}</span>
                   <span v-if="item.rating_tmdb" class="result-rating">
-                    <span class="star-icon">★</span> {{ item.rating_tmdb.toFixed(1) }}
+                    <span class="star-icon">★</span> {{ Number(item.rating_tmdb).toFixed(1) }}
                   </span>
                   <el-tag size="small" type="info">TMDB: {{ item.tmdb_id }}</el-tag>
                 </div>
                 <div v-if="item.genres?.length" class="result-genres">
                   <el-tag v-for="g in item.genres.slice(0, 4)" :key="g" size="small" effect="plain" round>{{ g }}</el-tag>
+                </div>
+                <div v-if="item.overview" class="result-overview">{{ item.overview }}</div>
+              </div>
+              <el-icon v-if="isSelected(item)" class="result-check" :size="24" color="#67c23a"><CircleCheck /></el-icon>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="doubanResults.length > 0">
+          <div class="result-section-title" :style="{ marginTop: localResults.length > 0 || tmdbResults.length > 0 ? '16px' : '0' }">
+            <el-tag type="warning" effect="plain" size="small">豆瓣搜索</el-tag>
+            <span class="result-section-hint">从豆瓣获取并创建新资源</span>
+          </div>
+          <div class="search-results-list">
+            <div
+              v-for="item in doubanResults"
+              :key="'douban-' + item.douban_id"
+              class="search-result-card"
+              :class="{ selected: isSelected(item) }"
+              @click="selectItem(item)"
+            >
+              <el-image
+                :src="item.poster_url || ''"
+                fit="cover"
+                class="result-poster"
+                lazy
+              >
+                <template #error>
+                  <div class="result-poster-placeholder">
+                    <el-icon :size="24"><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div class="result-info">
+                <div class="result-title">{{ item.title }}</div>
+                <div class="result-meta">
+                  <span v-if="item.year">{{ item.year }}</span>
+                  <span v-if="item.rating_douban" class="result-rating">
+                    <span class="star-icon">★</span> {{ Number(item.rating_douban).toFixed(1) }}
+                  </span>
+                  <el-tag size="small" type="warning">豆瓣: {{ item.douban_id }}</el-tag>
                 </div>
                 <div v-if="item.overview" class="result-overview">{{ item.overview }}</div>
               </div>
@@ -505,13 +551,13 @@ import { ref, computed, watch, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture,
-  VideoPlay,
   CircleCheck,
   CircleClose,
   Minus,
-  ArrowDown
+  ArrowDown,
+  ArrowUp
 } from '@element-plus/icons-vue'
-import { getDirectoryDetail, linkDirectoryToResource, searchTMDBForDirectory, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import { getDirectoryDetail, linkDirectoryToResource, searchTMDBForDirectory, searchDoubanForDirectory, type DirectoryDetailResponse } from '@/api/mediaDirectory'
 import type { TMDBCandidate } from '@/types/media'
 import { getMovieList } from '@/api/modules/movie'
 import { getTVList } from '@/api/modules/tv'
@@ -525,7 +571,7 @@ interface Props {
 const props = defineProps<Props>()
 const loading = ref(false)
 const detail = ref<DirectoryDetailResponse | null>(null)
-const activeTab = ref('cast')
+const activeTab = ref('files')
 
 // 刮削状态
 const scrapingIds = ref<Set<number>>(new Set())
@@ -534,6 +580,7 @@ const batchScraping = ref(false)
 const batchGenerating = ref(false)
 
 const defaultPoster = 'https://via.placeholder.com/300x450?text=No+Poster'
+const showOtherFiles = ref(false)
 
 // 识别关联对话框
 const showLinkDialog = ref(false)
@@ -542,13 +589,15 @@ const searching = ref(false)
 const searchPerformed = ref(false)
 const localResultsRaw = ref<any[]>([])
 const tmdbResultsRaw = ref<TMDBCandidate[]>([])
+const doubanResultsRaw = ref<any[]>([])
 const search_keyword = ref('')
 
 // 统一的选中项类型
 interface SelectedItem {
-  source: 'local' | 'tmdb'
+  source: 'local' | 'tmdb' | 'douban'
   id?: number
   tmdb_id?: number
+  douban_id?: string
   title: string
   original_title?: string
   year?: number
@@ -558,11 +607,13 @@ interface SelectedItem {
   overview?: string
   unified_table_name?: string
   unified_resource_id?: number
+  media_type?: string
 }
 const selectedItem = ref<SelectedItem | null>(null)
 const linkForm = reactive({
   search_keyword: '' as string,
   media_type: 'tv' as string,
+  search_source: 'local' as 'local' | 'tmdb' | 'douban',
 })
 
 // 是否是季度目录（用于显示剧集Tab）
@@ -581,13 +632,23 @@ const videoFiles = computed(() => {
   })
 })
 
-// 按集数排序的剧集文件
-const sortedEpisodeFiles = computed(() => {
+// 按集数排序的视频文件（剧集按集数，电影按文件名）
+const sortedVideoFiles = computed(() => {
   return [...videoFiles.value].sort((a: any, b: any) => {
-    const ea = a.episode_number ?? 9999
-    const eb = b.episode_number ?? 9999
-    return ea - eb
+    if (isSeasonDirectory.value) {
+      const ea = a.episode_number ?? 9999
+      const eb = b.episode_number ?? 9999
+      return ea - eb
+    }
+    return (a.file_name || '').localeCompare(b.file_name || '')
   })
+})
+
+// 非视频文件（字幕、图片、NFO等）
+const nonVideoFiles = computed(() => {
+  if (!detail.value) return []
+  const videoSet = new Set(videoFiles.value.map((f: any) => f.id))
+  return detail.value.files.filter((f: any) => !videoSet.has(f.id))
 })
 
 // 缺少NFO的集数
@@ -620,14 +681,8 @@ const loadDetail = async () => {
     if (res.data) {
       detail.value = res.data
 
-      // 根据数据智能切换 Tab
-      if (res.data.directory.season_number != null) {
-        activeTab.value = 'episodes'
-      } else if (!res.data.nfo_data?.actors?.length) {
-        activeTab.value = 'files'
-      } else {
-        activeTab.value = 'cast'
-      }
+      // 默认显示文件列表
+      activeTab.value = 'files'
     }
   } catch (error) {
     ElMessage.error('加载目录详情失败')
@@ -732,6 +787,7 @@ async function handleDirectoryAction(command: string) {
 // 统一的搜索结果：本地 + TMDB
 const localResults = computed(() => localResultsRaw.value)
 const tmdbResults = computed(() => tmdbResultsRaw.value)
+const doubanResults = computed(() => doubanResultsRaw.value)
 
 function isSelected(item: any): boolean {
   if (!selectedItem.value) return false
@@ -739,6 +795,9 @@ function isSelected(item: any): boolean {
     return selectedItem.value.source === 'local'
       && selectedItem.value.unified_table_name === item.unified_table_name
       && selectedItem.value.unified_resource_id === item.id
+  }
+  if (item.source === 'douban') {
+    return selectedItem.value.source === 'douban' && selectedItem.value.douban_id === item.douban_id
   }
   return selectedItem.value.source === 'tmdb' && selectedItem.value.tmdb_id === item.tmdb_id
 }
@@ -756,6 +815,17 @@ function selectItem(item: any) {
       genres: item.genres,
       unified_table_name: item.unified_table_name,
       unified_resource_id: item.id,
+    }
+  } else if (item.source === 'douban') {
+    selectedItem.value = {
+      source: 'douban',
+      douban_id: item.douban_id,
+      title: item.title,
+      year: item.year,
+      poster_url: item.poster_url,
+      rating: item.rating_douban,
+      overview: item.overview,
+      media_type: linkForm.media_type,
     }
   } else {
     selectedItem.value = {
@@ -780,14 +850,24 @@ function onLinkDialogOpen() {
   const nfoTitle = detail.value?.nfo_data?.title
   const dirName = detail.value?.directory.directory_name || ''
   linkForm.search_keyword = nfoTitle || dirName
+  // 根据目录的 media_type 或已关联的表名自动设置类型
+  const dirMediaType = detail.value?.directory.media_type
+  const linkedTable = detail.value?.directory.unified_table_name
+  if (dirMediaType === 'movie' || dirMediaType === 'adult') {
+    linkForm.media_type = 'movie'
+  } else if (dirMediaType === 'tv' || dirMediaType === 'episode') {
+    linkForm.media_type = 'tv'
+  } else if (linkedTable === 'unified_movies') {
+    linkForm.media_type = 'movie'
+  } else if (linkedTable === 'unified_tv_series') {
+    linkForm.media_type = 'tv'
+  }
   selectedItem.value = null
   localResultsRaw.value = []
   tmdbResultsRaw.value = []
+  doubanResultsRaw.value = []
   searchPerformed.value = false
-
-  if (linkForm.search_keyword) {
-    handleSearch()
-  }
+  linkForm.search_source = 'local'
 }
 
 async function handleSearch() {
@@ -798,50 +878,64 @@ async function handleSearch() {
   searching.value = true
   searchPerformed.value = true
   selectedItem.value = null
-  localResultsRaw.value = []
-  tmdbResultsRaw.value = []
+
+  const keyword = linkForm.search_keyword.trim()
+  const mediaType = linkForm.media_type
+  const source = linkForm.search_source
+
+  // 清空对应来源的结果
+  if (source === 'local') {
+    localResultsRaw.value = []
+  } else if (source === 'tmdb') {
+    tmdbResultsRaw.value = []
+  } else if (source === 'douban') {
+    doubanResultsRaw.value = []
+  }
 
   try {
-    // 并行搜索本地资源和TMDB
-    const keyword = linkForm.search_keyword.trim()
-    const mediaType = linkForm.media_type
+    if (source === 'local') {
+      const res = mediaType === 'movie'
+        ? await getMovieList({ page: 1, pageSize: 10, search: keyword })
+        : await getTVList({ page: 1, pageSize: 10, search: keyword })
 
-    const localPromise = mediaType === 'movie'
-      ? getMovieList({ page: 1, pageSize: 10, search: keyword })
-      : getTVList({ page: 1, pageSize: 10, search: keyword })
+      if (res?.data) {
+        const items = res.data.items || []
+        const tableName = mediaType === 'movie' ? 'unified_movies' : 'unified_tv_series'
+        localResultsRaw.value = items.map((item: any) => ({
+          ...item,
+          source: 'local',
+          unified_table_name: tableName,
+          poster_url: item.posterUrl || item.poster_url,
+          original_title: item.originalTitle || item.original_title,
+          rating: item.ratingTmdb || item.rating_tmdb || item.rating,
+        }))
 
-    const tmdbPromise = searchTMDBForDirectory({
-      title: keyword,
-      media_type: mediaType,
-    })
-
-    const [localRes, tmdbRes] = await Promise.allSettled([localPromise, tmdbPromise])
-
-    // 处理本地结果
-    if (localRes.status === 'fulfilled' && localRes.value?.data) {
-      const items = localRes.value.data.items || []
-      const tableName = mediaType === 'movie' ? 'unified_movies' : 'unified_tv_series'
-      localResultsRaw.value = items.map((item: any) => ({
-        ...item,
-        source: 'local',
-        unified_table_name: tableName,
-        poster_url: item.posterUrl || item.poster_url,
-        original_title: item.originalTitle || item.original_title,
-        rating: item.ratingTmdb || item.rating_tmdb || item.rating,
-      }))
-    }
-
-    // 处理TMDB结果
-    if (tmdbRes.status === 'fulfilled' && tmdbRes.value?.data) {
-      tmdbResultsRaw.value = (tmdbRes.value.data.results || []).map((item: any) => ({
-        ...item,
-        source: 'tmdb',
-      }))
-    }
-
-    // 如果本地只有一个结果，自动选中
-    if (localResultsRaw.value.length === 1 && tmdbResultsRaw.value.length === 0) {
-      selectItem(localResultsRaw.value[0])
+        if (localResultsRaw.value.length === 1) {
+          selectItem(localResultsRaw.value[0])
+        }
+      }
+    } else if (source === 'tmdb') {
+      const res = await searchTMDBForDirectory({
+        title: keyword,
+        media_type: mediaType,
+      })
+      if (res?.data) {
+        tmdbResultsRaw.value = (res.data.results || []).map((item: any) => ({
+          ...item,
+          source: 'tmdb',
+        }))
+      }
+    } else if (source === 'douban') {
+      const res = await searchDoubanForDirectory({
+        title: keyword,
+        media_type: mediaType,
+      })
+      if (res?.data) {
+        doubanResultsRaw.value = (res.data.results || []).map((item: any) => ({
+          ...item,
+          source: 'douban',
+        }))
+      }
     }
   } catch (e: any) {
     ElMessage.error(e.response?.data?.detail || '搜索失败')
@@ -864,6 +958,12 @@ async function handleLinkDirectory() {
       res = await linkDirectoryToResource(props.directoryId, {
         unified_table_name: selectedItem.value.unified_table_name,
         unified_resource_id: selectedItem.value.unified_resource_id,
+        media_type: linkForm.media_type,
+      })
+    } else if (selectedItem.value.source === 'douban') {
+      // 通过豆瓣ID关联
+      res = await linkDirectoryToResource(props.directoryId, {
+        douban_id: selectedItem.value.douban_id,
         media_type: linkForm.media_type,
       })
     } else {
@@ -905,14 +1005,12 @@ const formatFileSize = (bytes: number): string => {
 
 const formatTime = (timeStr: string) => new Date(timeStr).toLocaleString()
 
-const getStatusType = (status: string) => {
-  const map: any = { discovered: 'info', identified: 'success', completed: 'success', failed: 'danger' }
-  return map[status] || 'info'
-}
-
-const getStatusLabel = (status: string) => {
-  const map: any = { discovered: '已发现', identified: '已识别', completed: '已完成' }
-  return map[status] || status
+const getFileTypeTag = (row: any): string => {
+  const ext = (row.extension || '').replace('.', '').toLowerCase()
+  if (['nfo', 'xml'].includes(ext)) return 'warning'
+  if (['srt', 'ass', 'ssa', 'sub', 'vtt'].includes(ext)) return 'success'
+  if (['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) return 'primary'
+  return 'info'
 }
 
 watch(() => props.directoryId, loadDetail, { immediate: true })
@@ -1134,8 +1232,8 @@ defineExpose({ refresh })
   padding: 20px 40px;
 }
 
-/* 剧集 Tab */
-.episodes-toolbar {
+/* 文件列表 Tab */
+.files-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1144,7 +1242,7 @@ defineExpose({ refresh })
   background: var(--el-fill-color-light);
   border-radius: 8px;
 
-  .episodes-summary {
+  .files-summary {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1155,12 +1253,20 @@ defineExpose({ refresh })
     .sep {
       color: var(--el-text-color-placeholder);
     }
+
+    .total-size {
+      color: var(--el-text-color-secondary);
+    }
   }
 
-  .episodes-actions {
+  .files-actions {
     display: flex;
     gap: 8px;
   }
+}
+
+.other-files-section {
+  margin-top: 16px;
 }
 
 .ep-num {
@@ -1217,14 +1323,6 @@ defineExpose({ refresh })
   }
 }
 
-/* 文件列表 */
-.files-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-}
 
 :deep(.el-tabs__item) {
   font-size: 16px;
@@ -1238,9 +1336,19 @@ defineExpose({ refresh })
   gap: 8px;
   padding: 8px 12px;
   background: var(--el-color-success-light-9);
-  border-radius: 6px;
+  border: 1px solid var(--el-color-success-light-7);
+  border-radius: var(--nf-radius-sm, 6px);
   margin-bottom: 12px;
   font-size: 14px;
+}
+
+/* 搜索表单区域 */
+.search-form-wrapper {
+  padding: 12px 16px;
+  background: var(--el-fill-color-lighter);
+  border-radius: var(--nf-radius-base, 8px);
+  margin-bottom: 16px;
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 /* 搜索结果区域标题 */
@@ -1272,21 +1380,25 @@ defineExpose({ refresh })
 .search-result-card {
   display: flex;
   gap: 12px;
-  padding: 10px;
-  border: 2px solid var(--el-border-color-light);
-  border-radius: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--nf-radius-base, 8px);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   position: relative;
+  background: var(--el-bg-color);
+  box-shadow: var(--nf-shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.04));
 
   &:hover {
-    border-color: var(--el-color-primary-light-3);
-    background: var(--el-fill-color-light);
+    border-color: var(--el-color-primary-light-5);
+    background: var(--el-fill-color-lighter);
+    box-shadow: var(--nf-shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.06));
   }
 
   &.selected {
     border-color: var(--el-color-success);
     background: var(--el-color-success-light-9);
+    box-shadow: 0 0 0 1px var(--el-color-success-light-5);
   }
 }
 
@@ -1294,7 +1406,7 @@ defineExpose({ refresh })
   flex-shrink: 0;
   width: 60px;
   height: 90px;
-  border-radius: 4px;
+  border-radius: var(--nf-radius-xs, 4px);
   overflow: hidden;
   background: var(--el-fill-color);
 }
@@ -1318,6 +1430,7 @@ defineExpose({ refresh })
   font-weight: 600;
   line-height: 1.3;
   margin-bottom: 2px;
+  color: var(--el-text-color-primary);
 }
 
 .result-original-title {
@@ -1336,7 +1449,7 @@ defineExpose({ refresh })
 
   .result-rating {
     .star-icon {
-      color: #ff9900;
+      color: var(--el-color-warning, #ff9900);
       font-size: 12px;
     }
   }

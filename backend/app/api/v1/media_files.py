@@ -22,6 +22,9 @@ from app.schemas.media_file import (
     TMDBSearchRequest,
     TMDBSearchResponse,
     TMDBCandidate,
+    DoubanSearchRequest,
+    DoubanSearchResponse,
+    DoubanCandidate,
     MediaFileScrapeRequest,
     MediaFileScrapeResponse,
     MediaFileBatchScrapeRequest,
@@ -661,6 +664,57 @@ async def search_tmdb(
         return TMDBSearchResponse(results=candidates, total=len(candidates))
     except Exception as e:
         logger.exception(f"搜索TMDB失败: {request.title}")
+        raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
+
+
+@router.post("/search-douban", response_model=DoubanSearchResponse)
+async def search_douban(
+    request: DoubanSearchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    手动搜索豆瓣
+
+    用于用户手动搜索豆瓣获取候选列表
+
+    Args:
+        request: 搜索请求（标题、年份、类型）
+        db: 数据库会话
+        current_user: 当前用户
+
+    Returns:
+        搜索结果列表
+    """
+    try:
+        from app.adapters.metadata.douban_adapter import DoubanAdapter
+
+        douban_adapter = DoubanAdapter({"timeout": 30, "max_retries": 3})
+        results = await douban_adapter.search_by_title(
+            title=request.title,
+            year=request.year,
+            media_type=request.media_type,
+        )
+
+        candidates = []
+        for item in results:
+            title = item.get("title") or ""
+            if not title:
+                continue
+            candidate = DoubanCandidate(
+                douban_id=str(item.get("douban_id") or ""),
+                title=title,
+                year=item.get("year"),
+                overview=item.get("overview") or "",
+                poster_url=item.get("poster_url"),
+                rating_douban=item.get("rating_douban"),
+                media_type=item.get("media_type"),
+            )
+            candidates.append(candidate)
+
+        return DoubanSearchResponse(results=candidates, total=len(candidates))
+    except Exception as e:
+        logger.exception(f"搜索豆瓣失败: {request.title}")
         raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
 
 

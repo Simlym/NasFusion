@@ -179,6 +179,24 @@ export function searchTMDBForDirectory(data: { title: string; year?: number; med
 }
 
 /**
+ * 搜索豆瓣（用于目录识别关联）
+ */
+export function searchDoubanForDirectory(data: { title: string; year?: number; media_type: string }) {
+  return request.post<{
+    results: Array<{
+      douban_id: string
+      title: string
+      year: number | null
+      overview: string | null
+      poster_url: string | null
+      rating_douban: number | null
+      media_type: string | null
+    }>
+    total: number
+  }>('/media-files/search-douban', data)
+}
+
+/**
  * 删除目录记录
  */
 export function deleteDirectory(id: number) {
