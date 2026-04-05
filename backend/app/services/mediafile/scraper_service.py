@@ -690,7 +690,7 @@ class ScraperService:
     async def batch_scrape(
         db: AsyncSession,
         media_file_ids: list[int],
-        config: OrganizeConfig,
+        config: Optional[OrganizeConfig] = None,
     ) -> Dict[str, Any]:
         """
         批量刮削媒体文件
@@ -698,11 +698,13 @@ class ScraperService:
         Args:
             db: 数据库会话
             media_file_ids: 媒体文件ID列表
-            config: 整理配置
+            config: 整理配置（可选，不传则按文件类型自动检测）
 
         Returns:
             批量刮削结果
         """
+        from app.services.mediafile.organize_config_service import OrganizeConfigService
+
         results = {
             "total": len(media_file_ids),
             "success_count": 0,
@@ -721,7 +723,20 @@ class ScraperService:
                 })
                 continue
 
-            result = await ScraperService.scrape_media_file(db, media_file, config)
+            # 如果没有全局config，按文件媒体类型自动获取默认配置
+            file_config = config
+            if not file_config:
+                file_config = await OrganizeConfigService.get_default(db, media_file.media_type)
+                if not file_config:
+                    results["failed_count"] += 1
+                    results["details"].append({
+                        "file_id": file_id,
+                        "success": False,
+                        "errors": [f"未找到媒体类型 {media_file.media_type} 的默认配置"],
+                    })
+                    continue
+
+            result = await ScraperService.scrape_media_file(db, media_file, file_config)
 
             if result["success"]:
                 results["success_count"] += 1

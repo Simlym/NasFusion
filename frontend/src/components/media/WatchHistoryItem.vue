@@ -235,12 +235,12 @@ const handlePlay = () => {
 
 /* ====== 底部信息 ====== */
 .card-info {
-  padding: 10px 12px 12px;
+  padding: 12px 14px 14px;
 }
 
 .card-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
   color: var(--el-text-color-primary);
@@ -253,8 +253,8 @@ const handlePlay = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 4px;
-  font-size: 11px;
+  margin-top: 5px;
+  font-size: 12px;
   color: var(--el-text-color-secondary);
 }
 

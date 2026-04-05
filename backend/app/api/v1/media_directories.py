@@ -22,6 +22,7 @@ from app.schemas.media_directory import (
     SyncFromFilesResponse,
     DetectIssuesRequest,
     DetectIssuesResponse,
+    MediaDirectoryLinkRequest,
 )
 from app.constants import MEDIA_TYPE_ADULT
 
@@ -337,6 +338,127 @@ async def detect_issues(
         issues=issues,
         total_issues=total_issues
     )
+
+
+@router.put("/{directory_id}/link")
+async def link_directory_to_resource(
+    directory_id: int,
+    request: MediaDirectoryLinkRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    将目录关联到统一资源（通过TMDB ID或豆瓣ID）
+
+    用于Season层维护识别信息，方便后续刮削。
+    支持直接传tmdb_id或douban_id，系统自动获取元数据并关联。
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    directory = await MediaDirectoryService.get_by_id(db, directory_id)
+    if not directory:
+        raise HTTPException(status_code=404, detail="目录不存在")
+
+    if not request.tmdb_id and not request.douban_id:
+        raise HTTPException(status_code=400, detail="请提供 tmdb_id 或 douban_id")
+
+    try:
+        from app.services.identification.media_identify_service import media_identify_service
+
+        tmdb_id = request.tmdb_id
+
+        # 如果只提供了豆瓣ID，尝试转换为TMDB ID
+        if not tmdb_id and request.douban_id:
+            tmdb_adapter = await media_identify_service._get_tmdb_adapter(db)
+            # 先通过豆瓣获取信息，再搜索TMDB
+            from app.adapters.metadata.douban import DoubanAdapter
+            douban_adapter = DoubanAdapter()
+            douban_data = await douban_adapter.get_movie_details(request.douban_id)
+            if douban_data and douban_data.get("title"):
+                results = await tmdb_adapter.search_tv(douban_data["title"], year=douban_data.get("year"))
+                if results:
+                    tmdb_id = results[0].get("tmdb_id")
+
+        if not tmdb_id:
+            raise HTTPException(status_code=404, detail="无法获取TMDB ID，请直接提供tmdb_id")
+
+        # 获取TMDB适配器
+        tmdb_adapter = await media_identify_service._get_tmdb_adapter(db)
+
+        # 获取元数据
+        if request.media_type == "movie":
+            tmdb_data = await tmdb_adapter.get_movie_details(tmdb_id)
+        else:
+            tmdb_data = await tmdb_adapter.get_tv_details(tmdb_id)
+
+        if not tmdb_data:
+            raise HTTPException(status_code=404, detail="TMDB数据获取失败")
+
+        # 创建或获取统一资源
+        from app.models.unified_movie import UnifiedMovie
+        from app.models.unified_tv_series import UnifiedTVSeries
+        from app.constants import UNIFIED_TABLE_MOVIES, UNIFIED_TABLE_TV
+
+        if request.media_type == "movie":
+            unified_table = UNIFIED_TABLE_MOVIES
+            existing = await db.execute(
+                select(UnifiedMovie).where(UnifiedMovie.tmdb_id == tmdb_id)
+            )
+            unified = existing.scalar_one_or_none()
+            if not unified:
+                unified = UnifiedMovie(tmdb_id=tmdb_id, **{
+                    k: v for k, v in tmdb_data.items()
+                    if k != "tmdb_id" and hasattr(UnifiedMovie, k)
+                })
+                db.add(unified)
+                await db.flush()
+        else:
+            unified_table = UNIFIED_TABLE_TV
+            existing = await db.execute(
+                select(UnifiedTVSeries).where(UnifiedTVSeries.tmdb_id == tmdb_id)
+            )
+            unified = existing.scalar_one_or_none()
+            if not unified:
+                unified = UnifiedTVSeries(tmdb_id=tmdb_id, **{
+                    k: v for k, v in tmdb_data.items()
+                    if k != "tmdb_id" and hasattr(UnifiedTVSeries, k)
+                })
+                db.add(unified)
+                await db.flush()
+
+        # 更新目录关联
+        directory.unified_table_name = unified_table
+        directory.unified_resource_id = unified.id
+        if hasattr(unified, 'title') and unified.title:
+            directory.series_name = unified.title
+
+        # 同时更新该目录下所有视频文件的关联
+        from app.models.media_file import MediaFile as MF
+        stmt = select(MF).where(MF.media_directory_id == directory_id)
+        files_result = await db.execute(stmt)
+        files = files_result.scalars().all()
+        for f in files:
+            f.unified_table_name = unified_table
+            f.unified_resource_id = unified.id
+            if f.media_type in ("unknown", None):
+                f.media_type = request.media_type
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "unified_resource_id": unified.id,
+            "unified_table_name": unified_table,
+            "title": getattr(unified, 'title', None),
+            "message": f"成功关联到 {getattr(unified, 'title', tmdb_id)}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"关联目录失败: {directory_id}")
+        raise HTTPException(status_code=500, detail=f"关联失败: {str(e)}")
 
 
 @router.delete("/{directory_id}")

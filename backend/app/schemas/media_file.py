@@ -40,6 +40,25 @@ class MediaFileUpdate(BaseModel):
     match_confidence: Optional[int] = None
 
 
+class MediaFileUpdateEpisodeInfo(BaseModel):
+    """更新媒体文件集数信息"""
+
+    season_number: Optional[int] = Field(None, description="季数")
+    episode_number: Optional[int] = Field(None, description="集数")
+    episode_title: Optional[str] = Field(None, description="集标题")
+
+
+class MediaFileParseFilenameResponse(BaseModel):
+    """从文件名解析季集信息的响应"""
+
+    season: Optional[int] = None
+    episode: Optional[int] = None
+    title: Optional[str] = None
+    episode_title: Optional[str] = None
+    year: Optional[int] = None
+    resolution: Optional[str] = None
+
+
 class MediaFileResponse(MediaFileBase):
     """媒体文件响应Schema"""
 

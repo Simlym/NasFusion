@@ -110,6 +110,7 @@ export interface EpisodeTreeNode {
   id: number
   file_name: string
   extension: string
+  season_number: number | null
   episode_number: number | null
   episode_title: string | null
   has_nfo: boolean
@@ -235,6 +236,7 @@ const loadEpisodeNodes = async (directoryId: number, resolve: any) => {
         id: f.id,
         file_name: f.file_name,
         extension: f.extension || '',
+        season_number: f.season_number ?? null,
         episode_number: f.episode_number ?? null,
         episode_title: f.episode_title ?? null,
         has_nfo: f.has_nfo ?? false,

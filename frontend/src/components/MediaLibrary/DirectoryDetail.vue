@@ -85,18 +85,34 @@
                 </el-tag>
               </el-tooltip>
 
-              <!-- 重新刮削当前目录 -->
-              <el-dropdown v-if="videoFiles.length > 0" @command="handleDirectoryAction" style="margin-left: 12px">
-                <el-button size="small" type="primary" plain>
-                  刮削操作 <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+              <!-- 刮削按钮 -->
+              <el-dropdown
+                v-if="videoFiles.length > 0"
+                @command="handleDirectoryAction"
+                style="margin-left: 12px"
+                trigger="click"
+              >
+                <el-button size="small" type="primary" plain :loading="batchScraping || batchGenerating">
+                  刮削 <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="scrape-all">重新刮削全部（图片+NFO）</el-dropdown-item>
-                    <el-dropdown-item command="generate-nfo-all">重新生成全部NFO</el-dropdown-item>
+                    <el-dropdown-item command="scrape-all">全部（图片+NFO）</el-dropdown-item>
+                    <el-dropdown-item command="generate-nfo-all">仅 NFO</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
+
+              <!-- 识别关联按钮 -->
+              <el-button
+                v-if="isSeasonDirectory"
+                size="small"
+                plain
+                style="margin-left: 8px"
+                @click="showLinkDialog = true"
+              >
+                识别关联
+              </el-button>
             </div>
 
             <div v-if="detail.nfo_data?.genres?.length" class="genres-row">
@@ -150,21 +166,12 @@
                 </el-text>
               </div>
               <div class="episodes-actions">
-                <el-button
-                  size="small"
-                  type="primary"
-                  :loading="batchScraping"
-                  @click="handleBatchScrapeEpisodes"
-                >
-                  批量刮削（图片+NFO）
-                </el-button>
-                <el-button
-                  size="small"
-                  :loading="batchGenerating"
-                  @click="handleBatchGenerateNFO"
-                >
-                  批量生成NFO
-                </el-button>
+                <el-text v-if="detail.directory.unified_resource_id" type="success" size="small">
+                  已关联资源 #{{ detail.directory.unified_resource_id }}
+                </el-text>
+                <el-text v-else type="warning" size="small">
+                  未关联资源
+                </el-text>
               </div>
             </div>
 
@@ -330,11 +337,45 @@
 
     </template>
     <el-empty v-else description="请选择一个目录查看详情" />
+
+    <!-- 识别关联对话框 -->
+    <el-dialog v-model="showLinkDialog" title="识别关联" width="460px" destroy-on-close>
+      <el-form label-width="90px" size="default">
+        <el-form-item label="TMDB ID">
+          <el-input-number
+            v-model="linkForm.tmdb_id"
+            :min="1"
+            controls-position="right"
+            placeholder="输入TMDB ID"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="豆瓣 ID">
+          <el-input v-model="linkForm.douban_id" placeholder="输入豆瓣ID（可选）" />
+        </el-form-item>
+        <el-form-item label="媒体类型">
+          <el-radio-group v-model="linkForm.media_type">
+            <el-radio value="tv">剧集</el-radio>
+            <el-radio value="movie">电影</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="detail?.directory.unified_resource_id">
+          <el-text type="info" size="small">
+            当前已关联: {{ detail.directory.unified_table_name }} #{{ detail.directory.unified_resource_id }}
+            {{ detail.directory.series_name ? `(${detail.directory.series_name})` : '' }}
+          </el-text>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showLinkDialog = false">取消</el-button>
+        <el-button type="primary" :loading="linking" @click="handleLinkDirectory">确认关联</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture,
@@ -344,7 +385,7 @@ import {
   Minus,
   ArrowDown
 } from '@element-plus/icons-vue'
-import { getDirectoryDetail, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import { getDirectoryDetail, linkDirectoryToResource, type DirectoryDetailResponse } from '@/api/mediaDirectory'
 import { scrapeMediaFile, generateNFO, batchScrapeMediaFiles } from '@/api/modules/media'
 import { getProxiedImageUrl } from '@/utils'
 
@@ -364,6 +405,15 @@ const batchScraping = ref(false)
 const batchGenerating = ref(false)
 
 const defaultPoster = 'https://via.placeholder.com/300x450?text=No+Poster'
+
+// 识别关联对话框
+const showLinkDialog = ref(false)
+const linking = ref(false)
+const linkForm = reactive({
+  tmdb_id: null as number | null,
+  douban_id: '' as string,
+  media_type: 'tv' as string,
+})
 
 // 是否是季度目录（用于显示剧集Tab）
 const isSeasonDirectory = computed(() =>
@@ -448,7 +498,7 @@ async function handleScrapeFile(fileId: number) {
       ElMessage.success('刮削成功')
       await loadDetail()
     } else {
-      ElMessage.error(res.data.error || '刮削失败')
+      ElMessage.error(res.data.errors?.[0] || '刮削失败')
     }
   } catch (e: any) {
     ElMessage.error(e.response?.data?.detail || '刮削失败')
@@ -524,6 +574,35 @@ async function handleDirectoryAction(command: string) {
     await handleBatchScrapeEpisodes()
   } else if (command === 'generate-nfo-all') {
     await handleBatchGenerateNFO()
+  }
+}
+
+// ===== 识别关联 =====
+
+async function handleLinkDirectory() {
+  if (!detail.value || !props.directoryId) return
+  if (!linkForm.tmdb_id && !linkForm.douban_id) {
+    ElMessage.warning('请输入 TMDB ID 或豆瓣 ID')
+    return
+  }
+  linking.value = true
+  try {
+    const res = await linkDirectoryToResource(props.directoryId, {
+      tmdb_id: linkForm.tmdb_id,
+      douban_id: linkForm.douban_id || null,
+      media_type: linkForm.media_type,
+    })
+    if (res.data.success) {
+      ElMessage.success(res.data.message || '关联成功')
+      showLinkDialog.value = false
+      await loadDetail()
+    } else {
+      ElMessage.error('关联失败')
+    }
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '关联失败')
+  } finally {
+    linking.value = false
   }
 }
 

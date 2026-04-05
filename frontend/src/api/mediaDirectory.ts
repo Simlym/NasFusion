@@ -140,6 +140,23 @@ export function detectIssues(data?: { directory_id?: number | null; media_type?:
 }
 
 /**
+ * 关联目录到统一资源（通过TMDB/豆瓣ID）
+ */
+export function linkDirectoryToResource(id: number, data: {
+  tmdb_id?: number | null
+  douban_id?: string | null
+  media_type?: string
+}) {
+  return request.put<{
+    success: boolean
+    unified_resource_id: number
+    unified_table_name: string
+    title: string | null
+    message: string
+  }>(`/media-directories/${id}/link`, data)
+}
+
+/**
  * 删除目录记录
  */
 export function deleteDirectory(id: number) {

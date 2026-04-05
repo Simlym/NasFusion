@@ -30,6 +30,13 @@ class MediaDirectoryUpdate(BaseModel):
     season_number: Optional[int] = Field(None, description="季度编号")
 
 
+class MediaDirectoryLinkRequest(BaseModel):
+    """目录关联到统一资源请求（通过TMDB/豆瓣ID）"""
+    tmdb_id: Optional[int] = Field(None, description="TMDB ID")
+    douban_id: Optional[str] = Field(None, description="豆瓣 ID")
+    media_type: str = Field(default="tv", description="媒体类型: movie 或 tv")
+
+
 class MediaDirectoryResponse(MediaDirectoryBase):
     """媒体目录响应"""
     id: int

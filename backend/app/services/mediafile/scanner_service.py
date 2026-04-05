@@ -253,7 +253,7 @@ class MediaScannerService:
 
                 # 3. 处理文件同步
                 if sorted_files:
-                    await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files, directory.media_type)
+                    await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files, directory.media_type, directory.season_number)
                     stats["files"] += len(sorted_files)
                 
                 # 更新统计信息
@@ -358,7 +358,8 @@ class MediaScannerService:
         directory_id: int,
         dir_path: str,
         file_entries: List[os.DirEntry],
-        media_type: Optional[str] = None
+        media_type: Optional[str] = None,
+        directory_season: Optional[int] = None
     ):
         """同步目录下的文件：添加新文件，标记丢失文件"""
         
@@ -392,7 +393,7 @@ class MediaScannerService:
         for name, entry in disk_files.items():
             if name not in db_file_map:
                 # 新增文件
-                await MediaScannerService._create_file(db, entry, directory_id, media_type)
+                await MediaScannerService._create_file(db, entry, directory_id, media_type, directory_season)
             else:
                  # 检查是否需要更新关联
                  f = db_file_map[name]
@@ -438,11 +439,12 @@ class MediaScannerService:
                 await db.delete(file_obj)
 
     @staticmethod
-    async def _create_file(db: AsyncSession, entry: os.DirEntry, directory_id: int, media_type: Optional[str] = None):
+    async def _create_file(db: AsyncSession, entry: os.DirEntry, directory_id: int, media_type: Optional[str] = None, directory_season: Optional[int] = None):
         """创建单个文件记录
 
         如果该文件是某个已有文件整理（硬链接/reflink等）后的产物，
         则自动继承原始文件的识别信息（媒体类型、统一资源关联、季集号等）。
+        对于没有源文件的视频文件，使用guessit从文件名解析季集号和分辨率。
         """
         from app.utils.file_operations import get_file_type
 
@@ -494,8 +496,71 @@ class MediaScannerService:
                 f"继承原始文件识别信息: {entry.name} <- source_id={source_file.id}, "
                 f"unified={source_file.unified_table_name}:{source_file.unified_resource_id}"
             )
+        elif file_type == FILE_TYPE_VIDEO:
+            # 没有源文件的视频，使用guessit从文件名解析季集号
+            await MediaScannerService._parse_filename_info(media_file, entry.name, directory_season)
 
         db.add(media_file)
+
+    @staticmethod
+    async def _parse_filename_info(media_file: MediaFile, filename: str, directory_season: Optional[int] = None):
+        """
+        使用guessit从文件名解析季集号和分辨率等信息
+
+        优先级：目录季号作为兜底，文件名解析的季号优先。
+
+        Args:
+            media_file: 媒体文件对象（原地修改）
+            filename: 文件名
+            directory_season: 目录解析出的季号
+        """
+        from app.services.common.filename_parser_service import FilenameParserService
+
+        if not FilenameParserService.is_available():
+            # guessit未安装，仅使用目录季号
+            if directory_season:
+                media_file.season_number = directory_season
+            return
+
+        try:
+            parsed = FilenameParserService.parse_media_file(media_file.file_path)
+
+            # 季号：文件名解析优先，否则用目录季号
+            if parsed.get("season"):
+                media_file.season_number = parsed["season"]
+            elif directory_season:
+                media_file.season_number = directory_season
+
+            # 集号
+            if parsed.get("episode"):
+                media_file.episode_number = parsed["episode"]
+
+            # 集标题
+            if parsed.get("episode_title"):
+                media_file.episode_title = parsed["episode_title"]
+
+            # 分辨率
+            if parsed.get("resolution") and not media_file.resolution:
+                media_file.resolution = parsed["resolution"]
+
+            # 如果解析出了媒体类型，更新
+            if parsed.get("type") and media_file.media_type == "unknown":
+                media_file.media_type = FilenameParserService.guess_media_type(parsed)
+
+            # 标记识别方式
+            if parsed.get("season") or parsed.get("episode"):
+                media_file.match_method = "from_filename"
+
+            logger.debug(
+                f"文件名解析: {filename} -> S{media_file.season_number}E{media_file.episode_number}, "
+                f"resolution={media_file.resolution}"
+            )
+
+        except Exception as e:
+            logger.warning(f"文件名解析失败: {filename}, 错误: {e}")
+            # 降级：仅使用目录季号
+            if directory_season:
+                media_file.season_number = directory_season
 
     @staticmethod
     async def _find_source_file(db: AsyncSession, file_path: str) -> Optional[MediaFile]:

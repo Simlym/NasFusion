@@ -49,12 +49,29 @@
             <el-tag v-if="fileData.has_subtitle" size="small" type="success" effect="plain">
               字幕
             </el-tag>
-            <el-tag v-if="metadata?.organized" size="small" type="success" effect="plain">
-              已整理
-            </el-tag>
-            <el-tag v-else size="small" type="info" effect="plain">
-              未整理
-            </el-tag>
+
+            <!-- 刮削按钮 -->
+            <el-dropdown
+              @command="handleScrapeCommand"
+              style="margin-left: auto"
+              trigger="click"
+            >
+              <el-button
+                type="primary"
+                size="small"
+                :loading="scraping || generating"
+                :icon="MagicStick"
+              >
+                刮削 <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="all">全部（图片+NFO）</el-dropdown-item>
+                  <el-dropdown-item command="nfo">仅 NFO</el-dropdown-item>
+                  <el-dropdown-item command="images">仅图片</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
 
           <!-- 集标题 -->
@@ -82,28 +99,6 @@
           <p v-if="nfoPlot" class="ep-plot">{{ nfoPlot }}</p>
           <p v-else-if="!loading" class="ep-plot ep-plot--empty">暂无简介</p>
         </div>
-      </div>
-
-      <!-- 刮削操作 -->
-      <div class="action-bar">
-        <el-button
-          type="primary"
-          size="small"
-          :loading="scraping"
-          :icon="Refresh"
-          @click="handleScrape"
-        >
-          重新刮削
-        </el-button>
-        <el-button
-          size="small"
-          :loading="generating"
-          :icon="Document"
-          @click="handleGenerateNFO"
-        >
-          仅生成 NFO
-        </el-button>
-        <span class="action-hint">强制覆盖已有图片和 NFO</span>
       </div>
 
       <!-- 文件路径信息 -->
@@ -141,11 +136,37 @@
         </div>
       </div>
 
-      <!-- 文件详细信息 -->
+      <!-- 文件详细信息（可编辑集数） -->
       <div class="info-section">
         <div class="info-section-title">
           <el-icon><Document /></el-icon>
           <span>文件信息</span>
+          <el-button
+            v-if="!editingEpisodeInfo"
+            link
+            type="primary"
+            size="small"
+            style="margin-left: auto"
+            @click="startEditEpisodeInfo"
+          >
+            <el-icon><EditPen /></el-icon> 编辑
+          </el-button>
+          <template v-else>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              style="margin-left: auto"
+              :loading="savingEpisodeInfo"
+              @click="saveEpisodeInfo"
+            >
+              保存
+            </el-button>
+            <el-button link size="small" @click="cancelEditEpisodeInfo">取消</el-button>
+            <el-button link type="warning" size="small" @click="parseFromFilename">
+              从文件名解析
+            </el-button>
+          </template>
         </div>
         <el-descriptions :column="2" size="small" border>
           <el-descriptions-item label="文件名" :span="2">
@@ -155,10 +176,44 @@
           <el-descriptions-item label="分辨率">{{ fileData.resolution || '-' }}</el-descriptions-item>
           <el-descriptions-item label="视频编码">{{ metadata?.video_codec || '-' }}</el-descriptions-item>
           <el-descriptions-item label="时长">{{ metadata?.duration ? formatDuration(metadata.duration) : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="集数">
-            {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
+          <el-descriptions-item label="季数">
+            <template v-if="editingEpisodeInfo">
+              <el-input-number
+                v-model="editForm.season_number"
+                :min="1"
+                :max="99"
+                controls-position="right"
+                size="small"
+                style="width: 100px"
+              />
+            </template>
+            <template v-else>
+              {{ fileData.season_number != null ? `第 ${fileData.season_number} 季` : '-' }}
+            </template>
           </el-descriptions-item>
-          <el-descriptions-item label="集标题">{{ fileData.episode_title || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="集数">
+            <template v-if="editingEpisodeInfo">
+              <el-input-number
+                v-model="editForm.episode_number"
+                :min="1"
+                :max="9999"
+                controls-position="right"
+                size="small"
+                style="width: 100px"
+              />
+            </template>
+            <template v-else>
+              {{ fileData.episode_number != null ? `第 ${fileData.episode_number} 集` : '-' }}
+            </template>
+          </el-descriptions-item>
+          <el-descriptions-item label="集标题" :span="2">
+            <template v-if="editingEpisodeInfo">
+              <el-input v-model="editForm.episode_title" size="small" placeholder="集标题" />
+            </template>
+            <template v-else>
+              {{ fileData.episode_title || '-' }}
+            </template>
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag size="small" :type="statusTagType(metadata?.status)">{{ statusLabel(metadata?.status) }}</el-tag>
           </el-descriptions-item>
@@ -179,6 +234,12 @@
           <el-descriptions-item v-if="metadata.nfo_data.originaltitle" label="原始标题" :span="2">
             {{ metadata.nfo_data.originaltitle }}
           </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.season != null" label="季数">
+            第 {{ metadata.nfo_data.season }} 季
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.episode != null" label="集数">
+            第 {{ metadata.nfo_data.episode }} 集
+          </el-descriptions-item>
           <el-descriptions-item v-if="metadata.nfo_data.aired" label="播出日期">
             {{ metadata.nfo_data.aired }}
           </el-descriptions-item>
@@ -190,6 +251,18 @@
           </el-descriptions-item>
           <el-descriptions-item v-if="metadata.nfo_data.studio" label="制作公司">
             {{ metadata.nfo_data.studio }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.runtime" label="时长">
+            {{ metadata.nfo_data.runtime }} 分钟
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.tmdb_id" label="TMDB ID">
+            {{ metadata.nfo_data.tmdb_id }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.imdb_id" label="IMDB ID">
+            {{ metadata.nfo_data.imdb_id }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="metadata.nfo_data.genres?.length" label="类型">
+            {{ metadata.nfo_data.genres.join(' / ') }}
           </el-descriptions-item>
           <el-descriptions-item v-if="metadata.nfo_data.plot" label="简介" :span="2">
             <span class="nfo-plot-text">{{ metadata.nfo_data.plot }}</span>
@@ -204,10 +277,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, Document, Calendar, Timer, Folder, Tickets } from '@element-plus/icons-vue'
-import { scrapeMediaFile, generateNFO, getEpisodeMetadata, type EpisodeMetadata } from '@/api/modules/media'
+import { Document, Calendar, Timer, Folder, Tickets, EditPen, ArrowDown, MagicStick } from '@element-plus/icons-vue'
+import { scrapeMediaFile, generateNFO, getEpisodeMetadata, updateEpisodeInfo, parseFilename, type EpisodeMetadata } from '@/api/modules/media'
 import type { EpisodeTreeNode } from './DirectoryTree.vue'
 
 interface Props {
@@ -223,6 +296,15 @@ const generating = ref(false)
 
 const fileData = ref<EpisodeTreeNode | null>(null)
 const metadata = ref<EpisodeMetadata | null>(null)
+
+// 编辑集数信息
+const editingEpisodeInfo = ref(false)
+const savingEpisodeInfo = ref(false)
+const editForm = reactive({
+  season_number: null as number | null,
+  episode_number: null as number | null,
+  episode_title: '' as string,
+})
 
 // NFO 字段快捷访问
 const nfoTitle = computed(() => metadata.value?.nfo_data?.title || null)
@@ -243,6 +325,7 @@ const loadMetadata = async () => {
   }
   fileData.value = { ...props.episode }
   metadata.value = null
+  editingEpisodeInfo.value = false
   loading.value = true
   try {
     const res = await getEpisodeMetadata(props.episode.id)
@@ -260,41 +343,97 @@ const loadMetadata = async () => {
   }
 }
 
-async function handleScrape() {
+async function handleScrapeCommand(command: string) {
   if (!fileData.value) return
-  scraping.value = true
-  try {
-    const res = await scrapeMediaFile(fileData.value.id, undefined, true)
-    if (res.data.success) {
-      ElMessage.success('刮削成功')
-      await loadMetadata()
-      emit('scrape-done')
-    } else {
-      ElMessage.error(res.data.error || '刮削失败')
+
+  if (command === 'nfo') {
+    generating.value = true
+    try {
+      const res = await generateNFO(fileData.value.id, undefined, true)
+      if (res.data.success) {
+        ElMessage.success('NFO 生成成功')
+        await loadMetadata()
+        emit('scrape-done')
+      } else {
+        ElMessage.error(res.data.error || 'NFO 生成失败')
+      }
+    } catch (e: any) {
+      ElMessage.error(e.response?.data?.detail || 'NFO 生成失败')
+    } finally {
+      generating.value = false
     }
-  } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || '刮削失败')
-  } finally {
-    scraping.value = false
+  } else {
+    // 'all' or 'images' - both call scrape, 'images' would need backend support
+    // For now, both call full scrape with force=true
+    scraping.value = true
+    try {
+      const res = await scrapeMediaFile(fileData.value.id, undefined, true)
+      if (res.data.success) {
+        ElMessage.success('刮削成功')
+        await loadMetadata()
+        emit('scrape-done')
+      } else {
+        ElMessage.error(res.data.errors?.[0] || '刮削失败')
+      }
+    } catch (e: any) {
+      ElMessage.error(e.response?.data?.detail || '刮削失败')
+    } finally {
+      scraping.value = false
+    }
   }
 }
 
-async function handleGenerateNFO() {
+// 编辑集数信息
+function startEditEpisodeInfo() {
+  editForm.season_number = fileData.value?.season_number ?? null
+  editForm.episode_number = fileData.value?.episode_number ?? null
+  editForm.episode_title = fileData.value?.episode_title || ''
+  editingEpisodeInfo.value = true
+}
+
+function cancelEditEpisodeInfo() {
+  editingEpisodeInfo.value = false
+}
+
+async function saveEpisodeInfo() {
   if (!fileData.value) return
-  generating.value = true
+  savingEpisodeInfo.value = true
   try {
-    const res = await generateNFO(fileData.value.id, undefined, true)
-    if (res.data.success) {
-      ElMessage.success('NFO 生成成功')
-      await loadMetadata()
-      emit('scrape-done')
-    } else {
-      ElMessage.error(res.data.error || 'NFO 生成失败')
+    await updateEpisodeInfo(fileData.value.id, {
+      season_number: editForm.season_number,
+      episode_number: editForm.episode_number,
+      episode_title: editForm.episode_title || null,
+    })
+    ElMessage.success('集数信息更新成功')
+    editingEpisodeInfo.value = false
+    // 更新本地数据
+    if (fileData.value) {
+      fileData.value = {
+        ...fileData.value,
+        season_number: editForm.season_number,
+        episode_number: editForm.episode_number,
+        episode_title: editForm.episode_title || null,
+      }
     }
+    emit('scrape-done')  // 通知树刷新
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || 'NFO 生成失败')
+    ElMessage.error(e.response?.data?.detail || '更新失败')
   } finally {
-    generating.value = false
+    savingEpisodeInfo.value = false
+  }
+}
+
+async function parseFromFilename() {
+  if (!fileData.value) return
+  try {
+    const res = await parseFilename(fileData.value.id)
+    const data = res.data
+    if (data.season != null) editForm.season_number = data.season
+    if (data.episode != null) editForm.episode_number = data.episode
+    if (data.episode_title) editForm.episode_title = data.episode_title
+    ElMessage.success('从文件名解析成功')
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.detail || '解析失败')
   }
 }
 
@@ -330,7 +469,7 @@ const statusLabel = (status?: string | null): string => {
   return map[status || ''] || status || '-'
 }
 
-const statusTagType = (status?: string | null): string => {
+const statusTagType = (status?: string | null): '' | 'success' | 'warning' | 'danger' | 'info' => {
   const map: Record<string, string> = {
     completed: 'success',
     failed: 'danger',
@@ -484,22 +623,6 @@ watch(() => props.episode, loadMetadata, { immediate: true })
   &--empty {
     color: var(--el-text-color-placeholder);
     font-style: italic;
-  }
-}
-
-/* 操作栏 */
-.action-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--el-fill-color-light);
-  border-radius: 8px;
-
-  .action-hint {
-    font-size: 12px;
-    color: var(--el-text-color-placeholder);
-    margin-left: 4px;
   }
 }
 

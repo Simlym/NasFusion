@@ -155,3 +155,26 @@ export function generateNFO(id: number, config_id?: number, force = false) {
     force
   })
 }
+
+// ==================== 文件信息编辑 API ====================
+
+// 更新媒体文件集数信息
+export function updateEpisodeInfo(id: number, data: {
+  season_number?: number | null
+  episode_number?: number | null
+  episode_title?: string | null
+}) {
+  return request.put<{ success: boolean; message: string }>(`/media-files/${id}/episode-info`, data)
+}
+
+// 从文件名解析季集信息
+export function parseFilename(id: number) {
+  return request.get<{
+    season: number | null
+    episode: number | null
+    title: string | null
+    episode_title: string | null
+    year: number | null
+    resolution: string | null
+  }>(`/media-files/${id}/parse-filename`)
+}

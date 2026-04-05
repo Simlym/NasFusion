@@ -28,6 +28,8 @@ from app.schemas.media_file import (
     MediaFileBatchScrapeResponse,
     MediaFileGenerateNFORequest,
     MediaFileGenerateNFOResponse,
+    MediaFileUpdateEpisodeInfo,
+    MediaFileParseFilenameResponse,
 )
 from app.services.mediafile.media_file_service import MediaFileService
 from app.services.mediafile.media_info_service import MediaInfoService
@@ -423,6 +425,67 @@ async def delete_media_file(
     return {"status": "success", "message": "删除成功"}
 
 
+# ========== 文件信息编辑API ==========
+
+
+@router.put("/{file_id}/episode-info")
+async def update_episode_info(
+    file_id: int,
+    request: MediaFileUpdateEpisodeInfo,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    更新媒体文件的季集信息
+
+    用于手动维护集数、季数、集标题
+    """
+    media_file = await MediaFileService.get_by_id(db, file_id)
+    if not media_file:
+        raise HTTPException(status_code=404, detail="媒体文件不存在")
+
+    if request.season_number is not None:
+        media_file.season_number = request.season_number
+    if request.episode_number is not None:
+        media_file.episode_number = request.episode_number
+    if request.episode_title is not None:
+        media_file.episode_title = request.episode_title
+
+    await db.commit()
+    return {"success": True, "message": "更新成功"}
+
+
+@router.get("/{file_id}/parse-filename", response_model=MediaFileParseFilenameResponse)
+async def parse_filename(
+    file_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    从文件名解析季集信息
+
+    使用guessit解析文件名，返回解析到的季数、集数等信息
+    """
+    media_file = await MediaFileService.get_by_id(db, file_id)
+    if not media_file:
+        raise HTTPException(status_code=404, detail="媒体文件不存在")
+
+    from app.services.common.filename_parser_service import FilenameParserService
+
+    parsed = FilenameParserService.parse_media_file(
+        media_file.organized_path or media_file.file_path
+    )
+
+    return MediaFileParseFilenameResponse(
+        season=parsed.get("season"),
+        episode=parsed.get("episode"),
+        title=parsed.get("title"),
+        episode_title=parsed.get("episode_title"),
+        year=parsed.get("year"),
+        resolution=parsed.get("resolution"),
+    )
+
+
 # ========== 识别相关API ==========
 
 
@@ -684,12 +747,6 @@ async def batch_scrape_media_files(
         config = await OrganizeConfigService.get_by_id(db, request.config_id)
         if not config:
             raise HTTPException(status_code=404, detail="配置不存在")
-    else:
-        # 批量刮削需要指定配置ID，因为文件可能有不同的媒体类型
-        raise HTTPException(
-            status_code=400,
-            detail="批量刮削需要指定配置ID（config_id）",
-        )
 
     try:
         result = await scraper_service.batch_scrape(db, request.file_ids, config)
