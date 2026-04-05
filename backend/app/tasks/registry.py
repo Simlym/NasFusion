@@ -52,6 +52,7 @@ def register_all_handlers():
         TASK_TYPE_PERSON_DETAIL_SYNC,
         TASK_TYPE_CREDITS_BACKFILL,
         TASK_TYPE_PERSON_MERGE,
+        TASK_TYPE_DUPLICATE_MEDIA_MERGE,
     )
     from app.tasks.handlers import (
         PTResourceSyncHandler,
@@ -71,6 +72,7 @@ def register_all_handlers():
         PersonDetailSyncHandler,
         CreditsBackfillHandler,
         PersonMergeHandler,
+        DuplicateMediaMergeHandler,
     )
 
     TaskHandlerRegistry.register(TASK_TYPE_PT_RESOURCE_SYNC, PTResourceSyncHandler)
@@ -90,6 +92,7 @@ def register_all_handlers():
     TaskHandlerRegistry.register(TASK_TYPE_PERSON_DETAIL_SYNC, PersonDetailSyncHandler)
     TaskHandlerRegistry.register(TASK_TYPE_CREDITS_BACKFILL, CreditsBackfillHandler)
     TaskHandlerRegistry.register(TASK_TYPE_PERSON_MERGE, PersonMergeHandler)
+    TaskHandlerRegistry.register(TASK_TYPE_DUPLICATE_MEDIA_MERGE, DuplicateMediaMergeHandler)
 
     logger.debug(f"已注册 {len(TaskHandlerRegistry.get_all_handlers())} 个任务处理器")
 

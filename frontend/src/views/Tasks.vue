@@ -1382,6 +1382,7 @@ const TASK_CATEGORY_MAP: Record<string, string> = {
   scan_media: 'system',
   credits_backfill: 'system',
   person_merge: 'system',
+  duplicate_media_merge: 'system',
   task_execution_cleanup: 'system',
   cleanup: 'system',
   notification_send: 'system',

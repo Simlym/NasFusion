@@ -18,6 +18,7 @@ from app.tasks.handlers.trending_detail_sync_handler import TrendingDetailSyncHa
 from app.tasks.handlers.person_detail_sync_handler import PersonDetailSyncHandler
 from app.tasks.handlers.credits_backfill_handler import CreditsBackfillHandler
 from app.tasks.handlers.person_merge_handler import PersonMergeHandler
+from app.tasks.handlers.duplicate_media_merge_handler import DuplicateMediaMergeHandler
 
 __all__ = [
     "PTResourceSyncHandler",
@@ -38,5 +39,6 @@ __all__ = [
     "PersonDetailSyncHandler",
     "CreditsBackfillHandler",
     "PersonMergeHandler",
+    "DuplicateMediaMergeHandler",
 ]
 

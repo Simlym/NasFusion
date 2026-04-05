@@ -23,6 +23,7 @@ from app.constants import (
     TASK_TYPE_PERSON_DETAIL_SYNC,
     TASK_TYPE_CREDITS_BACKFILL,
     TASK_TYPE_PERSON_MERGE,
+    TASK_TYPE_DUPLICATE_MEDIA_MERGE,
 )
 from app.constants.trending import (
     DEFAULT_TRENDING_SYNC_COUNT,
@@ -507,6 +508,51 @@ async def init_person_merge_task(db: AsyncSession):
     return task
 
 
+async def init_duplicate_media_merge_task(db: AsyncSession):
+    """
+    初始化重复影视合并任务
+
+    手动触发任务，合并 title+year 相同的重复电影和剧集记录
+    """
+    result = await db.execute(
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_DUPLICATE_MEDIA_MERGE).limit(1)
+    )
+    existing_task = result.scalar()
+
+    if existing_task:
+        logger.debug(f"重复影视合并任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
+        return existing_task
+
+    task_name = "重复影视合并"
+
+    task = ScheduledTask(
+        task_type=TASK_TYPE_DUPLICATE_MEDIA_MERGE,
+        task_name=task_name,
+        description="合并 title+year 相同的重复电影和剧集记录，"
+                    "优先保留有 tmdb_id 的记录，合并元数据并更新资源映射。"
+                    "支持参数: dry_run(预览模式), media_type(movie/tv/all), limit(分组数量)",
+        schedule_type=SCHEDULE_TYPE_MANUAL,
+        schedule_config={},
+        handler=TASK_TYPE_DUPLICATE_MEDIA_MERGE,
+        handler_params={
+            "dry_run": False,
+            "media_type": "all",
+            "limit": 200,
+        },
+        enabled=True,
+        priority=3,
+        max_retries=1,
+    )
+
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    logger.info(f"已创建重复影视合并任务: {task.task_name} (ID: {task.id})")
+
+    return task
+
+
 async def init_system_tasks():
     """
     初始化所有系统任务
@@ -545,6 +591,9 @@ async def init_system_tasks():
 
             # 初始化重复人物合并任务
             await init_person_merge_task(db)
+
+            # 初始化重复影视合并任务
+            await init_duplicate_media_merge_task(db)
 
             logger.info("系统任务初始化完成")
 
