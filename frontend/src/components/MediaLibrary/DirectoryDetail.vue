@@ -23,21 +23,39 @@
 
           <!-- 右侧信息 -->
           <div class="info-wrapper">
-            <!-- 已关联资源时，显示资源标题并可跳转 -->
-            <router-link
-              v-if="detail.unified_resource"
-              :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
-              class="title linked-title"
-            >
-              {{ detail.unified_resource.title }}
-              <span v-if="detail.unified_resource.year" class="year">({{ detail.unified_resource.year }})</span>
-              <el-tag size="small" type="success" effect="plain" class="linked-tag">已关联</el-tag>
-            </router-link>
-            <!-- 未关联时，显示NFO标题或目录名 -->
-            <h1 v-else class="title">
+            <!-- 标题：始终显示 NFO 标题或目录名 -->
+            <h1 class="title">
               {{ detail.nfo_data?.title || detail.directory.directory_name }}
-              <span v-if="detail.nfo_data?.year" class="year">({{ detail.nfo_data.year }})</span>
+              <span v-if="(detail.nfo_data?.year || detail.unified_resource?.year)" class="year">
+                ({{ detail.nfo_data?.year || detail.unified_resource?.year }})
+              </span>
             </h1>
+
+            <!-- 关联状态行 -->
+            <div class="resource-association">
+              <template v-if="detail.unified_resource">
+                <router-link
+                  :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
+                  class="association-link"
+                  @click.stop
+                >
+                  <el-tag type="success" effect="dark" size="small" class="association-tag">
+                    已关联
+                  </el-tag>
+                  <span class="association-title">{{ detail.unified_resource.title }}</span>
+                  <span v-if="detail.unified_resource.year" class="association-year">({{ detail.unified_resource.year }})</span>
+                </router-link>
+                <el-button size="small" text class="reassoc-btn" @click="showLinkDialog = true">
+                  重新关联
+                </el-button>
+              </template>
+              <template v-else>
+                <el-tag type="warning" effect="dark" size="small">未关联</el-tag>
+                <el-button size="small" type="warning" plain @click="showLinkDialog = true">
+                  识别关联
+                </el-button>
+              </template>
+            </div>
 
             <div class="meta-row">
               <!-- 评分：直接显示原始分值 -->
@@ -113,17 +131,6 @@
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-
-              <!-- 识别关联按钮 -->
-              <el-button
-                size="small"
-                plain
-                :type="detail.unified_resource ? 'success' : 'warning'"
-                style="margin-left: 8px"
-                @click="showLinkDialog = true"
-              >
-                {{ detail.unified_resource ? '重新关联' : '识别关联' }}
-              </el-button>
             </div>
 
             <div v-if="detail.nfo_data?.genres?.length" class="genres-row">
@@ -166,33 +173,28 @@
 
             <div class="files-toolbar">
               <div class="files-summary">
-                <span>{{ videoFiles.length }} 个视频</span>
-                <span class="sep">·</span>
-                <el-text :type="missingNfoCount > 0 ? 'danger' : 'success'" size="small">
-                  NFO: {{ videoFiles.length - missingNfoCount }}/{{ videoFiles.length }}
-                </el-text>
-                <span class="sep">·</span>
-                <el-text :type="missingPosterCount > 0 ? 'warning' : 'success'" size="small">
-                  图片: {{ videoFiles.length - missingPosterCount }}/{{ videoFiles.length }}
-                </el-text>
-                <span class="sep">·</span>
-                <span class="total-size">{{ formatFileSize(detail.statistics.total_size) }}</span>
-              </div>
-              <div class="files-actions">
-                <template v-if="detail.unified_resource">
-                  <router-link
-                    :to="`/${detail.unified_resource.media_type === 'movie' ? 'movies' : 'tv'}/${detail.unified_resource.id}`"
-                    style="text-decoration: none"
-                  >
-                    <el-tag type="success" effect="plain" size="small" style="cursor: pointer">
-                      {{ detail.unified_resource.title }}
-                      <span v-if="detail.unified_resource.year"> ({{ detail.unified_resource.year }})</span>
-                    </el-tag>
-                  </router-link>
-                </template>
-                <el-text v-else type="warning" size="small">
-                  未关联资源
-                </el-text>
+                <span class="stat-item">
+                  <span class="stat-value">{{ videoFiles.length }}</span>
+                  <span class="stat-label">个视频</span>
+                </span>
+                <span class="stat-divider"></span>
+                <span class="stat-item">
+                  <span class="stat-label">NFO</span>
+                  <span :class="['stat-value', missingNfoCount > 0 ? 'is-danger' : 'is-success']">
+                    {{ videoFiles.length - missingNfoCount }}/{{ videoFiles.length }}
+                  </span>
+                </span>
+                <span class="stat-divider"></span>
+                <span class="stat-item">
+                  <span class="stat-label">图片</span>
+                  <span :class="['stat-value', missingPosterCount > 0 ? 'is-warning' : 'is-success']">
+                    {{ videoFiles.length - missingPosterCount }}/{{ videoFiles.length }}
+                  </span>
+                </span>
+                <span class="stat-divider"></span>
+                <span class="stat-item">
+                  <span class="stat-value">{{ formatFileSize(detail.statistics.total_size) }}</span>
+                </span>
               </div>
             </div>
 
@@ -1148,21 +1150,56 @@ defineExpose({ refresh })
   }
 }
 
-.title.linked-title {
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
-  transition: opacity 0.2s;
+/* 关联状态行 */
+.resource-association {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 
-  &:hover {
-    opacity: 0.85;
+  .association-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: #fff;
+    transition: opacity 0.2s;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.85;
+
+      .association-title {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+    }
   }
-}
 
-.linked-tag {
-  vertical-align: middle;
-  margin-left: 8px;
-  font-size: 11px;
+  .association-tag {
+    flex-shrink: 0;
+  }
+
+  .association-title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .association-year {
+    font-size: 13px;
+    opacity: 0.7;
+  }
+
+  .reassoc-btn {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    padding: 2px 6px;
+    height: auto;
+
+    &:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
 }
 
 .meta-row {
@@ -1266,34 +1303,50 @@ defineExpose({ refresh })
 /* 文件列表 Tab */
 .files-toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   background: var(--el-fill-color-light);
   border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
 
   .files-summary {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0;
+    font-size: 13px;
+  }
+
+  .stat-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 0 12px;
+  }
+
+  .stat-label {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+
+  .stat-value {
+    font-weight: 600;
     font-size: 14px;
     color: var(--el-text-color-primary);
-    font-weight: 500;
+    font-variant-numeric: tabular-nums;
 
-    .sep {
-      color: var(--el-text-color-placeholder);
-    }
-
-    .total-size {
-      color: var(--el-text-color-secondary);
-    }
+    &.is-success { color: var(--el-color-success); }
+    &.is-warning { color: var(--el-color-warning); }
+    &.is-danger { color: var(--el-color-danger); }
   }
 
-  .files-actions {
-    display: flex;
-    gap: 8px;
+  .stat-divider {
+    width: 1px;
+    height: 16px;
+    background: var(--el-border-color-light);
+    flex-shrink: 0;
   }
+
 }
 
 .other-files-section {
