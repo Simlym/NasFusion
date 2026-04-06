@@ -25,10 +25,6 @@
           </div>
         </div>
         <div class="lq-header-right">
-          <div class="live-badge">
-            <span class="live-dot"></span>
-            实时更新
-          </div>
           <el-button :icon="Refresh" :loading="queueLoading" size="small" @click="loadQueueStatus">刷新</el-button>
         </div>
       </div>
@@ -2772,28 +2768,6 @@ onUnmounted(() => {
   margin-bottom: 16px;
 }
 
-.live-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  font-weight: 500;
-}
-
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #67c23a;
-  animation: live-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.85); }
-}
-
 /* ════════════════════════════════════
    Live Queue — Activity Feed 布局
    ════════════════════════════════════ */
@@ -3339,18 +3313,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--nf-success);
-  animation: live-pulse 2s ease-in-out infinite;
-}
 
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
 
 /* 队列表格 */
 .queue-table {
