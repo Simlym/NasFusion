@@ -6,6 +6,7 @@
 """
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -283,7 +284,14 @@ class MediaScannerService:
                     except Exception as e:
                         logger.warning(f"父目录NFO自动识别失败: {current_path}, 错误: {e}")
                         await db.rollback()
-                
+
+                # 3.7 无 NFO 时，从目录名自动识别
+                if not directory.unified_resource_id:
+                    try:
+                        await _identify_from_directory_name(db, directory)
+                    except Exception as e:
+                        logger.warning(f"目录名识别失败: {current_path}, 错误: {e}")
+
                 # 4. 递归处理子目录
                 for subdir in subdirs:
                     await MediaScannerService._scan_recursive(
@@ -986,10 +994,13 @@ async def _search_and_match_title(
 
         # 多个结果时尝试精确匹配标题
         title_lower = title.lower().strip()
+        # 清洗标题：去除末尾 (年份) 后缀再匹配
+        cleaned_title = re.sub(r'\s*\(\d{4}\)\s*$', '', title_lower)
         for c in candidates:
             c_title = (c.get("title") or "").lower().strip()
             c_orig = (c.get("original_title") or "").lower().strip()
-            if title_lower == c_title or title_lower == c_orig:
+            if (title_lower == c_title or title_lower == c_orig
+                    or cleaned_title == c_title or cleaned_title == c_orig):
                 return c.get("tmdb_id")
 
         logger.debug(
@@ -999,4 +1010,82 @@ async def _search_and_match_title(
     except Exception as e:
         logger.warning(f"NFO名称搜索匹配失败: {title}, 错误: {e}")
         return None
+
+
+async def _identify_from_directory_name(db: AsyncSession, directory) -> None:
+    """
+    从目录名自动识别并关联（无 NFO 时的兜底策略）
+
+    策略：
+    1. 从目录名提取标题和年份（去除括号年份、分辨率等后缀）
+    2. 根据 directory.media_type 或 season_number 判断搜索 movie/tv
+    3. 搜索 TMDB 并匹配
+    """
+    from app.constants import (
+        UNIFIED_TABLE_MOVIES, UNIFIED_TABLE_TV,
+        MATCH_METHOD_FROM_DIRNAME,
+    )
+
+    # Season 目录（如 "Season 4"）自身名字无意义，需要取父目录名（如 "我们这一天 (2016)"）
+    name = directory.directory_name
+    if directory.season_number is not None and directory.directory_path:
+        # 从路径提取父目录名: .../我们这一天 (2016)/Season 4 -> 我们这一天 (2016)
+        parts = directory.directory_path.replace('\\', '/').rstrip('/').split('/')
+        if len(parts) >= 2:
+            name = parts[-2]
+
+    if not name:
+        return
+
+    # 提取年份
+    year_match = re.search(r'\((\d{4})\)', name)
+    year = int(year_match.group(1)) if year_match else None
+
+    # 清洗标题：去除 (年份)、分辨率等后缀
+    clean_name = re.sub(r'\s*\(\d{4}\)', '', name).strip()
+    clean_name = re.sub(
+        r'\s+(1080p|720p|2160p|4K|UHD|BluRay|WEB-DL|WEBRip|REMUX).*$', '',
+        clean_name, flags=re.IGNORECASE
+    ).strip()
+    if not clean_name:
+        return
+
+    # 确定媒体类型
+    media_type = directory.media_type
+    if directory.season_number is not None:
+        media_type = MEDIA_TYPE_TV
+    elif media_type in ("unknown", None):
+        media_type = None  # 搜索时尝试两种
+
+    # 搜索 TMDB
+    matched_tmdb_id = await _search_and_match_title(
+        db, clean_name, year, media_type or MEDIA_TYPE_MOVIE
+    )
+    if not matched_tmdb_id and media_type != MEDIA_TYPE_TV:
+        # movie 搜索失败，尝试 tv
+        matched_tmdb_id = await _search_and_match_title(
+            db, clean_name, year, MEDIA_TYPE_TV
+        )
+
+    if not matched_tmdb_id:
+        logger.debug(f"目录名识别无匹配: {directory.directory_path} (cleaned: {clean_name})")
+        return
+
+    # 根据类型创建关联
+    if media_type == MEDIA_TYPE_TV:
+        unified = await _find_or_create_tv_by_tmdb(db, matched_tmdb_id)
+        if unified:
+            await MediaScannerService._apply_directory_link(
+                db, directory, UNIFIED_TABLE_TV, unified.id, MEDIA_TYPE_TV,
+                match_method=MATCH_METHOD_FROM_DIRNAME, title=unified.title,
+            )
+            logger.info(f"目录名识别成功(TV): {directory.directory_path} -> {unified.title}")
+    else:
+        unified = await _find_or_create_movie_by_tmdb(db, matched_tmdb_id)
+        if unified:
+            await MediaScannerService._apply_directory_link(
+                db, directory, UNIFIED_TABLE_MOVIES, unified.id, MEDIA_TYPE_MOVIE,
+                match_method=MATCH_METHOD_FROM_DIRNAME, title=unified.title,
+            )
+            logger.info(f"目录名识别成功(Movie): {directory.directory_path} -> {unified.title}")
 
