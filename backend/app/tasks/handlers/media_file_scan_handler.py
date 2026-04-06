@@ -105,15 +105,13 @@ class MediaFileScanHandler(BaseTaskHandler):
             total_stats["directories_updated"] += scan_result.get("directories_updated", 0)
             total_stats["files_created"] += scan_result.get("files", 0)
             
-            # 步骤2: 增量扫描时删除不存在的文件
-            if scan_mode == SCAN_MODE_INCREMENTAL:
-                deleted = await MediaFileService.delete_orphaned_records(db, current_dir)
-                total_stats["deleted_files"] += deleted
+            # 步骤2: 清理不存在的文件
+            deleted = await MediaFileService.delete_orphaned_records(db, current_dir)
+            total_stats["deleted_files"] += deleted
 
-            # 步骤3: 增量扫描时清理孤立目录
-            if scan_mode == SCAN_MODE_INCREMENTAL:
-                deleted_dirs = await MediaDirectoryService.delete_orphaned_directories(db, current_dir)
-                total_stats["deleted_directories"] += deleted_dirs
+            # 步骤3: 清理孤立目录
+            deleted_dirs = await MediaDirectoryService.delete_orphaned_directories(db, current_dir)
+            total_stats["deleted_directories"] += deleted_dirs
             
             await TaskExecutionService.update_progress(db, execution_id, dir_progress_end)
 
@@ -127,7 +125,7 @@ class MediaFileScanHandler(BaseTaskHandler):
         await TaskExecutionService.append_log(
             db,
             execution_id,
-            f"所有扫描任务完成: 目录 {len(directories_to_scan)} 个, 新增目录 {total_stats['directories_created']}, 更新目录 {total_stats['directories_updated']}, 清理文件 {total_stats['deleted_files']}, 发现问题 {total_stats['total_issues']}",
+            f"所有扫描任务完成: 目录 {len(directories_to_scan)} 个, 新增目录 {total_stats['directories_created']}, 更新目录 {total_stats['directories_updated']}, 清理文件 {total_stats['deleted_files']}, 清理目录 {total_stats['deleted_directories']}, 发现问题 {total_stats['total_issues']}",
         )
 
         # 发布媒体扫描完成事件

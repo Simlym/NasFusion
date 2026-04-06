@@ -531,7 +531,7 @@ class MediaDirectoryService:
     @staticmethod
     async def delete_orphaned_directories(db: AsyncSession, base_directory: str) -> int:
         """
-        删除不存在的目录记录
+        删除不存在的目录记录（级联删除目录下的文件和子目录）
 
         Args:
             db: 数据库会话
@@ -540,7 +540,12 @@ class MediaDirectoryService:
         Returns:
             删除的目录数量
         """
-        # 查询所有目录
+        import logging
+        logger = logging.getLogger(__name__)
+
+        base_directory = base_directory.replace('\\', '/')
+
+        # 查询所有属于该扫描根目录下的目录记录
         result = await db.execute(
             select(MediaDirectory).where(
                 MediaDirectory.directory_path.like(f"{base_directory}%")
@@ -548,13 +553,32 @@ class MediaDirectoryService:
         )
         directories = list(result.scalars().all())
 
-        deleted_count = 0
-        for directory in directories:
-            if not os.path.exists(directory.directory_path):
-                await db.delete(directory)
-                deleted_count += 1
+        # 筛选出磁盘上不存在的目录
+        orphaned_dirs = [d for d in directories if not os.path.exists(d.directory_path)]
+        if not orphaned_dirs:
+            return 0
 
-        if deleted_count > 0:
-            await db.commit()
+        # 收集所有孤立目录的ID和路径
+        orphaned_ids = [d.id for d in orphaned_dirs]
+        orphaned_paths = [d.directory_path for d in orphaned_dirs]
 
-        return deleted_count
+        # 先删除孤立目录下的文件记录
+        for dir_path in orphaned_paths:
+            await db.execute(
+                delete(MediaFile).where(
+                    or_(
+                        MediaFile.media_directory_id.in_(orphaned_ids),
+                        MediaFile.directory.like(f"{dir_path}%")
+                    )
+                )
+            )
+
+        # 再删除孤立目录记录（先删子目录再删父目录，按路径深度降序排列）
+        orphaned_dirs.sort(key=lambda d: d.directory_path.count('/'), reverse=True)
+        for directory in orphaned_dirs:
+            await db.delete(directory)
+
+        await db.commit()
+
+        logger.info(f"清理孤立目录: {len(orphaned_dirs)} 个目录及其文件记录已删除")
+        return len(orphaned_dirs)
