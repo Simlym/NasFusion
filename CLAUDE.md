@@ -184,25 +184,34 @@ class PTSiteService:
 
 ### 4. 时区处理
 
-**核心原则**：统一使用 `Asia/Shanghai` 时区，数据库存储带时区时间。
+**核心原则**：数据库统一存储 UTC 时间，应用层使用 `Asia/Shanghai` 时区。
+
+- **存储层**：`TZDateTime` 自定义类型自动将时间转为 UTC 写入数据库，读取时转回 `Asia/Shanghai`
+- **应用层**：始终使用 `now()` 获取带时区的当前时间，禁止使用 `datetime.now()` / `datetime.utcnow()`
+- **前端传递**：时间字段带时区信息（如 `2025-11-22T18:30:00+08:00`）
 
 ```python
 # ✅ 正确：使用时区工具函数
 from app.utils.timezone import now, parse_pt_site_time
 
-current_time = now()  # 2025-11-22 18:30:00+08:00
+current_time = now()  # 返回 Asia/Shanghai 带时区: 2025-11-22 18:30:00+08:00
+# 写入数据库时 TZDateTime 自动转为 UTC: 2025-11-22 10:30:00+00:00
+# 读取时自动转回 Asia/Shanghai
+
 published_at = parse_pt_site_time("2025-11-22 18:30:00")
 
-# ❌ 错误：禁止使用（已废弃）
-# current_time = datetime.utcnow()
+# ❌ 错误：禁止使用
+# current_time = datetime.now()      # 无时区信息，与数据库 aware datetime 运算会报 TypeError
+# current_time = datetime.utcnow()   # 已废弃
 ```
 
 **模型层**：
 ```python
 from app.utils.timezone import now
+from app.core.db_types import TZDateTime
 
 created_at = Column(
-    DateTime(timezone=True),  # 启用时区支持
+    TZDateTime(),  # 自动处理 UTC 存储和时区转换
     default=now,
     nullable=False
 )

@@ -38,7 +38,8 @@
         <!-- 目录节点 -->
         <span v-else class="tree-node">
           <el-icon :size="16" style="margin-right: 4px">
-            <FolderOpened v-if="node.expanded" />
+            <Document v-if="!data.subdir_count && !data.season_number" />
+            <FolderOpened v-else-if="node.expanded" />
             <Folder v-else />
           </el-icon>
           <span class="node-label">{{ getNodeDisplayName(data) }}</span>
@@ -97,7 +98,7 @@ import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Folder, FolderOpened, Warning, Refresh, Search,
-  CircleCheck, CircleClose, Picture, PictureFilled
+  CircleCheck, CircleClose, Picture, PictureFilled, Document
 } from '@element-plus/icons-vue'
 import { getDirectoryTree, getDirectoryDetail, type DirectoryTreeNode } from '@/api/mediaDirectory'
 
@@ -126,6 +127,7 @@ export type AnyTreeNode = (DirectoryTreeNode & { _treeKey: string; _node_type: '
 interface Props {
   mediaType?: string | null
   issues?: string[]
+  sortBy?: string
 }
 
 interface Emits {
@@ -134,7 +136,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   mediaType: null,
-  issues: () => []
+  issues: () => [],
+  sortBy: 'mtime'
 })
 
 const emit = defineEmits<Emits>()
@@ -190,7 +193,8 @@ const loadRootNodes = async (resolve: any) => {
     const res = await getDirectoryTree({
       media_type: props.mediaType || undefined,
       parent_id: null,
-      issues: props.issues?.length ? props.issues : undefined
+      issues: props.issues?.length ? props.issues : undefined,
+      sort_by: props.sortBy || undefined
     })
     const nodes = transformDirNodes(res.data || [])
     treeData.value = nodes
@@ -207,7 +211,8 @@ const loadChildren = async (parentId: number, resolve: any) => {
   try {
     const res = await getDirectoryTree({
       media_type: props.mediaType || undefined,
-      parent_id: parentId
+      parent_id: parentId,
+      sort_by: props.sortBy || undefined
     })
     resolve(transformDirNodes(res.data || []))
   } catch (error) {
@@ -320,6 +325,7 @@ const refreshNodeByKey = (treeKey: string) => {
 }
 
 watch(() => props.mediaType, refreshTree)
+watch(() => props.sortBy, refreshTree)
 
 watch(
   () => props.issues,

@@ -6,9 +6,10 @@
       <el-radio-group v-model="libraryMediaType" size="default" @change="handleLibraryMediaTypeChange">
         <el-radio-button value="movie">电影</el-radio-button>
         <el-radio-button value="tv">剧集</el-radio-button>
-        <el-radio-button value="anime">动画</el-radio-button>
+        <!-- 暂时隐藏 -->
+        <!-- <el-radio-button value="anime">动画</el-radio-button>
         <el-radio-button value="music">音乐</el-radio-button>
-        <el-radio-button value="book">电子书</el-radio-button>
+        <el-radio-button value="book">电子书</el-radio-button> -->
       </el-radio-group>
 
       <!-- 问题筛选器 -->
@@ -31,6 +32,24 @@
             <div class="card-header-simple">
               <el-icon><FolderOpened /></el-icon>
               <span>目录结构</span>
+              <el-tooltip content="排序方式" placement="top">
+                <el-dropdown trigger="click" @command="handleSortChange" class="sort-dropdown">
+                  <el-button :icon="Sort" text size="small" />
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="mtime" :class="{ 'is-active': treeSortBy === 'mtime' }">
+                        按修改时间
+                      </el-dropdown-item>
+                      <el-dropdown-item command="name" :class="{ 'is-active': treeSortBy === 'name' }">
+                        按名称
+                      </el-dropdown-item>
+                      <el-dropdown-item command="updated_at" :class="{ 'is-active': treeSortBy === 'updated_at' }">
+                        按更新时间
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </el-tooltip>
             </div>
           </template>
 
@@ -38,6 +57,7 @@
             ref="treeRef"
             :media-type="libraryMediaType"
             :issues="selectedIssues"
+            :sort-by="treeSortBy"
             @node-click="handleNodeClick"
           />
         </el-card>
@@ -70,6 +90,7 @@
         ref="mobileTreeRef"
         :media-type="libraryMediaType"
         :issues="selectedIssues"
+        :sort-by="treeSortBy"
         @node-click="handleMobileNodeClick"
       />
     </el-drawer>
@@ -91,9 +112,6 @@
           <el-select v-model="libraryScanDialog.mediaType" clearable placeholder="全部">
             <el-option label="电影" value="movie" />
             <el-option label="剧集" value="tv" />
-            <el-option label="动画" value="anime" />
-            <el-option label="音乐" value="music" />
-            <el-option label="电子书" value="book" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="!libraryScanDialog.directory" label="扫描模式">
@@ -125,7 +143,8 @@ import { ElMessage } from 'element-plus'
 import {
   Search,
   FolderOpened,
-  Warning
+  Warning,
+  Sort
 } from '@element-plus/icons-vue'
 import DirectoryTree from '@/components/MediaLibrary/DirectoryTree.vue'
 import DirectoryDetail from '@/components/MediaLibrary/DirectoryDetail.vue'
@@ -142,6 +161,7 @@ const scanning = ref(false)
 const mobileTreeVisible = ref(false)
 
 // 状态
+const treeSortBy = ref<string>('mtime')
 const libraryMediaType = ref<string>('movie')
 const selectedIssues = ref<string[]>([])
 const issueCounts = ref<Record<string, number>>({})
@@ -225,6 +245,13 @@ const handleLibraryMediaTypeChange = () => {
   selectedIssues.value = []
   // 注意：不需要手动调用 refresh()，因为 DirectoryTree 组件内部已经 watch 了 mediaType
   // 不再自动重新检测问题，用户可以通过"检测问题"按钮手动触发
+}
+
+/**
+ * 排序方式切换
+ */
+const handleSortChange = (command: string) => {
+  treeSortBy.value = command
 }
 
 /**
@@ -434,6 +461,10 @@ async function pollTaskStatus(executionId: number, label: string) {
         align-items: center;
         gap: 8px;
         font-weight: 500;
+
+        .sort-dropdown {
+          margin-left: auto;
+        }
       }
 
       :deep(.el-card__body) {
@@ -532,5 +563,10 @@ async function pollTaskStatus(executionId: number, label: string) {
     --el-dialog-width: 92% !important;
     width: 92% !important;
   }
+}
+
+.el-dropdown-menu__item.is-active {
+  color: var(--el-color-primary);
+  font-weight: 600;
 }
 </style>

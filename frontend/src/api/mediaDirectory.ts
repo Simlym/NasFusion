@@ -111,6 +111,7 @@ export function getDirectoryTree(params?: {
   parent_id?: number | null
   load_children?: boolean
   issues?: string[]
+  sort_by?: string
 }) {
   return request.get<DirectoryTreeNode[]>('/media-directories/tree', {
     params: {
