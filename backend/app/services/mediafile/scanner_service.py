@@ -256,6 +256,12 @@ class MediaScannerService:
                     await MediaScannerService._sync_files(db, directory.id, current_path, sorted_files, directory.media_type, directory.season_number)
                     stats["files"] += len(sorted_files)
 
+                # 更新统计信息（在NFO识别之前提交，确保扫描状态不丢失）
+                directory.scanned_at = now()
+                directory.total_files = len(sorted_files)
+                db.add(directory)
+                await db.commit()
+
                 # 3.5 尝试从NFO自动识别关联（目录未关联且存在NFO时）
                 if not directory.unified_resource_id and nfo_file:
                     try:
@@ -264,6 +270,7 @@ class MediaScannerService:
                         )
                     except Exception as e:
                         logger.warning(f"NFO自动识别失败: {current_path}, 错误: {e}")
+                        await db.rollback()
 
                 # 3.6 TV季度目录：如果仍未关联，尝试从父目录的tvshow.nfo识别
                 if (directory.season_number is not None
@@ -275,11 +282,7 @@ class MediaScannerService:
                         )
                     except Exception as e:
                         logger.warning(f"父目录NFO自动识别失败: {current_path}, 错误: {e}")
-
-                # 更新统计信息
-                directory.scanned_at = now()
-                directory.total_files = len(sorted_files)
-                await db.commit()
+                        await db.rollback()
                 
                 # 4. 递归处理子目录
                 for subdir in subdirs:
@@ -301,8 +304,10 @@ class MediaScannerService:
             
         except PermissionError:
             logger.warning(f"没有权限扫描目录: {current_path}")
+            await db.rollback()
         except Exception as e:
             logger.exception(f"扫描目录出错: {current_path}")
+            await db.rollback()
 
     @staticmethod
     async def _upsert_directory(
