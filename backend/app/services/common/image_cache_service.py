@@ -278,7 +278,7 @@ class ImageCacheService:
                     existing_by_hash = await db.execute(
                         select(ImageCache).where(ImageCache.file_hash == file_hash)
                     )
-                    existing_record = existing_by_hash.scalar_one_or_none()
+                    existing_record = existing_by_hash.scalars().first()
 
                     if existing_record:
                         try:
