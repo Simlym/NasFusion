@@ -6,7 +6,7 @@
 import asyncio
 import hashlib
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional, Dict
 from urllib.parse import urlparse
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.image_cache import ImageCache
+from app.utils.timezone import now as tz_now
 
 
 class ImageCacheService:
@@ -103,7 +104,7 @@ class ImageCacheService:
         if cache:
             # 优化：限制更新频率，避免每次读取都写数据库
             # 只有当上次访问时间超过24小时前，才更新访问时间和计数
-            now = datetime.now()
+            now = tz_now()
             if not cache.last_accessed_at or (now - cache.last_accessed_at) > timedelta(days=1):
                 cache.access_count += 1
                 cache.last_accessed_at = now
@@ -277,7 +278,7 @@ class ImageCacheService:
                                 content_type=content_type,
                                 source_type=ImageCacheService._get_source_type(url),
                                 access_count=1,
-                                last_accessed_at=datetime.now(),
+                                last_accessed_at=tz_now(),
                             )
                             db.add(cache)
                             await db.commit()
@@ -311,7 +312,7 @@ class ImageCacheService:
                             content_type=content_type,
                             source_type=ImageCacheService._get_source_type(url),
                             access_count=1,
-                            last_accessed_at=datetime.now(),
+                            last_accessed_at=tz_now(),
                         )
                         db.add(cache)
                         await db.commit()
@@ -452,7 +453,7 @@ class ImageCacheService:
         elif mode == "expired" or mode == "unused":
             # 清理过期或长期未访问的缓存
             from datetime import timedelta
-            cutoff_date = datetime.now() - timedelta(days=keep_days)
+            cutoff_date = tz_now() - timedelta(days=keep_days)
 
             if mode == "expired":
                 query = select(ImageCache).where(ImageCache.created_at < cutoff_date)
@@ -707,7 +708,7 @@ class ImageCacheService:
         elif mode == "expired" or mode == "unused":
             # 清理过期或长期未访问的缓存
             from datetime import timedelta
-            cutoff_date = datetime.now() - timedelta(days=keep_days)
+            cutoff_date = tz_now() - timedelta(days=keep_days)
 
             if mode == "expired":
                 query = select(ImageCache).where(ImageCache.created_at < cutoff_date)

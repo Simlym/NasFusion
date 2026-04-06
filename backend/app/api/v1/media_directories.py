@@ -151,6 +151,7 @@ async def get_directory_tree(
     parent_id: Optional[int] = Query(None, description="父目录ID"),
     load_children: bool = Query(False, description="是否预加载子目录"),
     issues: Optional[List[str]] = Query(None, description="问题筛选"),
+    sort_by: Optional[str] = Query(None, description="排序方式: name=按名称, mtime=按修改时间, updated_at=按更新时间"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -161,6 +162,7 @@ async def get_directory_tree(
     - **parent_id**: 父目录ID (None表示获取根目录)
     - **load_children**: 是否递归加载子目录
     - **issues**: 问题筛选条件
+    - **sort_by**: 排序方式 (name/mtime/updated_at)
     """
     # 检查用户的成人内容显示设置
     show_adult_setting = await SystemSettingService.get_by_key(db, "media_library", "show_adult_content")
@@ -175,7 +177,8 @@ async def get_directory_tree(
         media_type=media_type,
         parent_id=parent_id,
         load_children=load_children,
-        issues=issues
+        issues=issues,
+        sort_by=sort_by
     )
 
     # 如果用户未开启成人内容显示，过滤掉成人类型的目录

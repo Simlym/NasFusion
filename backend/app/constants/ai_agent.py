@@ -123,6 +123,113 @@ KIMI_MODEL_DISPLAY_NAMES = {
     KIMI_MODEL_MOONSHOT_V1_8K: "Moonshot V1 8K",
 }
 
+# ===== OpenAI 模型 =====
+OPENAI_MODEL_GPT_4_1 = "gpt-4.1"
+OPENAI_MODEL_GPT_4_1_MINI = "gpt-4.1-mini"
+OPENAI_MODEL_GPT_4_1_NANO = "gpt-4.1-nano"
+OPENAI_MODEL_GPT_4O = "gpt-4o"
+OPENAI_MODEL_GPT_4O_MINI = "gpt-4o-mini"
+OPENAI_MODEL_O3 = "o3"
+OPENAI_MODEL_O3_MINI = "o3-mini"
+OPENAI_MODEL_O4_MINI = "o4-mini"
+
+OPENAI_MODELS = [
+    OPENAI_MODEL_GPT_4_1,
+    OPENAI_MODEL_GPT_4_1_MINI,
+    OPENAI_MODEL_GPT_4_1_NANO,
+    OPENAI_MODEL_GPT_4O,
+    OPENAI_MODEL_GPT_4O_MINI,
+    OPENAI_MODEL_O3,
+    OPENAI_MODEL_O3_MINI,
+    OPENAI_MODEL_O4_MINI,
+]
+
+OPENAI_MODEL_DISPLAY_NAMES = {
+    OPENAI_MODEL_GPT_4_1: "GPT-4.1 (最新旗舰)",
+    OPENAI_MODEL_GPT_4_1_MINI: "GPT-4.1 Mini (轻量)",
+    OPENAI_MODEL_GPT_4_1_NANO: "GPT-4.1 Nano (极速·低成本)",
+    OPENAI_MODEL_GPT_4O: "GPT-4o (多模态)",
+    OPENAI_MODEL_GPT_4O_MINI: "GPT-4o Mini (轻量·多模态)",
+    OPENAI_MODEL_O3: "O3 (推理旗舰)",
+    OPENAI_MODEL_O3_MINI: "O3 Mini (推理·轻量)",
+    OPENAI_MODEL_O4_MINI: "O4 Mini (推理·最新)",
+}
+
+# ===== Anthropic 模型 =====
+ANTHROPIC_MODEL_CLAUDE_SONNET_4 = "claude-sonnet-4-20250514"
+ANTHROPIC_MODEL_CLAUDE_HAIKU_4 = "claude-haiku-4-20250414"
+ANTHROPIC_MODEL_CLAUDE_3_5_SONNET = "claude-3-5-sonnet-20241022"
+ANTHROPIC_MODEL_CLAUDE_3_5_HAIKU = "claude-3-5-haiku-20241022"
+ANTHROPIC_MODEL_CLAUDE_3_OPUS = "claude-3-opus-20240229"
+
+ANTHROPIC_MODELS = [
+    ANTHROPIC_MODEL_CLAUDE_SONNET_4,
+    ANTHROPIC_MODEL_CLAUDE_HAIKU_4,
+    ANTHROPIC_MODEL_CLAUDE_3_5_SONNET,
+    ANTHROPIC_MODEL_CLAUDE_3_5_HAIKU,
+    ANTHROPIC_MODEL_CLAUDE_3_OPUS,
+]
+
+ANTHROPIC_MODEL_DISPLAY_NAMES = {
+    ANTHROPIC_MODEL_CLAUDE_SONNET_4: "Claude Sonnet 4 (最新旗舰)",
+    ANTHROPIC_MODEL_CLAUDE_HAIKU_4: "Claude Haiku 4 (轻量·快速)",
+    ANTHROPIC_MODEL_CLAUDE_3_5_SONNET: "Claude 3.5 Sonnet (平衡)",
+    ANTHROPIC_MODEL_CLAUDE_3_5_HAIKU: "Claude 3.5 Haiku (极速·低成本)",
+    ANTHROPIC_MODEL_CLAUDE_3_OPUS: "Claude 3 Opus (强力)",
+}
+
+# ===== DeepSeek 模型 =====
+DEEPSEEK_MODEL_CHAT = "deepseek-chat"
+DEEPSEEK_MODEL_REASONER = "deepseek-reasoner"
+
+DEEPSEEK_MODELS = [
+    DEEPSEEK_MODEL_CHAT,
+    DEEPSEEK_MODEL_REASONER,
+]
+
+DEEPSEEK_MODEL_DISPLAY_NAMES = {
+    DEEPSEEK_MODEL_CHAT: "DeepSeek V3.2 (通用对话)",
+    DEEPSEEK_MODEL_REASONER: "DeepSeek V3.2 (推理·思考模式)",
+}
+
+# ===== 通义千问 模型 =====
+QWEN_MODEL_QWEN3_235B = "qwen3-235b-a22b"
+QWEN_MODEL_QWEN3_30B = "qwen3-30b-a3b"
+QWEN_MODEL_QWEN3_32B = "qwen3-32b"
+QWEN_MODEL_QWEN3_14B = "qwen3-14b"
+QWEN_MODEL_QWEN3_8B = "qwen3-8b"
+QWEN_MODEL_QWEN3_CODER_PLUS = "qwen3-coder-plus"
+QWEN_MODEL_QWEN_MAX = "qwen-max"
+QWEN_MODEL_QWEN_PLUS = "qwen-plus"
+QWEN_MODEL_QWEN_TURBO = "qwen-turbo"
+QWEN_MODEL_QWEN_LONG = "qwen-long"
+
+QWEN_MODELS = [
+    QWEN_MODEL_QWEN3_235B,
+    QWEN_MODEL_QWEN3_30B,
+    QWEN_MODEL_QWEN3_32B,
+    QWEN_MODEL_QWEN3_14B,
+    QWEN_MODEL_QWEN3_8B,
+    QWEN_MODEL_QWEN3_CODER_PLUS,
+    QWEN_MODEL_QWEN_MAX,
+    QWEN_MODEL_QWEN_PLUS,
+    QWEN_MODEL_QWEN_TURBO,
+    QWEN_MODEL_QWEN_LONG,
+]
+
+QWEN_MODEL_DISPLAY_NAMES = {
+    QWEN_MODEL_QWEN3_235B: "Qwen3 235B-A22B (旗舰·MoE)",
+    QWEN_MODEL_QWEN3_30B: "Qwen3 30B-A3B (轻量·MoE)",
+    QWEN_MODEL_QWEN3_32B: "Qwen3 32B (Dense)",
+    QWEN_MODEL_QWEN3_14B: "Qwen3 14B (中等)",
+    QWEN_MODEL_QWEN3_8B: "Qwen3 8B (轻量)",
+    QWEN_MODEL_QWEN3_CODER_PLUS: "Qwen3 Coder Plus (编程)",
+    QWEN_MODEL_QWEN_MAX: "Qwen Max (旗舰)",
+    QWEN_MODEL_QWEN_PLUS: "Qwen Plus (增强)",
+    QWEN_MODEL_QWEN_TURBO: "Qwen Turbo (快速)",
+    QWEN_MODEL_QWEN_LONG: "Qwen Long (长文本)",
+}
+
 # ===== 供应商类型信息 =====
 LLM_PROVIDER_TYPE_INFO = {
     LLM_PROVIDER_ZHIPU: {
@@ -130,19 +237,19 @@ LLM_PROVIDER_TYPE_INFO = {
         "default_api_base": "https://open.bigmodel.cn/api/paas/v4",
     },
     LLM_PROVIDER_OPENAI: {
-        "has_predefined_models": False,
+        "has_predefined_models": True,
         "default_api_base": "https://api.openai.com/v1",
     },
     LLM_PROVIDER_DEEPSEEK: {
-        "has_predefined_models": False,
+        "has_predefined_models": True,
         "default_api_base": "https://api.deepseek.com/v1",
     },
     LLM_PROVIDER_ANTHROPIC: {
-        "has_predefined_models": False,
+        "has_predefined_models": True,
         "default_api_base": "https://api.anthropic.com/v1",
     },
     LLM_PROVIDER_QWEN: {
-        "has_predefined_models": False,
+        "has_predefined_models": True,
         "default_api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     },
     LLM_PROVIDER_KIMI: {

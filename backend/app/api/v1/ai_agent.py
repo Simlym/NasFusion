@@ -40,6 +40,21 @@ from app.constants.ai_agent import (
     ZHIPU_MODELS,
     ZHIPU_MODEL_DISPLAY_NAMES,
     LLM_PROVIDER_ZHIPU,
+    OPENAI_MODELS,
+    OPENAI_MODEL_DISPLAY_NAMES,
+    LLM_PROVIDER_OPENAI,
+    ANTHROPIC_MODELS,
+    ANTHROPIC_MODEL_DISPLAY_NAMES,
+    LLM_PROVIDER_ANTHROPIC,
+    DEEPSEEK_MODELS,
+    DEEPSEEK_MODEL_DISPLAY_NAMES,
+    LLM_PROVIDER_DEEPSEEK,
+    QWEN_MODELS,
+    QWEN_MODEL_DISPLAY_NAMES,
+    LLM_PROVIDER_QWEN,
+    KIMI_MODELS,
+    KIMI_MODEL_DISPLAY_NAMES,
+    LLM_PROVIDER_KIMI,
 )
 
 router = APIRouter(prefix="/ai-agent", tags=["AI Agent"])
@@ -50,21 +65,28 @@ router = APIRouter(prefix="/ai-agent", tags=["AI Agent"])
 @router.get("/providers", response_model=LLMProvidersResponse)
 async def get_providers():
     """获取支持的LLM供应商列表"""
+    # 供应商 -> (模型列表, 显示名映射) 映射
+    all_providers = [
+        (LLM_PROVIDER_ZHIPU, ZHIPU_MODELS, ZHIPU_MODEL_DISPLAY_NAMES),
+        (LLM_PROVIDER_OPENAI, OPENAI_MODELS, OPENAI_MODEL_DISPLAY_NAMES),
+        (LLM_PROVIDER_ANTHROPIC, ANTHROPIC_MODELS, ANTHROPIC_MODEL_DISPLAY_NAMES),
+        (LLM_PROVIDER_DEEPSEEK, DEEPSEEK_MODELS, DEEPSEEK_MODEL_DISPLAY_NAMES),
+        (LLM_PROVIDER_QWEN, QWEN_MODELS, QWEN_MODEL_DISPLAY_NAMES),
+        (LLM_PROVIDER_KIMI, KIMI_MODELS, KIMI_MODEL_DISPLAY_NAMES),
+    ]
+
     providers = []
-
-    # 智谱
-    providers.append(LLMProviderInfo(
-        provider=LLM_PROVIDER_ZHIPU,
-        display_name=LLM_PROVIDER_DISPLAY_NAMES.get(LLM_PROVIDER_ZHIPU, "智谱AI"),
-        models=[
-            {"id": model, "name": ZHIPU_MODEL_DISPLAY_NAMES.get(model, model)}
-            for model in ZHIPU_MODELS
-        ],
-        supports_tools=True,
-        supports_streaming=True,
-    ))
-
-    # 未来扩展其他供应商...
+    for provider_key, model_list, display_names in all_providers:
+        providers.append(LLMProviderInfo(
+            provider=provider_key,
+            display_name=LLM_PROVIDER_DISPLAY_NAMES.get(provider_key, provider_key),
+            models=[
+                {"id": m, "name": display_names.get(m, m)}
+                for m in model_list
+            ],
+            supports_tools=True,
+            supports_streaming=True,
+        ))
 
     return LLMProvidersResponse(providers=providers)
 
@@ -90,13 +112,36 @@ async def get_config(
     config = await AIAgentService.get_config(db, current_user.id)
     if not config:
         return None
-    response = AIAgentConfigResponse.model_validate(config)
-    # 填充 llm_config_name
+
+    # 显式构建响应，避免 lazy loading 问题
+    llm_config_name = None
     if config.llm_config_id:
         llm_cfg = await LLMConfigService.get_by_id(db, config.llm_config_id)
         if llm_cfg:
-            response.llm_config_name = llm_cfg.name
-    return response
+            llm_config_name = llm_cfg.name
+
+    return AIAgentConfigResponse(
+        id=config.id,
+        user_id=config.user_id,
+        llm_config_id=config.llm_config_id,
+        llm_config_name=llm_config_name,
+        provider=config.provider,
+        api_base=config.api_base,
+        proxy=config.proxy,
+        model=config.model,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        top_p=config.top_p,
+        is_enabled=config.is_enabled,
+        enable_tools=config.enable_tools,
+        enable_streaming=config.enable_streaming,
+        status=config.status,
+        last_test_at=config.last_test_at,
+        last_test_result=config.last_test_result,
+        system_prompt=config.system_prompt,
+        created_at=config.created_at,
+        updated_at=config.updated_at,
+    )
 
 
 @router.post("/config", response_model=AIAgentConfigResponse)

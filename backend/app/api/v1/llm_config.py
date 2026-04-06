@@ -25,6 +25,14 @@ from app.constants.ai_agent import (
     ZHIPU_MODEL_DISPLAY_NAMES,
     KIMI_MODELS,
     KIMI_MODEL_DISPLAY_NAMES,
+    OPENAI_MODELS,
+    OPENAI_MODEL_DISPLAY_NAMES,
+    ANTHROPIC_MODELS,
+    ANTHROPIC_MODEL_DISPLAY_NAMES,
+    DEEPSEEK_MODELS,
+    DEEPSEEK_MODEL_DISPLAY_NAMES,
+    QWEN_MODELS,
+    QWEN_MODEL_DISPLAY_NAMES,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,27 +106,31 @@ async def get_provider_types(
     current_user: User = Depends(get_current_admin_user),
 ):
     """获取供应商类型信息"""
+    # 供应商 -> (模型列表, 显示名映射) 映射
+    provider_models_map = {
+        "zhipu": (ZHIPU_MODELS, ZHIPU_MODEL_DISPLAY_NAMES),
+        "openai": (OPENAI_MODELS, OPENAI_MODEL_DISPLAY_NAMES),
+        "anthropic": (ANTHROPIC_MODELS, ANTHROPIC_MODEL_DISPLAY_NAMES),
+        "deepseek": (DEEPSEEK_MODELS, DEEPSEEK_MODEL_DISPLAY_NAMES),
+        "qwen": (QWEN_MODELS, QWEN_MODEL_DISPLAY_NAMES),
+        "kimi": (KIMI_MODELS, KIMI_MODEL_DISPLAY_NAMES),
+    }
+
     providers = []
     for provider_key in LLM_PROVIDERS:
         info = LLM_PROVIDER_TYPE_INFO.get(provider_key, {})
         display_name = LLM_PROVIDER_DISPLAY_NAMES.get(provider_key, provider_key)
-        models = []
 
-        if provider_key == "zhipu":
-            models = [
-                {"id": m, "name": ZHIPU_MODEL_DISPLAY_NAMES.get(m, m)}
-                for m in ZHIPU_MODELS
-            ]
-        elif provider_key == "kimi":
-            models = [
-                {"id": m, "name": KIMI_MODEL_DISPLAY_NAMES.get(m, m)}
-                for m in KIMI_MODELS
-            ]
+        model_list, display_names = provider_models_map.get(provider_key, ([], {}))
+        models = [
+            {"id": m, "name": display_names.get(m, m)}
+            for m in model_list
+        ]
 
         providers.append({
             "provider": provider_key,
             "display_name": display_name,
-            "has_predefined_models": info.get("has_predefined_models", False),
+            "has_predefined_models": info.get("has_predefined_models", len(models) > 0),
             "default_api_base": info.get("default_api_base", ""),
             "models": models,
         })

@@ -25,6 +25,7 @@ class TimestampMixin(BaseModel):
                       'password_changed_at', 'douban_fetched_at',
                       'detail_fetched_at', 'added_at', 'error_at',
                       'next_retry_at', 'last_run_at', 'next_run_at',
+                      'last_test_at', 'last_message_at',
                       when_used='json',
                       check_fields=False)
     def serialize_datetime(self, dt: Optional[datetime], _info) -> Optional[str]:

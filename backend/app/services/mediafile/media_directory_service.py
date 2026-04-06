@@ -49,7 +49,8 @@ class MediaDirectoryService:
         media_type: Optional[str] = None,
         parent_id: Optional[int] = None,
         load_children: bool = False,
-        issues: Optional[List[str]] = None
+        issues: Optional[List[str]] = None,
+        sort_by: Optional[str] = None
     ) -> List[MediaDirectory]:
         """
         获取目录树
@@ -60,6 +61,7 @@ class MediaDirectoryService:
             parent_id: 父目录ID (None表示根目录)
             load_children: 是否预加载子目录
             issues: 问题筛选列表 (如 ['missing_poster', 'missing_nfo'])
+            sort_by: 排序方式 (name=按名称, mtime=按文件修改时间, updated_at=按更新时间)
         """
         # 如果指定了问题筛选，使用扁平化查询模式 (搜索模式)
         if issues and len(issues) > 0:
@@ -89,10 +91,10 @@ class MediaDirectoryService:
 
             if issue_conditions:
                 query = query.where(or_(*issue_conditions))
-                
+
             # 排序
-            query = query.order_by(MediaDirectory.directory_path)
-            
+            query = query.order_by(MediaDirectoryService._get_order_clause(sort_by, default="name"))
+
             result = await db.execute(query)
             return list(result.scalars().all())
 
@@ -122,10 +124,21 @@ class MediaDirectoryService:
         if load_children:
             query = query.options(selectinload(MediaDirectory.children))
 
-        query = query.order_by(MediaDirectory.updated_at.desc())
+        query = query.order_by(MediaDirectoryService._get_order_clause(sort_by, default="mtime"))
 
         result = await db.execute(query)
         return list(result.scalars().all())
+
+    @staticmethod
+    def _get_order_clause(sort_by: Optional[str], default: str = "mtime"):
+        """获取排序子句"""
+        sort = sort_by or default
+        if sort == "name":
+            return MediaDirectory.directory_name.asc()
+        elif sort == "mtime":
+            return MediaDirectory.source_mtime.desc()
+        else:  # updated_at
+            return MediaDirectory.updated_at.desc()
 
     @staticmethod
     async def get_directory_detail(
