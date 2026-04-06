@@ -130,7 +130,7 @@ watch(
 <style scoped lang="scss">
 .problem-filter {
   .filter-label {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--el-text-color-regular);
     font-weight: 500;
   }
@@ -139,9 +139,14 @@ watch(
     cursor: pointer;
     user-select: none;
     position: relative;
+    padding: 4px 10px;
+    font-size: 13px;
+    line-height: 1.4;
+    border-radius: 4px;
 
     .el-icon {
-      margin-right: 4px;
+      margin-right: 3px;
+      font-size: 13px;
     }
   }
 }
@@ -154,7 +159,7 @@ watch(
 
     .el-check-tag {
       font-size: 12px;
-      padding: 4px 8px;
+      padding: 3px 7px;
     }
   }
 }
