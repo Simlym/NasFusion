@@ -104,10 +104,22 @@ class ImageCacheService:
         if cache:
             # 优化：限制更新频率，避免每次读取都写数据库
             # 只有当上次访问时间超过24小时前，才更新访问时间和计数
-            now = tz_now()
-            if not cache.last_accessed_at or (now - cache.last_accessed_at) > timedelta(days=1):
+            current_time = tz_now()
+            should_update = False
+            if not cache.last_accessed_at:
+                should_update = True
+            else:
+                last_accessed = cache.last_accessed_at
+                # 兼容旧数据：如果数据库中的时间是 naive datetime，补充时区信息
+                if last_accessed.tzinfo is None:
+                    from app.utils.timezone import ensure_timezone
+                    last_accessed = ensure_timezone(last_accessed)
+                if (current_time - last_accessed) > timedelta(days=1):
+                    should_update = True
+
+            if should_update:
                 cache.access_count += 1
-                cache.last_accessed_at = now
+                cache.last_accessed_at = current_time
                 # 注意：这里会产生DB写入，但在高并发读取下比每次都写要好得多
                 try:
                     await db.commit()
