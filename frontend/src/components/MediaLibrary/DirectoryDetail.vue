@@ -1562,4 +1562,174 @@ defineExpose({ refresh })
   right: 10px;
   color: var(--el-color-success);
 }
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 768px) {
+  .hero-section {
+    height: auto;
+    min-height: 0;
+  }
+
+  .hero-content {
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .poster-wrapper {
+    width: 140px;
+    height: 210px;
+  }
+
+  .info-wrapper {
+    padding-bottom: 10px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 20px;
+
+    .year {
+      font-size: 16px;
+      margin-left: 6px;
+    }
+  }
+
+  .resource-association {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .meta-row {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .metadata-status {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .genres-row {
+    text-align: center;
+  }
+
+  .plot {
+    text-align: left;
+    -webkit-line-clamp: 4;
+  }
+
+  .content-section {
+    padding: 12px;
+  }
+
+  // 文件列表工具栏
+  .files-toolbar {
+    padding: 8px 10px;
+
+    .files-summary {
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .stat-item {
+      padding: 0 8px;
+    }
+
+    .stat-divider {
+      height: 12px;
+    }
+  }
+
+  // 表格列隐藏：字幕、分辨率列在手机上隐藏
+  :deep(.el-table) {
+    font-size: 12px;
+  }
+
+  // 演职人员网格
+  .actors-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
+
+  .actor-card {
+    .actor-avatar {
+      :deep(.el-avatar) {
+        width: 60px !important;
+        height: 60px !important;
+      }
+    }
+
+    .actor-name {
+      font-size: 12px;
+    }
+
+    .actor-role {
+      font-size: 11px;
+    }
+  }
+
+  // 详细信息 descriptions 单列
+  :deep(.el-descriptions) {
+    .el-descriptions__label,
+    .el-descriptions__content {
+      font-size: 13px;
+      padding: 8px 10px;
+    }
+  }
+
+  // 识别关联对话框
+  .search-form-wrapper {
+    padding: 10px 12px;
+
+    :deep(.el-form) {
+      .el-form-item {
+        margin-bottom: 8px;
+        margin-right: 0;
+      }
+
+      .el-input {
+        width: 100% !important;
+      }
+    }
+  }
+
+  .search-results-container {
+    max-height: 300px;
+  }
+
+  .search-result-card {
+    padding: 8px 10px;
+  }
+
+  .result-poster {
+    width: 48px;
+    height: 72px;
+  }
+
+  .result-title {
+    font-size: 14px;
+  }
+}
+</style>
+
+<style lang="scss">
+@media (max-width: 768px) {
+  .link-dialog {
+    --el-dialog-width: 92% !important;
+    width: 92% !important;
+
+    .el-dialog__body {
+      padding: 12px;
+    }
+
+    .el-form--inline .el-form-item {
+      display: flex;
+      margin-right: 0;
+      width: 100%;
+    }
+  }
+}
 </style>

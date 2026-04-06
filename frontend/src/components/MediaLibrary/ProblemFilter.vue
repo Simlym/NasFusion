@@ -145,4 +145,17 @@ watch(
     }
   }
 }
+
+@media (max-width: 768px) {
+  .problem-filter {
+    .filter-label {
+      display: none;
+    }
+
+    .el-check-tag {
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+  }
+}
 </style>

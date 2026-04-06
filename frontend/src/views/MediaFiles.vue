@@ -16,6 +16,7 @@
 
       <!-- 操作按钮 -->
       <div class="toolbar-actions">
+        <el-button class="mobile-tree-btn" :icon="FolderOpened" @click="mobileTreeVisible = true">目录</el-button>
         <el-button type="primary" :icon="Search" @click="handleOpenLibraryScanDialog">扫描</el-button>
         <el-button :icon="Warning" @click="handleDetectIssues">检测问题</el-button>
       </div>
@@ -57,8 +58,24 @@
       </el-main>
     </el-container>
 
+    <!-- 移动端：目录树抽屉 -->
+    <el-drawer
+      v-model="mobileTreeVisible"
+      direction="ltr"
+      size="85%"
+      title="目录结构"
+      class="mobile-tree-drawer"
+    >
+      <DirectoryTree
+        ref="mobileTreeRef"
+        :media-type="libraryMediaType"
+        :issues="selectedIssues"
+        @node-click="handleMobileNodeClick"
+      />
+    </el-drawer>
+
     <!-- 媒体库扫描对话框 -->
-    <el-dialog v-model="libraryScanDialog.visible" title="扫描媒体库" width="500px">
+    <el-dialog v-model="libraryScanDialog.visible" title="扫描媒体库" width="500px" class="scan-dialog">
       <el-form label-width="100px">
         <el-form-item label="扫描范围">
           <div v-if="libraryScanDialog.directory" class="scan-directory-info">
@@ -119,8 +136,10 @@ import type { AnyTreeNode, EpisodeTreeNode } from '@/components/MediaLibrary/Dir
 import { scanDirectory } from '@/api/modules/media'
 // 组件引用
 const treeRef = ref()
+const mobileTreeRef = ref()
 const detailRef = ref()
 const scanning = ref(false)
+const mobileTreeVisible = ref(false)
 
 // 状态
 const libraryMediaType = ref<string>('movie')
@@ -162,6 +181,14 @@ const handleNodeClick = (node: AnyTreeNode) => {
       directory_name: (node as any).directory_name
     }
   }
+}
+
+/**
+ * 移动端节点点击（关闭抽屉后跳转）
+ */
+const handleMobileNodeClick = (node: AnyTreeNode) => {
+  handleNodeClick(node)
+  mobileTreeVisible.value = false
 }
 
 /**
@@ -424,6 +451,48 @@ async function pollTaskStatus(executionId: number, label: string) {
   }
 }
 
+// 移动端目录按钮，桌面端隐藏
+.mobile-tree-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+
+    // 媒体类型切换缩小
+    :deep(.el-radio-group) {
+      .el-radio-button__inner {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+    }
+
+    .toolbar-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+
+  .mobile-tree-btn {
+    display: inline-flex;
+  }
+
+  .main-content {
+    padding: 10px;
+
+    .tree-aside {
+      display: none;
+    }
+
+    .detail-main {
+      width: 100%;
+    }
+  }
+}
+
 .scan-directory-info {
   display: flex;
   align-items: flex-start;
@@ -445,6 +514,23 @@ async function pollTaskStatus(executionId: number, label: string) {
   .el-text {
     flex-shrink: 0;
     line-height: 24px;
+  }
+}
+
+// 移动端抽屉内树组件样式
+.mobile-tree-drawer {
+  :deep(.el-drawer__body) {
+    padding: 0;
+    overflow-y: auto;
+  }
+}
+</style>
+
+<style lang="scss">
+@media (max-width: 768px) {
+  .scan-dialog {
+    --el-dialog-width: 92% !important;
+    width: 92% !important;
   }
 }
 </style>

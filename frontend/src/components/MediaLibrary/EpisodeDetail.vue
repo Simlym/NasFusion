@@ -705,4 +705,51 @@ watch(() => props.episode, loadMetadata, { immediate: true })
   overflow: hidden;
   line-height: 1.6;
 }
+
+@media (max-width: 768px) {
+  .episode-detail {
+    padding: 12px;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .thumb-wrapper {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .hero-info {
+    width: 100%;
+  }
+
+  .ep-badge-row {
+    gap: 4px;
+  }
+
+  .ep-title {
+    font-size: 16px;
+  }
+
+  .ep-meta-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .info-section {
+    padding: 12px;
+  }
+
+  .path-item {
+    flex-direction: column;
+    gap: 2px;
+
+    .path-label {
+      width: auto;
+      text-align: left;
+    }
+  }
+}
 </style>
