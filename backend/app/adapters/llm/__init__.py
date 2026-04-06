@@ -20,6 +20,7 @@ from app.constants.ai_agent import (
     LLM_PROVIDER_ZHIPU,
     LLM_PROVIDER_OPENAI,
     LLM_PROVIDER_DEEPSEEK,
+    LLM_PROVIDER_KIMI,
     LLM_PROVIDERS,
 )
 
@@ -29,6 +30,7 @@ _LLM_ADAPTER_REGISTRY: Dict[str, Type[BaseLLMAdapter]] = {
     LLM_PROVIDER_ZHIPU: ZhipuAdapter,
     LLM_PROVIDER_OPENAI: OpenAICompatibleAdapter,
     LLM_PROVIDER_DEEPSEEK: OpenAICompatibleAdapter,  # DeepSeek uses OpenAI-compatible API
+    LLM_PROVIDER_KIMI: OpenAICompatibleAdapter,  # Kimi uses OpenAI-compatible API
 }
 
 

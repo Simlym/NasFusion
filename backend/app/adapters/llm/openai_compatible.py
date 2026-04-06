@@ -56,6 +56,8 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
         return [
             "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
             "deepseek-chat", "deepseek-reasoner",
+            "kimi-k2.5", "kimi-k2", "kimi-k2-thinking",
+            "moonshot-v1-auto", "moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k",
             "llama-3.3-70b-versatile", "llama-3.1-8b-instant",
             "mixtral-8x7b-32768", "gemma2-9b-it",
             "llama3.2", "llama3.1", "qwen2.5", "phi4", "mistral",

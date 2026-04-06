@@ -23,6 +23,8 @@ from app.constants.ai_agent import (
     LLM_PROVIDER_TYPE_INFO,
     ZHIPU_MODELS,
     ZHIPU_MODEL_DISPLAY_NAMES,
+    KIMI_MODELS,
+    KIMI_MODEL_DISPLAY_NAMES,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,11 @@ async def get_provider_types(
             models = [
                 {"id": m, "name": ZHIPU_MODEL_DISPLAY_NAMES.get(m, m)}
                 for m in ZHIPU_MODELS
+            ]
+        elif provider_key == "kimi":
+            models = [
+                {"id": m, "name": KIMI_MODEL_DISPLAY_NAMES.get(m, m)}
+                for m in KIMI_MODELS
             ]
 
         providers.append({
