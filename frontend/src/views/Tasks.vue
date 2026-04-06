@@ -186,7 +186,8 @@
       <div class="history-section">
         <!-- 控制栏：胶囊 + 筛选 -->
         <div class="scheduled-control-bar">
-          <div class="group-pills-bar">
+          <!-- 桌面端：分组胶囊 -->
+          <div v-if="!isMobile" class="group-pills-bar">
             <div
               class="group-pill"
               :class="{ 'group-pill--active': historyFilters.task_category === '' }"
@@ -206,7 +207,57 @@
             </div>
           </div>
 
-          <div class="scheduled-actions history-actions">
+          <!-- 移动端：分组下拉 + 状态 + 搜索 + 查询 一行 -->
+          <div v-if="isMobile" class="mobile-control-row">
+            <el-select
+              v-model="historyFilters.task_category"
+              placeholder="分组"
+              class="mobile-group-select"
+              @change="loadHistory"
+            >
+              <el-option label="全部" value="" />
+              <el-option
+                v-for="(name, key) in TASK_CATEGORY_NAMES"
+                :key="key"
+                :label="name"
+                :value="key"
+              />
+            </el-select>
+            <el-select v-model="historyFilters.status" placeholder="状态" clearable class="mobile-group-select" @change="loadHistory">
+              <el-option label="已完成" value="completed" />
+              <el-option label="失败" value="failed" />
+              <el-option label="已取消" value="cancelled" />
+              <el-option label="运行中" value="running" />
+              <el-option label="等待中" value="pending" />
+            </el-select>
+            <el-input
+              v-model="historyFilters.keyword"
+              placeholder="搜索"
+              clearable
+              class="mobile-search-input"
+              @clear="loadHistory"
+              @keyup.enter="loadHistory"
+            >
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+            <el-button type="primary" :icon="Search" @click="loadHistory" class="mobile-create-btn" />
+          </div>
+          <!-- 移动端第二行：日期 + 重置 -->
+          <div v-if="isMobile" class="mobile-control-row">
+            <el-date-picker
+              v-model="historyFilters.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              class="mobile-date-picker"
+              clearable
+            />
+            <el-button :icon="Refresh" @click="resetHistoryFilters" class="mobile-create-btn" />
+          </div>
+
+          <!-- 桌面端筛选 -->
+          <div v-if="!isMobile" class="scheduled-actions history-actions">
             <el-select v-model="historyFilters.status" placeholder="全部状态" clearable class="history-filter-select">
               <el-option label="已完成" value="completed" />
               <el-option label="失败" value="failed" />
@@ -362,8 +413,8 @@
     <div v-else-if="activeTab === 'scheduled'" v-loading="tasksLoading" class="tab-content">
       <!-- 控制栏：胶囊筛选 + 搜索 + 操作 -->
       <div class="scheduled-control-bar">
-        <!-- 左：分组胶囊 -->
-        <div class="group-pills-bar">
+        <!-- 左：分组胶囊（桌面端） -->
+        <div v-if="!isMobile" class="group-pills-bar">
           <div
             class="group-pill"
             :class="{ 'group-pill--active': activeGroupFilter === 'all' }"
@@ -389,8 +440,50 @@
           </div>
         </div>
 
-        <!-- 右：搜索 + 批量操作 + 创建 -->
-        <div class="scheduled-actions">
+        <!-- 移动端：分组下拉 + 搜索 + 创建 一行 -->
+        <div v-if="isMobile" class="mobile-control-row">
+          <el-select
+            v-model="activeGroupFilter"
+            class="mobile-group-select"
+          >
+            <el-option label="全部" value="all">
+              <span>全部</span>
+              <span class="mobile-group-count">{{ scheduledTasks.length }}</span>
+            </el-option>
+            <el-option
+              v-for="group in groupedScheduledTasks"
+              :key="group.category"
+              :label="group.name"
+              :value="group.category"
+            >
+              <span>{{ group.name }}</span>
+              <span class="mobile-group-count">{{ group.tasks.length }}</span>
+            </el-option>
+          </el-select>
+          <el-input
+            v-model="scheduledTasksFilters.keyword"
+            placeholder="搜索"
+            clearable
+            class="mobile-search-input"
+            @clear="loadScheduledTasks"
+            @keyup.enter="loadScheduledTasks"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button type="primary" :icon="Plus" @click="handleCreate" class="mobile-create-btn" />
+        </div>
+        <!-- 移动端批量操作栏 -->
+        <div v-if="isMobile && selectedTasks.length > 0" class="mobile-batch-bar">
+          <el-tag type="info" size="small">已选 {{ selectedTasks.length }}</el-tag>
+          <el-button size="small" :icon="VideoPlay" @click="batchEnable">启用</el-button>
+          <el-button size="small" :icon="VideoPause" @click="batchDisable">禁用</el-button>
+          <el-button size="small" type="danger" :icon="Delete" @click="batchDelete">删除</el-button>
+        </div>
+
+        <!-- 桌面端：搜索 + 批量操作 + 创建 -->
+        <div v-if="!isMobile" class="scheduled-actions">
           <template v-if="selectedTasks.length > 0">
             <el-tag type="info" size="small">已选 {{ selectedTasks.length }}</el-tag>
             <el-button size="small" :icon="VideoPlay" @click="batchEnable">启用</el-button>
@@ -518,12 +611,10 @@
             </div>
           </div>
           <div class="task-card-actions">
-            <el-button size="small" type="primary" :icon="VideoPlay" :loading="runningId === task.id" @click="handleRunNow(task)" class="action-btn-primary">立即执行</el-button>
-            <div class="action-btn-group">
-              <el-button size="small" :icon="Clock" @click="handleViewHistory(task)">历史</el-button>
-              <el-button size="small" :icon="Edit" @click="handleEdit(task)">编辑</el-button>
-              <el-button size="small" type="danger" plain :icon="Delete" @click="handleDelete(task)">删除</el-button>
-            </div>
+            <el-button size="small" type="primary" :icon="VideoPlay" :loading="runningId === task.id" @click="handleRunNow(task)">执行</el-button>
+            <el-button size="small" :icon="Clock" @click="handleViewHistory(task)">历史</el-button>
+            <el-button size="small" :icon="Edit" @click="handleEdit(task)">编辑</el-button>
+            <el-button size="small" type="danger" plain :icon="Delete" @click="handleDelete(task)">删除</el-button>
           </div>
         </div>
       </div>
@@ -3703,6 +3794,49 @@ onUnmounted(() => {
   color: #fff;
 }
 
+.mobile-group-select .el-select-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-group-count {
+  color: var(--nf-text-muted, #9ca3af);
+  font-size: 12px;
+}
+
+.mobile-control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.mobile-control-row .mobile-group-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-control-row .mobile-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-control-row .mobile-create-btn {
+  flex-shrink: 0;
+}
+
+.mobile-date-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .pill-fail-dot {
   min-width: 16px;
   height: 16px;
@@ -3992,22 +4126,12 @@ onUnmounted(() => {
 
 .task-card-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--nf-border-light, #f1f5f9);
 }
 
-.action-btn-primary {
-  width: 100%;
-}
-
-.action-btn-group {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn-group .el-button {
+.task-card-actions .el-button {
   flex: 1;
 }
 
@@ -4066,55 +4190,13 @@ onUnmounted(() => {
 /* ==================== 响应式设计 ==================== */
 @media (max-width: 768px) {
 
-  /* 控制栏移动端：胶囊在上，操作在下 */
+  /* 控制栏移动端 */
   .scheduled-control-bar {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-  }
-
-  .group-pills-bar {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
-  }
-
-  .group-pill {
-    font-size: 12px;
-    padding: 5px 11px;
-    flex-shrink: 0;
-  }
-
-  .scheduled-actions {
-    justify-content: flex-start;
-    width: 100%;
-  }
-
-  /* 历史记录筛选在移动端自适应宽度 */
-  .history-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 8px;
-    width: 100%;
   }
 
-  .history-filter-select {
-    width: 100% !important;
-  }
-
-  .history-filter-input {
-    width: 100% !important;
-  }
-
-  .history-date-picker {
-    width: 100% !important;
-    grid-column: 1 / -1;
-  }
-
-  .history-actions .el-button {
-    flex: 1;
-  }
 
   /* 移动端卡片列表去内边距 */
   .scheduled-cards-mobile {
