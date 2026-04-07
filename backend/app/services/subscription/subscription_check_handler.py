@@ -6,10 +6,11 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.constants import ACTION_DOWNLOAD, ACTION_NONE, ACTION_NOTIFICATION, CHECK_TYPE_PT_SEARCH
-from app.models import Subscription, PTResource
+from app.models import Subscription, PTResource, DownloadTask
 from app.services.subscription.subscription_service import SubscriptionService
 from app.services.subscription.subscription_check_log_service import SubscriptionCheckLogService
 from app.utils.timezone import now
@@ -250,7 +251,7 @@ class SubscriptionCheckHandler:
             from app.services.download.download_task_service import DownloadTaskService
             from app.schemas.downloader import DownloadTaskCreate
 
-            # 检查是否已经下载过
+            # 检查是否已经下载过（资源级别）
             existing_task = await DownloadTaskService.get_by_pt_resource_id(
                 db, pt_resource.id
             )
@@ -262,6 +263,22 @@ class SubscriptionCheckHandler:
                     "reason": "already_downloading",
                     "download_task_id": existing_task.id,
                 }
+
+            # 检查集数级别重复（电视剧订阅）：避免同一集被不同资源重复下载
+            if subscription.is_tv_subscription and pt_resource.tv_info:
+                covering_task = await SubscriptionCheckHandler._find_covering_download_task(
+                    db, subscription, pt_resource
+                )
+                if covering_task:
+                    logger.info(
+                        f"PT资源{pt_resource.id}的集数已被下载任务{covering_task.id}覆盖，跳过"
+                    )
+                    return {
+                        "success": True,
+                        "skipped": True,
+                        "reason": "episode_already_covered",
+                        "covering_task_id": covering_task.id,
+                    }
 
             # 确定统一资源表名和ID（多态关联）
             unified_table_name = None
@@ -390,3 +407,66 @@ class SubscriptionCheckHandler:
 
         except Exception as e:
             logger.exception(f"发布订阅下载事件失败: 订阅{subscription.id}, 错误: {e}")
+
+    @staticmethod
+    async def _find_covering_download_task(
+        db: AsyncSession, subscription: Subscription, pt_resource: PTResource
+    ) -> Optional[DownloadTask]:
+        """
+        查找是否已有下载任务完全覆盖了该PT资源的集数范围。
+
+        逻辑：若新资源的每一集都已被某个现有下载任务的集数范围所包含，
+        则认为是重复下载，返回覆盖任务；否则返回 None。
+
+        例：batch E120-135 已在下载，新资源 single E135 → 完全覆盖 → 跳过。
+        反之 single E135 已下载，新资源 batch E120-135 → 未完全覆盖 → 允许下载。
+        """
+        tv_info = pt_resource.tv_info
+        seasons = tv_info.get("seasons") or []
+        if not seasons:
+            return None
+
+        if not subscription.unified_tv_id:
+            return None
+
+        # 通过 unified_tv_id 直接查同系列的所有下载任务（跨订阅有效）
+        # download_tasks.unified_resource_id 存储的是 subscription.unified_tv_id
+        rows = (await db.execute(
+            select(DownloadTask, PTResource)
+            .join(PTResource, DownloadTask.pt_resource_id == PTResource.id)
+            .where(
+                DownloadTask.unified_table_name == "unified_tv_series",
+                DownloadTask.unified_resource_id == subscription.unified_tv_id,
+                DownloadTask.pt_resource_id != pt_resource.id,
+                DownloadTask.status.notin_(["deleted", "error"]),
+            )
+        )).all()
+
+        if not rows:
+            return None
+
+        for season in seasons:
+            ep_range = tv_info.get("episodes", {}).get(str(season))
+            if not ep_range:
+                continue
+            new_start = ep_range.get("start")
+            new_end = ep_range.get("end", new_start)
+            if new_start is None or new_end is None:
+                continue
+
+            for task, task_res in rows:
+                if not task_res.tv_info:
+                    continue
+                task_ep = task_res.tv_info.get("episodes", {}).get(str(season))
+                if not task_ep:
+                    continue
+                t_start = task_ep.get("start")
+                t_end = task_ep.get("end", t_start)
+                if t_start is None or t_end is None:
+                    continue
+
+                # 判断新资源的集数范围是否被现有任务完全覆盖
+                if t_start <= new_start and t_end >= new_end:
+                    return task
+
+        return None
