@@ -1,6 +1,25 @@
 <template>
   <div class="problem-filter">
-    <el-space wrap>
+    <!-- Mobile: 下拉选择 -->
+    <el-select
+      v-if="isMobile"
+      v-model="selectedSingle"
+      placeholder="问题筛选"
+      clearable
+      style="width: 100%"
+      @change="handleSelectChange"
+      @clear="clearAll"
+    >
+      <el-option
+        v-for="item in problemTypes"
+        :key="item.value"
+        :value="item.value"
+        :label="issueCounts[item.value] > 0 ? `${item.label} (${issueCounts[item.value]})` : item.label"
+      />
+    </el-select>
+
+    <!-- Desktop: check tag 列表 -->
+    <el-space v-else wrap>
       <span class="filter-label">问题筛选:</span>
 
       <el-check-tag
@@ -33,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { Picture, Document, QuestionFilled, CopyDocument, FolderDelete } from '@element-plus/icons-vue'
 
 interface Props {
@@ -55,76 +74,47 @@ const emit = defineEmits<Emits>()
 const selectedIssues = ref<string[]>([...props.modelValue])
 const issueCounts = ref<Record<string, number>>({ ...props.counts })
 
-/**
- * 问题类型定义
- */
-const problemTypes = [
-  {
-    value: 'missing_poster',
-    label: '缺少海报',
-    icon: Picture
-  },
-  {
-    value: 'missing_nfo',
-    label: '缺少NFO',
-    icon: Document
-  },
-  {
-    value: 'unidentified',
-    label: '未识别',
-    icon: QuestionFilled
-  },
-  {
-    value: 'duplicate',
-    label: '重复文件',
-    icon: CopyDocument
-  },
-  {
-    value: 'missing_files',
-    label: '缺少文件',
-    icon: FolderDelete
+// 移动端单选值（同步自 selectedIssues）
+const selectedSingle = computed({
+  get: () => selectedIssues.value[0] ?? null,
+  set: (val) => {
+    selectedIssues.value = val ? [val] : []
+    emit('update:modelValue', selectedIssues.value)
   }
+})
+
+const problemTypes = [
+  { value: 'missing_poster', label: '缺少海报', icon: Picture },
+  { value: 'missing_nfo',    label: '缺少NFO',  icon: Document },
+  { value: 'unidentified',   label: '未识别',   icon: QuestionFilled },
+  { value: 'duplicate',      label: '重复文件', icon: CopyDocument },
+  { value: 'missing_files',  label: '缺少文件', icon: FolderDelete }
 ]
 
-/**
- * 切换选择
- */
-const handleToggle = (value: string) => {
-  // 单选逻辑：如果已选中该项，则取消选中；如果未选中，则选中该项并清除其他选择
-  const index = selectedIssues.value.indexOf(value)
-  if (index > -1) {
-    selectedIssues.value = []
-  } else {
-    selectedIssues.value = [value]
-  }
+// 移动端检测
+const isMobile = ref(window.innerWidth <= 768)
+const onResize = () => { isMobile.value = window.innerWidth <= 768 }
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
+
+const handleSelectChange = (val: string | null) => {
+  selectedIssues.value = val ? [val] : []
   emit('update:modelValue', selectedIssues.value)
 }
 
-/**
- * 清空所有选择
- */
+const handleToggle = (value: string) => {
+  const index = selectedIssues.value.indexOf(value)
+  selectedIssues.value = index > -1 ? [] : [value]
+  emit('update:modelValue', selectedIssues.value)
+}
+
 const clearAll = () => {
   selectedIssues.value = []
   emit('update:modelValue', [])
 }
 
-/**
- * 监听外部变化
- */
-watch(
-  () => props.modelValue,
-  (newVal) => {
-    selectedIssues.value = [...newVal]
-  }
-)
-
-watch(
-  () => props.counts,
-  (newVal) => {
-    issueCounts.value = { ...newVal }
-  },
-  { deep: true }
-)
+watch(() => props.modelValue, (v) => { selectedIssues.value = [...v] })
+watch(() => props.counts, (v) => { issueCounts.value = { ...v } }, { deep: true })
 </script>
 
 <style scoped lang="scss">
@@ -147,19 +137,6 @@ watch(
     .el-icon {
       margin-right: 3px;
       font-size: 13px;
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .problem-filter {
-    .filter-label {
-      display: none;
-    }
-
-    .el-check-tag {
-      font-size: 12px;
-      padding: 3px 7px;
     }
   }
 }

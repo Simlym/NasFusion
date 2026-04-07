@@ -482,4 +482,31 @@ html.dark .shimmer {
 html.dark .stat-card {
   background: var(--bg-color-overlay);
 }
+
+@media (max-width: 768px) {
+  .media-server-overview {
+    padding: 8px 12px;
+  }
+
+  .section-title h3 {
+    font-size: 15px;
+  }
+
+  .stats-row {
+    margin-bottom: 16px;
+  }
+
+  .stat-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+}
 </style>

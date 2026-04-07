@@ -67,7 +67,7 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item>
+        <el-form-item class="filter-actions">
           <el-button type="primary" :icon="Refresh" @click="loadItems" :loading="loading">
             刷新
           </el-button>
@@ -77,7 +77,7 @@
         </el-form-item>
 
         <!-- 视图切换（仅根级别显示） -->
-        <el-form-item v-if="viewLevel === 'root'" style="margin-left: auto; margin-right: 0">
+        <el-form-item v-if="viewLevel === 'root'" class="filter-view-toggle" style="margin-left: auto; margin-right: 0">
           <el-button-group>
             <el-tooltip content="竖版海报" placement="top">
               <el-button
@@ -1426,8 +1426,73 @@ html.dark .shimmer {
   line-height: 1.4;
 }
 
-// 响应式 - 剧集列表在小屏幕上调整
+// 响应式
 @media (max-width: 768px) {
+  .media-library-page {
+    padding: 8px 12px;
+  }
+
+  .filter-bar {
+    padding: 12px;
+
+    .filter-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+
+      :deep(.el-form-item) {
+        // 覆盖 inline 表单的 inline-flex，改为 block 让 content 全宽
+        display: block !important;
+        margin: 0 !important;
+
+        // 隐藏标签，placeholder 已足够说明字段含义
+        .el-form-item__label {
+          display: none !important;
+        }
+
+        .el-form-item__content {
+          margin-left: 0 !important;
+          width: 100%;
+
+          .el-select,
+          .el-input {
+            width: 100% !important;
+          }
+        }
+      }
+
+      // 按钮行占满整行
+      :deep(.filter-actions) {
+        grid-column: 1 / -1;
+
+        .el-form-item__content {
+          display: flex;
+          gap: 8px;
+
+          .el-button {
+            flex: 1;
+            justify-content: center;
+          }
+        }
+      }
+
+      // 视图切换占满整行，靠右对齐
+      :deep(.filter-view-toggle) {
+        grid-column: 1 / -1;
+
+        .el-form-item__content {
+          display: flex;
+          justify-content: flex-end;
+        }
+      }
+    }
+  }
+
+  .stats-bar {
+    gap: 6px;
+  }
+
+  // 剧集列表在小屏幕上调整
   .series-header {
     flex-direction: column;
     align-items: center;

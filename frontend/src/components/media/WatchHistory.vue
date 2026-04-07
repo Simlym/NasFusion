@@ -5,7 +5,7 @@
       <div class="filter-left">
         <div class="filter-group">
           <span class="filter-label">服务器</span>
-          <el-select v-model="filters.config_id" placeholder="全部" clearable class="filter-select" @change="handleFilterChange">
+          <el-select v-model="filters.config_id" placeholder="服务器" clearable class="filter-select" @change="handleFilterChange">
             <template #prefix>
               <el-icon><Monitor /></el-icon>
             </template>
@@ -15,7 +15,7 @@
         
         <div class="filter-group">
           <span class="filter-label">类型</span>
-          <el-select v-model="filters.media_type" placeholder="全部" clearable class="filter-select" @change="handleFilterChange">
+          <el-select v-model="filters.media_type" placeholder="类型" clearable class="filter-select" @change="handleFilterChange">
             <template #prefix>
               <el-icon><VideoCamera /></el-icon>
             </template>
@@ -277,8 +277,46 @@ onUnmounted(() => {
 
   .filter-toolbar {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* 两列网格：左列服务器，右列类型 */
+  .filter-left {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* 隐藏标签文字，placeholder + 图标已足够 */
+  .filter-label {
+    display: none;
+  }
+
+  /* filter-group 只剩 select，无需 gap */
+  .filter-group {
+    gap: 0;
+  }
+
+  .filter-select {
+    width: 100% !important;
+  }
+
+  /* 复选框占满整行 */
+  .filter-checkbox {
+    grid-column: 1 / -1;
+  }
+
+  /* 按钮撑满 */
+  .filter-right {
+    width: 100%;
+  }
+
+  .filter-right :deep(.el-button) {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

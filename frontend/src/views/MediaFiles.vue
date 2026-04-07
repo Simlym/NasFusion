@@ -2,25 +2,28 @@
   <div class="page-container">
     <!-- 顶部工具栏 -->
     <div class="toolbar">
-      <!-- 媒体类型切换 -->
-      <el-radio-group v-model="libraryMediaType" size="default" @change="handleLibraryMediaTypeChange">
-        <el-radio-button value="movie">电影</el-radio-button>
-        <el-radio-button value="tv">剧集</el-radio-button>
-        <!-- 暂时隐藏 -->
-        <!-- <el-radio-button value="anime">动画</el-radio-button>
-        <el-radio-button value="music">音乐</el-radio-button>
-        <el-radio-button value="book">电子书</el-radio-button> -->
-      </el-radio-group>
+      <!-- 第一行：媒体类型切换 + 操作按钮 -->
+      <div class="toolbar-top">
+        <el-radio-group v-model="libraryMediaType" size="default" @change="handleLibraryMediaTypeChange">
+          <el-radio-button value="movie">电影</el-radio-button>
+          <el-radio-button value="tv">剧集</el-radio-button>
+        </el-radio-group>
 
-      <!-- 问题筛选器 -->
-      <ProblemFilter v-model="selectedIssues" :counts="issueCounts" />
-
-      <!-- 操作按钮 -->
-      <div class="toolbar-actions">
-        <el-button class="mobile-tree-btn" :icon="FolderOpened" @click="mobileTreeVisible = true">目录</el-button>
-        <el-button type="primary" :icon="Search" @click="handleOpenLibraryScanDialog">扫描</el-button>
-        <el-button :icon="Warning" @click="handleDetectIssues">检测问题</el-button>
+        <div class="toolbar-actions">
+          <el-button class="mobile-tree-btn" :icon="FolderOpened" @click="mobileTreeVisible = true">
+            <span class="btn-label">目录</span>
+          </el-button>
+          <el-button type="primary" :icon="Search" @click="handleOpenLibraryScanDialog">
+            <span class="btn-label">扫描</span>
+          </el-button>
+          <el-button :icon="Warning" @click="handleDetectIssues">
+            <span class="btn-label">检测问题</span>
+          </el-button>
+        </div>
       </div>
+
+      <!-- 第二行：问题筛选器 -->
+      <ProblemFilter v-model="selectedIssues" :counts="issueCounts" />
     </div>
 
     <!-- 双栏布局 -->
@@ -427,11 +430,17 @@ async function pollTaskStatus(executionId: number, label: string) {
 // library Tab 样式
 .toolbar {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
   background-color: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.toolbar-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 
   .toolbar-actions {
     margin-left: auto;
@@ -489,29 +498,30 @@ async function pollTaskStatus(executionId: number, label: string) {
 
 @media (max-width: 768px) {
   .toolbar {
-    flex-wrap: wrap;
-    gap: 8px;
     padding: 10px 12px;
+    gap: 8px;
+  }
 
-    // 媒体类型切换缩小
+  .toolbar-top {
     :deep(.el-radio-group) {
-      flex-shrink: 0;
       .el-radio-button__inner {
         padding: 6px 10px;
         font-size: 13px;
       }
     }
 
-    // 操作按钮靠右，与 radio-group 同行
+    // 移动端按钮只显示图标
     .toolbar-actions {
-      flex: 1;
-      justify-content: flex-end;
-    }
+      gap: 6px;
 
-    // 问题筛选独占一行
-    :deep(.problem-filter) {
-      width: 100%;
-      order: 3;
+      .btn-label {
+        display: none;
+      }
+
+      // 补偿去掉文字后左侧 padding
+      :deep(.el-button) {
+        padding: 8px;
+      }
     }
   }
 
