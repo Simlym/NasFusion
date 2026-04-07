@@ -13,12 +13,13 @@
     width: 94% !important;
     max-width: 94vw !important;
     margin: 0 auto;
-    border-radius: 12px !important;
+    border-radius: 16px !important;
   }
 
   .el-message-box {
     width: 90% !important;
     max-width: 90vw !important;
+    border-radius: 16px !important;
   }
 
   /* Drawer: full width */
@@ -89,20 +90,22 @@
     gap: 5px;
     font-size: 13px;
     font-weight: 500;
-    padding: 4px 12px;
+    padding: 5px 14px;
     border: 1px solid var(--nf-border-base, #E2E8F0);
     border-radius: 20px;
-    background: transparent;
+    background: var(--nf-bg-elevated, #fff);
     color: var(--nf-text-secondary, #64748B);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
+    box-shadow: var(--nf-shadow-xs);
   }
 
   .mobile-filter-toggle:active {
-    background: var(--nf-bg-overlay, #F1F5F9);
+    background: var(--nf-glass-primary-tint, rgba(64, 158, 255, 0.1));
     color: var(--nf-primary, #409EFF);
+    border-color: var(--nf-primary, #409EFF);
   }
 
   .mobile-filter-badge {
@@ -121,23 +124,31 @@
 
   .filter-toggle-arrow {
     font-size: 11px;
-    transition: transform 0.2s ease;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .filter-toggle-arrow.is-expanded {
     transform: rotate(180deg);
   }
 
-  /* Filter rows wrapper: collapsed on mobile by default */
+  /* Filter rows wrapper: max-height collapse animation */
   .filter-rows-wrapper {
-    display: none !important;
-    margin-top: 6px;
-    border-top: 1px solid var(--nf-border-light, #F1F5F9);
-    padding-top: 4px;
+    display: block !important;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.22s ease,
+                margin-top 0.22s ease;
+    margin-top: 0 !important;
   }
 
   .filter-rows-wrapper.is-expanded {
-    display: block !important;
+    max-height: 700px;
+    opacity: 1;
+    margin-top: 6px !important;
+    border-top: 1px solid var(--nf-border-light, #F1F5F9);
+    padding-top: 4px;
   }
 
   /* Each row: label (fixed) + horizontal scroll strip */
@@ -179,21 +190,76 @@
 }
 
 /* ========================================
-   Movie / TV / Anime Grid
+   Movie / TV / Anime Grid & Cards
    ======================================== */
 @media (max-width: 768px) {
-  /* !important needed to override Vue scoped styles */
+  /* Grid layout */
   .movies-grid,
   .tv-grid,
   .anime-grid {
-    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
-    gap: 12px !important;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 10px !important;
   }
 
+  /* Poster: aspect-ratio instead of fixed height — adapts to screen width */
   .movie-poster,
   .tv-poster,
   .anime-poster {
-    height: 220px !important;
+    height: auto !important;
+    aspect-ratio: 2 / 3 !important;
+  }
+
+  /* Card: better border radius + press effect */
+  .movie-card,
+  .tv-card,
+  .anime-card {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    transition: transform 0.12s ease-out !important;
+  }
+
+  .movie-card:active,
+  .tv-card:active,
+  .anime-card:active {
+    transform: scale(0.96) !important;
+  }
+
+  /* Card info: compact on mobile */
+  .movie-info,
+  .tv-info,
+  .anime-info {
+    padding: 7px 9px 9px !important;
+  }
+
+  .movie-title,
+  .tv-title,
+  .anime-title {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .movie-meta,
+  .tv-meta,
+  .anime-meta {
+    font-size: 11px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Hide genre tags on mobile to keep cards compact */
+  .movie-genres,
+  .tv-genres,
+  .anime-genres {
+    display: none !important;
+  }
+
+  /* Rating badge: smaller on mobile */
+  .rating-badge {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    top: 6px !important;
+    left: 6px !important;
+    border-radius: 5px !important;
   }
 }
 
@@ -374,6 +440,74 @@
 }
 
 /* ========================================
+   Page Route Transitions (Mobile-optimized)
+   Faster, lighter feel than desktop
+   ======================================== */
+@media (max-width: 768px) {
+  .page-enter-active {
+    animation: mobilePageIn 0.22s ease-out !important;
+  }
+
+  .page-leave-active {
+    animation: mobilePageOut 0.18s ease-in !important;
+  }
+}
+
+@keyframes mobilePageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobilePageOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ========================================
+   Skeleton Screen - Theme-aware shimmer
+   ======================================== */
+.image-loading {
+  background: linear-gradient(
+    90deg,
+    var(--nf-bg-container, #F8FAFC) 25%,
+    var(--nf-bg-overlay, #E2E8F0) 50%,
+    var(--nf-bg-container, #F8FAFC) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: skeletonShimmer 2s infinite ease-in-out !important;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ========================================
+   Empty State - polish
+   ======================================== */
+@media (max-width: 768px) {
+  .el-empty__description p {
+    font-size: 13px !important;
+  }
+
+  .el-empty__image {
+    width: 100px !important;
+  }
+}
+
+/* ========================================
    Ultra-small screens (max-width: 360px)
    Extra overrides for very narrow phones
    ======================================== */
@@ -384,13 +518,6 @@
   .anime-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
-  }
-
-  /* Poster height on ultra-small */
-  .movie-poster,
-  .tv-poster,
-  .anime-poster {
-    height: 180px !important;
   }
 
   /* Reduce dialog padding */

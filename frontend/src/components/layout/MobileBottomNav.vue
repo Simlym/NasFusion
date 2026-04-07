@@ -8,7 +8,9 @@
       class="nav-item"
       :class="{ active: isTabActive(item.path, item.exact) }"
     >
-      <AppIcon :name="item.icon" :size="22" class="nav-icon" />
+      <div class="nav-icon-wrap">
+        <AppIcon :name="item.icon" :size="22" class="nav-icon" />
+      </div>
       <span class="nav-label">{{ item.label }}</span>
     </router-link>
 
@@ -18,7 +20,9 @@
       :class="{ active: isMoreActive }"
       @click="openMore"
     >
-      <AppIcon name="lucide:ellipsis" :size="22" class="nav-icon" />
+      <div class="nav-icon-wrap">
+        <AppIcon name="lucide:ellipsis" :size="22" class="nav-icon" />
+      </div>
       <span class="nav-label">更多</span>
     </button>
   </nav>
@@ -171,12 +175,15 @@ const closeMore = () => {
     left: 0;
     right: 0;
     height: calc(56px + env(safe-area-inset-bottom, 0px));
-    background-color: var(--nf-bg-base, #ffffff);
-    border-top: 1px solid var(--nf-border-light, #E2E8F0);
+    /* 毛玻璃效果 */
+    background: var(--nf-glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid var(--nf-glass-border);
     display: flex;
     align-items: stretch;
     z-index: 1998;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.04), 0 -4px 24px rgba(0, 0, 0, 0.07);
   }
 }
 
@@ -190,32 +197,59 @@ const closeMore = () => {
   gap: 3px;
   text-decoration: none;
   color: var(--nf-text-secondary, #64748B);
-  transition: color 0.2s, background-color 0.15s;
-  padding: 6px 4px;
+  transition: color 0.2s ease;
+  padding: 4px 4px 0;
   min-width: 0;
   border: none;
   background: transparent;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
+  position: relative;
 }
 
-.nav-item:active {
-  background-color: var(--nf-bg-overlay, #F1F5F9);
+/* 图标容器 - pill 指示器背景 */
+.nav-icon-wrap {
+  width: 48px;
+  height: 30px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.22s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+.nav-item.active .nav-icon-wrap {
+  background: var(--nf-glass-primary-tint);
+}
+
+/* 按下弹跳 */
+.nav-item:active .nav-icon-wrap {
+  transform: scale(0.88);
 }
 
 .nav-item.active {
-  color: var(--nf-primary, #3B82F6);
+  color: var(--nf-primary, #409EFF);
 }
 
 .nav-icon {
   font-size: 20px;
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 激活时图标轻微放大 + 弹跳 */
 .nav-item.active .nav-icon {
-  transform: scale(1.1);
+  transform: scale(1.08);
+  animation: navIconBounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes navIconBounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.2); }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1.08); }
 }
 
 .nav-label {
@@ -226,15 +260,22 @@ const closeMore = () => {
   text-overflow: ellipsis;
   max-width: 100%;
   line-height: 1;
+  transition: color 0.2s ease;
+}
+
+/* 激活标签文字加粗 */
+.nav-item.active .nav-label {
+  font-weight: 600;
 }
 
 /* ─── 更多面板 Overlay ─── */
 .more-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.40);
   z-index: 2001;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 /* ─── 更多面板 Sheet ─── */
@@ -244,11 +285,13 @@ const closeMore = () => {
   right: 0;
   bottom: 0;
   z-index: 2002;
-  background: var(--nf-bg-elevated, #ffffff);
-  border-radius: 16px 16px 0 0;
+  background: var(--nf-glass-sheet-bg);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-radius: 20px 20px 0 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
-  max-height: 80vh;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.14), 0 -1px 0 rgba(255, 255, 255, 0.08);
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
 }
@@ -260,6 +303,7 @@ const closeMore = () => {
   border-radius: 2px;
   margin: 10px auto 0;
   flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .more-header {
@@ -268,7 +312,7 @@ const closeMore = () => {
   justify-content: space-between;
   padding: 10px 16px 8px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--nf-border-light, #F1F5F9);
+  border-bottom: 1px solid var(--nf-glass-border);
 }
 
 .more-title {
@@ -290,10 +334,12 @@ const closeMore = () => {
   color: var(--nf-text-secondary, #64748B);
   -webkit-tap-highlight-color: transparent;
   font-size: 14px;
+  transition: background-color 0.15s, transform 0.12s;
 }
 
 .more-close:active {
   opacity: 0.7;
+  transform: scale(0.92);
 }
 
 /* ─── 更多面板内容 ─── */
@@ -336,36 +382,39 @@ const closeMore = () => {
   padding: 10px 4px;
   text-decoration: none;
   color: var(--nf-text-secondary, #64748B);
-  border-radius: 10px;
-  transition: background-color 0.15s, color 0.15s;
+  border-radius: 12px;
+  transition: background-color 0.15s, color 0.15s, transform 0.12s;
   -webkit-tap-highlight-color: transparent;
   min-width: 0;
 }
 
 .more-item:active {
   background-color: var(--nf-bg-overlay, #F1F5F9);
+  transform: scale(0.95);
 }
 
 .more-item.active {
   color: var(--nf-primary, #3B82F6);
-  background-color: rgba(59, 130, 246, 0.08);
+  background-color: var(--nf-glass-primary-tint);
 }
 
 .more-item-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--nf-bg-overlay, #F1F5F9);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, transform 0.12s;
   flex-shrink: 0;
+  box-shadow: var(--nf-shadow-xs);
 }
 
 .more-item.active .more-item-icon {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--nf-glass-primary-tint);
+  box-shadow: var(--nf-shadow-primary, 0 2px 8px rgba(64, 158, 255, 0.2));
 }
 
 .more-item-label {
@@ -389,12 +438,15 @@ const closeMore = () => {
   opacity: 0;
 }
 
-.slide-up-enter-active,
+.slide-up-enter-active {
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.22s ease;
+}
 .slide-up-leave-active {
-  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.26s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.18s ease;
 }
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+  opacity: 0;
 }
 </style>

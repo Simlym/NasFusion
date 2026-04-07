@@ -10,6 +10,14 @@
 
 :root {
   // ============================================
+  // 0. Glassmorphism Tokens - Light Theme
+  // ============================================
+  --nf-glass-bg: rgba(241, 245, 249, 0.88);
+  --nf-glass-border: rgba(226, 232, 240, 0.70);
+  --nf-glass-sheet-bg: rgba(255, 255, 255, 0.95);
+  --nf-glass-primary-tint: rgba(64, 158, 255, 0.12);
+
+  // ============================================
   // 1. Brand Colors (Primary) - Shared
   // ============================================
   --nf-primary: #409EFF;
@@ -201,6 +209,12 @@
 // DARK THEME - 暗紫夜幕 (Dracula Style)
 // ============================================
 html.dark {
+  // Glassmorphism Tokens - Dark Theme
+  --nf-glass-bg: rgba(19, 17, 28, 0.90);
+  --nf-glass-border: rgba(255, 255, 255, 0.07);
+  --nf-glass-sheet-bg: rgba(42, 37, 64, 0.96);
+  --nf-glass-primary-tint: rgba(189, 147, 249, 0.15);
+
   // Background Colors - 深紫色调
   --nf-bg-base: #13111C;
   --nf-bg-page: #1a1726;
@@ -247,6 +261,12 @@ html.dark {
 // OCEAN THEME - 海洋深蓝 (Deep Ocean Style)
 // ============================================
 html.ocean {
+  // Glassmorphism Tokens - Ocean Theme
+  --nf-glass-bg: rgba(10, 22, 40, 0.90);
+  --nf-glass-border: rgba(56, 189, 248, 0.15);
+  --nf-glass-sheet-bg: rgba(26, 49, 80, 0.96);
+  --nf-glass-primary-tint: rgba(56, 189, 248, 0.13);
+
   // Background Colors - 深海蓝色调
   --nf-bg-base: #0a1628;
   --nf-bg-page: #0d1f35;
@@ -291,6 +311,12 @@ html.ocean {
 // WARM THEME - 暖光橙韵 (Style)
 // ============================================
 html.warm {
+  // Glassmorphism Tokens - Warm Theme
+  --nf-glass-bg: rgba(240, 235, 227, 0.88);
+  --nf-glass-border: rgba(228, 217, 206, 0.70);
+  --nf-glass-sheet-bg: rgba(255, 255, 255, 0.95);
+  --nf-glass-primary-tint: rgba(249, 115, 22, 0.11);
+
   // Background Colors - 暖米色调
   --nf-bg-base: #F0EBE3;
   --nf-bg-page: #FAF8F5;
