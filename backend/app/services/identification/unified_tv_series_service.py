@@ -330,6 +330,7 @@ class UnifiedTVSeriesService:
         min_rating: Optional[float] = None,
         trending_collection: Optional[str] = None,
         exclude_genre: Optional[str] = None,
+        has_local: Optional[bool] = None,
     ) -> Tuple[List[UnifiedTVSeries], int]:
         """
         获取电视剧列表
@@ -343,12 +344,12 @@ class UnifiedTVSeriesService:
             genre: 类型
             country: 国家/地区
             status: 状态（Returning Series/Ended等）
-            status: 状态（Returning Series/Ended等）
             search: 搜索关键词（标题）
             sort_by: 排序字段 (created_at, rating, year, title)
             order: 排序方向 (asc, desc)
             min_rating: 最低评分
             trending_collection: 榜单类型（如 'douban_weekly_best'）
+            has_local: 是否有本地文件
 
         Returns:
             Tuple[List[UnifiedTVSeries], int]: (电视剧列表, 总数)
@@ -438,6 +439,9 @@ class UnifiedTVSeriesService:
                     UnifiedTVSeries.rating_imdb >= min_rating,
                 )
             )
+
+        if has_local is not None:
+            conditions.append(UnifiedTVSeries.has_local == has_local)
 
         if conditions:
             query = query.where(and_(*conditions))

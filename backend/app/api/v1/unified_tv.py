@@ -33,6 +33,7 @@ async def get_tv_series(
     min_rating: Optional[float] = Query(None, description="最低评分"),
     trending_collection: Optional[str] = Query(None, description="榜单类型（如: douban_weekly_best）"),
     exclude_genre: Optional[str] = Query(None, description="排除的类型（如'动画'）"),
+    has_local: Optional[bool] = Query(None, description="是否有本地文件"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -50,6 +51,7 @@ async def get_tv_series(
     - **min_rating**: 最低评分
     - **trending_collection**: 榜单类型（用于筛选和排序）
     - **exclude_genre**: 排除的类型
+    - **has_local**: 是否有本地文件
 
     返回分页结果
     """
@@ -70,6 +72,7 @@ async def get_tv_series(
         min_rating=min_rating,
         trending_collection=trending_collection,
         exclude_genre=exclude_genre,
+        has_local=has_local,
     )
 
     return {

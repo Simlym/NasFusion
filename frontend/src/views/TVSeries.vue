@@ -196,6 +196,27 @@
           </div>
         </div>
       </div>
+
+      <!-- 本地文件行 -->
+      <div class="filter-row">
+        <div class="filter-label">本地</div>
+        <div class="filter-options">
+          <div
+            class="filter-tag"
+            :class="{ active: filters.hasLocal === undefined }"
+            @click="handleLocalChange(undefined)"
+          >
+            全部
+          </div>
+          <div
+            class="filter-tag"
+            :class="{ active: filters.hasLocal === true }"
+            @click="handleLocalChange(true)"
+          >
+            已有本地
+          </div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -233,6 +254,11 @@ v-if="tv.posterUrl" :src="getProxiedImageUrl(tv.posterUrl)" fit="cover" lazy
               <Star />
             </el-icon>
             {{ tv.ratingDouban || tv.ratingTmdb || tv.ratingImdb }}
+          </div>
+
+          <!-- 本地文件标识 -->
+          <div v-if="tv.hasLocal" class="local-badge">
+            本地
           </div>
 
           <!-- 状态标签 -->
@@ -323,7 +349,8 @@ const filters = reactive({
   sortBy: 'created_at',
   order: 'desc',
   minRating: undefined as number | undefined,
-  trendingCollection: undefined as string | undefined
+  trendingCollection: undefined as string | undefined,
+  hasLocal: undefined as boolean | undefined
 })
 
 // 选项配置
@@ -371,6 +398,7 @@ const activeFilterCount = computed(() => {
   if (filters.country) count++
   if (filters.minRating) count++
   if (searchKeyword.value) count++
+  if (filters.hasLocal !== undefined) count++
   return count
 })
 const handleMobileResize = () => {
@@ -428,6 +456,12 @@ const handleRatingChange = (rating: number | undefined) => {
   handleFilterChange()
 }
 
+// 处理本地文件筛选变化
+const handleLocalChange = (value: boolean | undefined) => {
+  filters.hasLocal = value
+  handleFilterChange()
+}
+
 // 加载榜单类型
 const loadTrendingCollections = async () => {
   try {
@@ -477,7 +511,8 @@ const loadTVSeries = async (append = false) => {
       sortBy: filters.sortBy,
       order: filters.order,
       minRating: filters.minRating,
-      trendingCollection: filters.trendingCollection
+      trendingCollection: filters.trendingCollection,
+      hasLocal: filters.hasLocal
     })
 
     if (response?.data) {
@@ -825,6 +860,18 @@ onDeactivated(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.local-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 3px 7px;
+  background-color: rgba(103, 194, 58, 0.85);
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
 }
 
 .status-badge {

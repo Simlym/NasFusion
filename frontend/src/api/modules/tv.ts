@@ -18,6 +18,7 @@ export interface TVFilter {
   order?: string
   minRating?: number
   trendingCollection?: string
+  hasLocal?: boolean
 }
 
 // 电视剧更新数据接口
@@ -72,7 +73,8 @@ export function getTVList(params?: PaginationParams & TVFilter) {
       sort_by: params?.sortBy,
       order: params?.order,
       min_rating: params?.minRating,
-      trending_collection: params?.trendingCollection
+      trending_collection: params?.trendingCollection,
+      has_local: params?.hasLocal
     }
   })
 }

@@ -17,6 +17,7 @@ export interface MovieFilter {
   order?: string
   minRating?: number
   trendingCollection?: string
+  hasLocal?: boolean
 }
 
 // 电影更新数据接口
@@ -66,7 +67,8 @@ export function getMovieList(params?: PaginationParams & MovieFilter) {
       sort_by: params?.sortBy,
       order: params?.order,
       min_rating: params?.minRating,
-      trending_collection: params?.trendingCollection
+      trending_collection: params?.trendingCollection,
+      has_local: params?.hasLocal
     }
   })
 }

@@ -265,6 +265,7 @@ class UnifiedMovieService:
         min_rating: Optional[float] = None,
         trending_collection: Optional[str] = None,
         exclude_genre: Optional[str] = None,
+        has_local: Optional[bool] = None,
     ) -> Tuple[List[UnifiedMovie], int]:
         """
         获取电影列表
@@ -281,9 +282,8 @@ class UnifiedMovieService:
             sort_by: 排序字段 (created_at, rating, year, title)
             order: 排序方向 (asc, desc)
             min_rating: 最低评分
-            order: 排序方向 (asc, desc)
-            min_rating: 最低评分
             trending_collection: 榜单类型（如 'douban_top250'）
+            has_local: 是否有本地文件
 
         Returns:
             Tuple[List[UnifiedMovie], int]: (电影列表, 总数)
@@ -370,6 +370,9 @@ class UnifiedMovieService:
                     UnifiedMovie.rating_imdb >= min_rating,
                 )
             )
+
+        if has_local is not None:
+            conditions.append(UnifiedMovie.has_local == has_local)
 
         if conditions:
             query = query.where(and_(*conditions))
