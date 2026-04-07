@@ -20,6 +20,7 @@ from app.utils.timezone import now
 from app.constants import (
     MEDIA_TYPE_MOVIE,
     MEDIA_TYPE_TV,
+    MEDIA_TYPE_ANIME,
     FILE_TYPE_VIDEO,
     FILE_TYPE_SUBTITLE,
     FILE_TYPE_AUDIO,
@@ -685,6 +686,11 @@ class MediaScannerService:
         elif directory.media_type == MEDIA_TYPE_MOVIE:
             # 目录媒体类型为movie
             await MediaScannerService._identify_movie_from_nfo(db, directory, nfo_data)
+        elif directory.media_type == MEDIA_TYPE_ANIME:
+            # 动画目录：NFO类型不明时优先尝试剧集识别
+            await MediaScannerService._identify_tv_from_nfo(db, directory, nfo_data)
+            if not directory.unified_resource_id:
+                await MediaScannerService._identify_movie_from_nfo(db, directory, nfo_data)
         else:
             # 类型不明确，尝试电影识别（movie目录更常见有独立NFO）
             await MediaScannerService._identify_movie_from_nfo(db, directory, nfo_data)
@@ -1058,21 +1064,51 @@ async def _identify_from_directory_name(db: AsyncSession, directory) -> None:
         media_type = None  # 搜索时尝试两种
 
     # 搜索 TMDB
-    matched_tmdb_id = await _search_and_match_title(
-        db, clean_name, year, media_type or MEDIA_TYPE_MOVIE
-    )
-    if not matched_tmdb_id and media_type != MEDIA_TYPE_TV:
-        # movie 搜索失败，尝试 tv
+    # TMDB 只支持 movie/tv 两种类型搜索，用 matched_as_tv 记录实际匹配类型以便正确创建关联
+    matched_tmdb_id = None
+    matched_as_tv = False
+
+    if media_type == MEDIA_TYPE_TV:
+        matched_tmdb_id = await _search_and_match_title(db, clean_name, year, MEDIA_TYPE_TV)
+        matched_as_tv = bool(matched_tmdb_id)
+    elif media_type == MEDIA_TYPE_ANIME:
+        # 优先用目录结构判断：若存在 Season 子目录，说明是剧集父目录
+        has_season_children = False
+        if directory.id:
+            child_season = await db.execute(
+                select(MediaDirectory.id).where(
+                    MediaDirectory.parent_id == directory.id,
+                    MediaDirectory.season_number.isnot(None),
+                ).limit(1)
+            )
+            has_season_children = child_season.scalar_one_or_none() is not None
+
+        if has_season_children:
+            # 有 Season 子目录 → 确定是剧集
+            matched_tmdb_id = await _search_and_match_title(db, clean_name, year, MEDIA_TYPE_TV)
+            matched_as_tv = bool(matched_tmdb_id)
+        else:
+            # 结构不明确：先尝试 TV（动画大多数为连载），再尝试 Movie
+            matched_tmdb_id = await _search_and_match_title(db, clean_name, year, MEDIA_TYPE_TV)
+            if matched_tmdb_id:
+                matched_as_tv = True
+            else:
+                matched_tmdb_id = await _search_and_match_title(db, clean_name, year, MEDIA_TYPE_MOVIE)
+    else:
+        # movie 或 unknown: 先按 movie 搜，失败再尝试 tv
         matched_tmdb_id = await _search_and_match_title(
-            db, clean_name, year, MEDIA_TYPE_TV
+            db, clean_name, year, media_type or MEDIA_TYPE_MOVIE
         )
+        if not matched_tmdb_id:
+            matched_tmdb_id = await _search_and_match_title(db, clean_name, year, MEDIA_TYPE_TV)
+            matched_as_tv = bool(matched_tmdb_id)
 
     if not matched_tmdb_id:
         logger.debug(f"目录名识别无匹配: {directory.directory_path} (cleaned: {clean_name})")
         return
 
-    # 根据类型创建关联
-    if media_type == MEDIA_TYPE_TV:
+    # 根据实际匹配到的类型创建关联
+    if matched_as_tv:
         unified = await _find_or_create_tv_by_tmdb(db, matched_tmdb_id)
         if unified:
             await MediaScannerService._apply_directory_link(
