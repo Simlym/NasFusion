@@ -95,12 +95,12 @@
   animation: shimmer 2s infinite linear;
   background: linear-gradient(
     90deg,
-    var(--bg-color-overlay) 0%,
-    var(--border-color-light) 50%,
-    var(--bg-color-overlay) 100%
+    var(--nf-bg-overlay, #E2E8F0) 0%,
+    var(--nf-bg-hover, #CBD5E1) 50%,
+    var(--nf-bg-overlay, #E2E8F0) 100%
   );
   background-size: 1000px 100%;
-  border-radius: var(--border-radius-sm);
+  border-radius: var(--nf-radius-sm, 4px);
 }
 
 /* ========== 列表项入场动画 ========== */
