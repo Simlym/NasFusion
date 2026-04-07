@@ -789,13 +789,39 @@ onDeactivated(() => {
   color: var(--nf-text-placeholder);
 }
 
-/* 方案1: 渐变流动（shimmer）- 速度调慢 */
+/* 图片加载动画 - 增强版shimmer效果 */
 .image-loading {
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, var(--nf-bg-container) 25%, var(--nf-bg-overlay) 50%, var(--nf-bg-container) 75%);
-  background-size: 200% 100%;
-  animation: loading-shimmer 2.5s infinite ease-in-out;
+  background: linear-gradient(
+    90deg,
+    var(--nf-bg-container) 0%,
+    var(--nf-bg-elevated) 25%,
+    var(--nf-bg-overlay) 50%,
+    var(--nf-bg-elevated) 75%,
+    var(--nf-bg-container) 100%
+  );
+  background-size: 300% 100%;
+  animation: loading-shimmer 2s infinite ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 添加光泽效果层 */
+.image-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: loading-gleam 2s infinite ease-in-out;
 }
 
 .loading-shimmer {
@@ -805,11 +831,19 @@ onDeactivated(() => {
 
 @keyframes loading-shimmer {
   0% {
-    background-position: 200% 0;
+    background-position: 300% 0;
   }
-
   100% {
-    background-position: -200% 0;
+    background-position: -300% 0;
+  }
+}
+
+@keyframes loading-gleam {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
   }
 }
 

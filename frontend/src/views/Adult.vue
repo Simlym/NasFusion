@@ -401,7 +401,43 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.image-loading,
+/* 图片加载动画 - 增强版shimmer效果 */
+.image-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--el-fill-color-lighter) 0%,
+    var(--el-fill-color-light) 25%,
+    var(--el-fill-color) 50%,
+    var(--el-fill-color-light) 75%,
+    var(--el-fill-color-lighter) 100%
+  );
+  background-size: 300% 100%;
+  animation: loading-shimmer 2s infinite ease-in-out;
+  overflow: hidden;
+}
+
+/* 添加光泽效果层 */
+.image-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  animation: loading-gleam 2s infinite ease-in-out;
+}
+
 .image-slot {
   position: absolute;
   top: 0;
@@ -414,6 +450,24 @@ onUnmounted(() => {
   font-size: 32px;
   color: var(--el-text-color-placeholder);
   background-color: var(--el-fill-color-lighter);
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 300% 0;
+  }
+  100% {
+    background-position: -300% 0;
+  }
+}
+
+@keyframes loading-gleam {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
 }
 
 .promo-tag {
