@@ -490,20 +490,28 @@ async function pollTaskStatus(executionId: number, label: string) {
 @media (max-width: 768px) {
   .toolbar {
     flex-wrap: wrap;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px 12px;
 
     // 媒体类型切换缩小
     :deep(.el-radio-group) {
+      flex-shrink: 0;
       .el-radio-button__inner {
         padding: 6px 10px;
         font-size: 13px;
       }
     }
 
+    // 操作按钮靠右，与 radio-group 同行
     .toolbar-actions {
-      width: 100%;
+      flex: 1;
       justify-content: flex-end;
+    }
+
+    // 问题筛选独占一行
+    :deep(.problem-filter) {
+      width: 100%;
+      order: 3;
     }
   }
 

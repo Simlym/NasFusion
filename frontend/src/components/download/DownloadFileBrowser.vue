@@ -1,9 +1,10 @@
 <template>
   <div class="download-file-browser">
     <!-- 下载目录操作栏 -->
-    <el-card shadow="never" style="margin-bottom: 20px">
-      <el-row :gutter="20" style="margin-bottom: 15px">
-        <el-col :span="6">
+    <el-card shadow="never" style="margin-bottom: 16px">
+      <!-- PC 筛选栏 -->
+      <el-row v-if="!isMobile" :gutter="16" align="middle">
+        <el-col :span="5">
           <el-select v-model="filters.status" placeholder="状态" clearable style="width: 100%" @change="loadFiles">
             <el-option label="全部" value="" />
             <el-option label="已发现" value="discovered" />
@@ -12,38 +13,62 @@
             <el-option label="刮削中" value="scraping" />
           </el-select>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="5">
           <el-select v-model="filters.organized" placeholder="是否整理" clearable style="width: 100%" @change="loadFiles">
             <el-option label="全部" :value="undefined" />
             <el-option label="未整理" :value="false" />
             <el-option label="已整理" :value="true" />
           </el-select>
         </el-col>
-        <el-col :span="12" style="text-align: right">
+        <el-col :span="14" style="text-align: right">
           <el-button-group>
-            <el-button
-              type="success"
-              :icon="Search"
-              :disabled="selectedIds.length === 0"
-              @click="handleBatchIdentify"
-            >
+            <el-button type="success" :icon="Search" :disabled="selectedIds.length === 0" @click="handleBatchIdentify">
               批量识别 ({{ selectedIds.length }})
             </el-button>
-            <el-button
-              type="warning"
-              :icon="FolderOpened"
-              :disabled="selectedIds.length === 0"
-              @click="handleBatchOrganize"
-            >
+            <el-button type="warning" :icon="FolderOpened" :disabled="selectedIds.length === 0" @click="handleBatchOrganize">
               批量整理 ({{ selectedIds.length }})
             </el-button>
             <el-button type="primary" :icon="Refresh" @click="loadFiles">刷新</el-button>
-            <el-button type="info" :icon="Folder" :loading="scanning" @click="scanDownloads">
-              扫描目录
-            </el-button>
+            <el-button type="info" :icon="Folder" :loading="scanning" @click="scanDownloads">扫描目录</el-button>
           </el-button-group>
         </el-col>
       </el-row>
+
+      <!-- Mobile 筛选栏 -->
+      <div v-else class="mobile-toolbar">
+        <div class="mobile-filters">
+          <el-select v-model="filters.status" placeholder="状态筛选" clearable style="flex: 1" @change="loadFiles">
+            <el-option label="全部状态" value="" />
+            <el-option label="已发现" value="discovered" />
+            <el-option label="已识别" value="identified" />
+            <el-option label="整理中" value="organizing" />
+            <el-option label="刮削中" value="scraping" />
+          </el-select>
+          <el-select v-model="filters.organized" placeholder="整理状态" clearable style="flex: 1" @change="loadFiles">
+            <el-option label="全部" :value="undefined" />
+            <el-option label="未整理" :value="false" />
+            <el-option label="已整理" :value="true" />
+          </el-select>
+        </div>
+        <div class="mobile-actions">
+          <el-button type="primary" :icon="Refresh" size="small" @click="loadFiles">刷新</el-button>
+          <el-button type="info" :icon="Folder" size="small" :loading="scanning" @click="scanDownloads">扫描</el-button>
+          <el-button
+            v-if="selectedIds.length > 0"
+            type="success"
+            :icon="Search"
+            size="small"
+            @click="handleBatchIdentify"
+          >识别({{ selectedIds.length }})</el-button>
+          <el-button
+            v-if="selectedIds.length > 0"
+            type="warning"
+            :icon="FolderOpened"
+            size="small"
+            @click="handleBatchOrganize"
+          >整理({{ selectedIds.length }})</el-button>
+        </div>
+      </div>
     </el-card>
 
     <!-- 媒体文件列表 -->
@@ -54,7 +79,9 @@
         </div>
       </template>
 
+      <!-- PC: 表格视图 -->
       <el-table
+        v-if="!isMobile"
         v-loading="loading"
         :data="files"
         height="600"
@@ -65,23 +92,17 @@
           <template #default="{ row }">
             <div>
               <div>{{ row.file_name }}</div>
-              <div v-if="row.sub_title" class="file-subtitle">
-                {{ row.sub_title }}
-              </div>
+              <div v-if="row.sub_title" class="file-subtitle">{{ row.sub_title }}</div>
               <el-text size="small" type="info">{{ row.directory }}</el-text>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="大小" width="120">
-          <template #default="{ row }">
-            {{ formatFileSize(row.file_size) }}
-          </template>
+          <template #default="{ row }">{{ formatFileSize(row.file_size) }}</template>
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
+            <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="识别状态" width="120">
@@ -107,8 +128,7 @@
             <el-text v-else size="small" type="info">-</el-text>
           </template>
         </el-table-column>
-
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-dropdown trigger="click" @command="(cmd: string) => handleAction(cmd, row.id)">
               <el-button size="small" type="primary">
@@ -130,7 +150,51 @@
         </el-table-column>
       </el-table>
 
+      <!-- Mobile: 卡片视图 -->
+      <div v-else v-loading="loading" class="file-card-list">
+        <div v-if="files.length === 0 && !loading" class="file-empty">暂无文件记录</div>
+        <div v-for="row in files" :key="row.id" class="file-card">
+          <div class="file-card-header">
+            <div class="file-card-name">{{ row.file_name }}</div>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleAction(cmd, row.id)">
+              <el-button size="small" type="primary" plain circle>
+                <el-icon><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="identify" :icon="Search">识别</el-dropdown-item>
+                  <el-dropdown-item command="organize" :icon="FolderOpened">整理</el-dropdown-item>
+                  <template v-if="row.organized">
+                    <el-dropdown-item divided command="scrape" :icon="Download">重新刮削图片+NFO</el-dropdown-item>
+                    <el-dropdown-item command="generate-nfo" :icon="Document">重新生成NFO</el-dropdown-item>
+                  </template>
+                  <el-dropdown-item divided command="delete" :icon="Delete" class="delete-item">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          <div v-if="row.sub_title" class="file-card-subtitle">{{ row.sub_title }}</div>
+          <div class="file-card-path">{{ row.directory }}</div>
+          <div class="file-card-meta">
+            <span class="file-card-size">{{ formatFileSize(row.file_size) }}</span>
+            <div class="file-card-badges">
+              <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag>
+              <el-tag v-if="row.unified_resource_id" type="success" size="small">已识别</el-tag>
+              <el-tag v-else type="info" size="small">未识别</el-tag>
+              <el-tag v-if="row.organized" type="success" size="small">已整理</el-tag>
+              <el-tag v-else type="info" size="small">未整理</el-tag>
+            </div>
+          </div>
+          <div v-if="row.organized && row.organized_path" class="file-card-organized-path">
+            <el-tag v-if="row.organize_mode" size="small" type="warning">{{ getOrganizeModeLabel(row.organize_mode) }}</el-tag>
+            <span class="organized-path-text">{{ row.organized_path }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PC 分页 -->
       <el-pagination
+        v-if="!isMobile"
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.size"
         :total="pagination.total"
@@ -138,6 +202,17 @@
         layout="total, sizes, prev, pager, next, jumper"
         style="margin-top: 20px; justify-content: flex-end"
         @size-change="loadFiles"
+        @current-change="loadFiles"
+      />
+      <!-- Mobile 分页 -->
+      <el-pagination
+        v-else
+        v-model:current-page="pagination.page"
+        :total="pagination.total"
+        :page-size="pagination.size"
+        layout="prev, pager, next"
+        small
+        style="margin-top: 16px; justify-content: center"
         @current-change="loadFiles"
       />
     </el-card>
@@ -381,7 +456,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Refresh,
@@ -418,6 +493,11 @@ import {
 } from '@/api/modules/media'
 import { getOrganizeConfigList } from '@/api/modules/organize'
 import { getStorageMounts } from '@/api/modules/storage'
+
+// 移动端检测
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value <= 768)
+const handleResize = () => { windowWidth.value = window.innerWidth }
 
 // 状态
 const loading = ref(false)
@@ -475,6 +555,11 @@ onMounted(() => {
   loadFiles()
   loadConfigs()
   loadStorageMounts()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 
 async function loadFiles() {
@@ -1124,5 +1209,109 @@ async function handleDelete(id: number) {
 
 .delete-item {
   color: var(--nf-danger) !important;
+}
+
+/* Mobile 工具栏 */
+.mobile-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.mobile-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Mobile 文件卡片 */
+.file-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-card {
+  border: 1px solid var(--nf-border-base);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--nf-bg-container);
+}
+
+.file-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.file-card-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--nf-text-primary);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.file-card-subtitle {
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+  margin-bottom: 2px;
+}
+
+.file-card-path {
+  font-size: 11px;
+  color: var(--nf-text-placeholder);
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.file-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.file-card-size {
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+  flex-shrink: 0;
+}
+
+.file-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.file-card-organized-path {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--nf-border-lighter);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.organized-path-text {
+  font-size: 11px;
+  color: var(--nf-text-secondary);
+  word-break: break-all;
+}
+
+.file-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--nf-text-placeholder);
+  font-size: 14px;
 }
 </style>

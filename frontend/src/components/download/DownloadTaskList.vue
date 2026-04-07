@@ -1,14 +1,14 @@
 <template>
   <div class="download-task-list">
     <!-- 统计卡片 -->
-    <el-row :gutter="12" style="margin-bottom: 20px">
+    <el-row :gutter="isMobile ? 8 : 12" style="margin-bottom: 16px">
       <el-col :xs="12" :span="6">
-        <el-card shadow="hover">
+        <el-card shadow="hover" :body-style="isMobile ? { padding: '12px' } : {}">
           <el-statistic title="总任务数" :value="stats.total" />
         </el-card>
       </el-col>
       <el-col :xs="12" :span="6">
-        <el-card shadow="hover">
+        <el-card shadow="hover" :body-style="isMobile ? { padding: '12px' } : {}">
           <el-statistic title="下载中" :value="stats.downloading">
             <template #suffix>
               <el-icon color="#409eff"><Download /></el-icon>
@@ -16,8 +16,8 @@
           </el-statistic>
         </el-card>
       </el-col>
-      <el-col :xs="12" :span="6" style="margin-top: 0">
-        <el-card shadow="hover">
+      <el-col :xs="12" :span="6" style="margin-top: 8px" :style="isMobile ? 'margin-top: 8px' : 'margin-top: 0'">
+        <el-card shadow="hover" :body-style="isMobile ? { padding: '12px' } : {}">
           <el-statistic title="做种中" :value="stats.seeding">
             <template #suffix>
               <el-icon color="#67c23a"><Upload /></el-icon>
@@ -25,8 +25,8 @@
           </el-statistic>
         </el-card>
       </el-col>
-      <el-col :xs="12" :span="6">
-        <el-card shadow="hover">
+      <el-col :xs="12" :span="6" :style="isMobile ? 'margin-top: 8px' : ''">
+        <el-card shadow="hover" :body-style="isMobile ? { padding: '12px' } : {}">
           <el-statistic title="已完成" :value="stats.completed">
             <template #suffix>
               <el-icon color="#67c23a"><Check /></el-icon>
@@ -48,36 +48,32 @@
       </template>
 
       <!-- 筛选器 -->
-      <el-row :gutter="12" style="margin-bottom: 16px">
-        <el-col :xs="24" :span="6">
-          <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width: 100%" @change="loadTasks">
-            <el-option label="全部" value="" />
-            <el-option label="等待下载" value="pending" />
-            <el-option label="下载中" value="downloading" />
-            <el-option label="已暂停" value="paused" />
-            <el-option label="下载完成" value="completed" />
-            <el-option label="做种中" value="seeding" />
-            <el-option label="错误" value="error" />
-          </el-select>
-        </el-col>
-        <el-col :xs="24" :span="6" :style="isMobile ? 'margin-top: 8px' : ''">
-          <el-select
-            v-model="filters.downloader_config_id"
-            placeholder="下载器筛选"
-            clearable
-            style="width: 100%"
-            @change="loadTasks"
-          >
-            <el-option label="全部下载器" value="" />
-            <el-option
-              v-for="downloader in downloaders"
-              :key="downloader.id"
-              :label="downloader.name"
-              :value="downloader.id"
-            />
-          </el-select>
-        </el-col>
-      </el-row>
+      <div :class="isMobile ? 'filter-row-mobile' : 'filter-row-pc'">
+        <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width: 100%" @change="loadTasks">
+          <el-option label="全部" value="" />
+          <el-option label="等待下载" value="pending" />
+          <el-option label="下载中" value="downloading" />
+          <el-option label="已暂停" value="paused" />
+          <el-option label="下载完成" value="completed" />
+          <el-option label="做种中" value="seeding" />
+          <el-option label="错误" value="error" />
+        </el-select>
+        <el-select
+          v-model="filters.downloader_config_id"
+          placeholder="下载器筛选"
+          clearable
+          style="width: 100%"
+          @change="loadTasks"
+        >
+          <el-option label="全部下载器" value="" />
+          <el-option
+            v-for="downloader in downloaders"
+            :key="downloader.id"
+            :label="downloader.name"
+            :value="downloader.id"
+          />
+        </el-select>
+      </div>
 
       <!-- PC: 任务表格 -->
       <el-table v-if="!isMobile" v-loading="loading" :data="tasks" style="width: 100%">
@@ -179,14 +175,20 @@
               <el-tag v-if="row.has_hr" type="warning" size="small">HR</el-tag>
             </div>
           </div>
-          <el-progress :percentage="row.progress" :status="getProgressStatus(row.status)" style="margin: 8px 0 4px" />
-          <div class="task-card-meta">
-            <span>{{ formatSize(row.downloaded_size) }} / {{ formatSize(row.total_size) }}</span>
-            <span>比率: {{ row.ratio.toFixed(2) }}</span>
+          <el-progress :percentage="row.progress" :status="getProgressStatus(row.status)" style="margin: 10px 0 6px" />
+          <div class="task-card-stats">
+            <div class="task-stat-item">
+              <span class="task-stat-label">已下载</span>
+              <span class="task-stat-value">{{ formatSize(row.downloaded_size) }} / {{ formatSize(row.total_size) }}</span>
+            </div>
+            <div class="task-stat-item">
+              <span class="task-stat-label">分享率</span>
+              <el-tag :type="row.ratio >= 1 ? 'success' : 'warning'" size="small">{{ row.ratio.toFixed(2) }}</el-tag>
+            </div>
           </div>
           <div class="task-card-speed">
-            <span><el-icon><Download /></el-icon> {{ formatSpeed(row.download_speed) }}</span>
-            <span><el-icon><Upload /></el-icon> {{ formatSpeed(row.upload_speed) }}</span>
+            <span class="speed-item"><el-icon><Download /></el-icon> {{ formatSpeed(row.download_speed) }}</span>
+            <span class="speed-item"><el-icon><Upload /></el-icon> {{ formatSpeed(row.upload_speed) }}</span>
           </div>
           <div class="task-card-actions">
             <el-button
@@ -490,6 +492,20 @@ onUnmounted(() => {
   margin-top: 4px;
 }
 
+/* 筛选器布局 */
+.filter-row-pc {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  max-width: 600px;
+}
+
+.filter-row-mobile {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 /* 移动端任务卡片列表 */
 .task-card-list {
   display: flex;
@@ -508,7 +524,7 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .task-card-name {
@@ -527,24 +543,44 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.task-card-meta {
+.task-card-stats {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.task-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-stat-label {
+  font-size: 11px;
+  color: var(--nf-text-placeholder);
+}
+
+.task-stat-value {
   font-size: 12px;
   color: var(--nf-text-secondary);
-  margin-bottom: 4px;
 }
 
 .task-card-speed {
   display: flex;
   gap: 16px;
-  font-size: 12px;
-  color: var(--nf-text-secondary);
   margin-bottom: 10px;
 }
 
-.task-card-speed .el-icon {
-  vertical-align: middle;
+.speed-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+}
+
+.speed-item .el-icon {
   font-size: 12px;
 }
 
