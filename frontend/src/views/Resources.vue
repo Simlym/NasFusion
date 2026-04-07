@@ -15,23 +15,62 @@
               class="search-input"
               @keyup.enter="handleSearch"
             />
-            <el-button class="btn-search" :icon="Search" @click="handleSearch">搜索</el-button>
-            <el-button class="btn-refresh" :icon="Refresh" @click="loadResources">刷新</el-button>
+            <el-button class="btn-search" :icon="Search" @click="handleSearch">
+              <span class="btn-text-desktop">搜索</span>
+            </el-button>
+            <el-button class="btn-refresh" :icon="Refresh" @click="loadResources">
+              <span class="btn-text-desktop">刷新</span>
+            </el-button>
           </div>
         </div>
       </template>
 
       <!-- 筛选条件 + 批量操作 -->
       <div class="toolbar-section">
+        <!-- 移动端：筛选开关行 -->
+        <div v-if="isMobile" class="mobile-toolbar-top">
+          <el-button
+            class="btn-filter-toggle"
+            :icon="showMobileFilters ? ArrowUp : Filter"
+            @click="showMobileFilters = !showMobileFilters"
+          >
+            筛选
+            <el-badge
+              v-if="activeFilterCount() > 0"
+              :value="activeFilterCount()"
+              class="filter-badge"
+            />
+          </el-button>
+          <div class="mobile-batch-inline">
+            <span v-if="selectedRows.length > 0" class="selection-info">已选 {{ selectedRows.length }}</span>
+            <el-button
+              class="btn-batch-identify"
+              :icon="MagicStick"
+              :disabled="selectedRows.length === 0"
+              size="small"
+              @click="handleBatchIdentify"
+            >识别</el-button>
+            <el-button
+              class="btn-batch-reset"
+              :disabled="selectedRows.length === 0"
+              size="small"
+              @click="handleBatchResetStatus"
+            >重置</el-button>
+          </div>
+        </div>
+
         <!-- 筛选区域 -->
-        <div class="filter-bar">
-          <el-form inline>
+        <div
+          class="filter-bar"
+          :class="{ 'filter-bar-hidden': isMobile && !showMobileFilters }"
+        >
+          <el-form :inline="!isMobile" class="filter-form">
             <el-form-item label="站点">
               <el-select
                 v-model="filters.siteId"
                 placeholder="全部站点"
                 clearable
-                style="width: 150px"
+                :style="isMobile ? 'width: 100%' : 'width: 150px'"
                 @change="handleFilterChange"
               >
                 <el-option v-for="site in sites" :key="site.id" :label="site.name" :value="site.id" />
@@ -42,7 +81,7 @@
                 v-model="filters.category"
                 placeholder="全部分类"
                 clearable
-                style="width: 120px"
+                :style="isMobile ? 'width: 100%' : 'width: 120px'"
                 @change="handleFilterChange"
               >
                 <el-option label="电影" value="movie" />
@@ -61,7 +100,7 @@
                 placeholder="请先选择站点"
                 clearable
                 filterable
-                style="width: 220px"
+                :style="isMobile ? 'width: 100%' : 'width: 220px'"
                 :disabled="!filters.siteId"
                 @change="handleFilterChange"
               >
@@ -78,7 +117,7 @@
                 v-model="filters.identificationStatus"
                 placeholder="全部"
                 clearable
-                style="width: 120px"
+                :style="isMobile ? 'width: 100%' : 'width: 120px'"
                 @change="handleFilterChange"
               >
                 <el-option label="未识别" value="unidentified" />
@@ -89,8 +128,8 @@
           </el-form>
         </div>
 
-        <!-- 批量操作区域 -->
-        <div class="batch-actions">
+        <!-- 桌面端批量操作区域 -->
+        <div v-if="!isMobile" class="batch-actions">
           <span v-if="selectedRows.length > 0" class="selection-info">
             已选择 {{ selectedRows.length }} 项
           </span>
@@ -112,120 +151,170 @@
         </div>
       </div>
 
-      <!-- 资源列表 -->
-      <div class="table-scroll-wrapper">
-      <el-table
-        v-loading="loading"
-        :data="resources"
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="title" label="标题" min-width="300">
-          <template #default="{ row }">
-            <div>
-              <div class="resource-title">{{ row.title }}</div>
-              <div v-if="row.subtitle" class="resource-subtitle">{{ row.subtitle }}</div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="siteName" label="站点" width="100" />
-        <el-table-column label="分类" width="120">
-          <template #default="{ row }">
-            <el-tooltip
-              v-if="row.originalCategoryName"
-              :content="`原始分类：${row.originalCategoryName}`"
-              placement="top"
-              :show-after="300"
-            >
-              <el-tag :type="getCategoryType(row.category)" size="small">
+      <!-- 桌面端：表格视图 -->
+      <div v-if="!isMobile" class="table-scroll-wrapper">
+        <el-table
+          v-loading="loading"
+          :data="resources"
+          style="width: 100%"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="55" />
+          <el-table-column prop="title" label="标题" min-width="300">
+            <template #default="{ row }">
+              <div>
+                <div class="resource-title">{{ row.title }}</div>
+                <div v-if="row.subtitle" class="resource-subtitle">{{ row.subtitle }}</div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="siteName" label="站点" width="100" />
+          <el-table-column label="分类" width="120">
+            <template #default="{ row }">
+              <el-tooltip
+                v-if="row.originalCategoryName"
+                :content="`原始分类：${row.originalCategoryName}`"
+                placement="top"
+                :show-after="300"
+              >
+                <el-tag :type="getCategoryType(row.category)" size="small">
+                  {{ getCategoryLabel(row.category) }}
+                </el-tag>
+              </el-tooltip>
+              <el-tag v-else :type="getCategoryType(row.category)" size="small">
                 {{ getCategoryLabel(row.category) }}
               </el-tag>
-            </el-tooltip>
-            <el-tag v-else :type="getCategoryType(row.category)" size="small">
-              {{ getCategoryLabel(row.category) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="大小" width="100">
-          <template #default="{ row }">
-            {{ formatSize(row.sizeBytes) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="seeders" label="做种" width="80" sortable />
-        <el-table-column label="发布时间" width="160">
-          <template #default="{ row }">
-            {{ formatPublishedTime(row.publishedAt) }}
-          </template>
-        </el-table-column>
-        <!-- <el-table-column label="促销" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.promotionType === 'free'" type="success" size="small">免费</el-tag>
-            <el-tag v-else-if="row.promotionType === '2xfree'" type="success" size="small">
-              2X免费
-            </el-tag>
-            <el-tag v-else-if="row.promotionType === '2x'" type="info" size="small">
-              2X上传
-            </el-tag>
-            <el-tag v-else-if="row.promotionType === '50%'" type="warning" size="small">
-              50%
-            </el-tag>
-            <el-tag v-else-if="row.promotionType === '2x50%'" type="warning" size="small">
-              2X50%
-            </el-tag>
-            <el-tag v-else-if="row.promotionType === '30%'" type="warning" size="small">
-              30%
-            </el-tag>
-            <span v-else class="text-muted">-</span>
-          </template>
-        </el-table-column> -->
-        <el-table-column label="识别状态" width="90">
-          <template #default="{ row }">
-            <el-tag v-if="row.identificationStatus === 'identified'" type="success" size="small">
-              已识别
-            </el-tag>
-            <el-tag v-else-if="row.identificationStatus === 'failed'" type="danger" size="small">
-              失败
-            </el-tag>
-            <el-tag v-else type="info" size="small" effect="plain">未识别</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="info" size="small" @click="handleViewDetail(row.id)">
-              详情
-            </el-button>
-            <el-button link type="success" size="small" @click="handleDownload(row)">
-              下载
-            </el-button>
+            </template>
+          </el-table-column>
+          <el-table-column label="大小" width="100">
+            <template #default="{ row }">
+              {{ formatSize(row.sizeBytes) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="seeders" label="做种" width="80" sortable />
+          <el-table-column label="发布时间" width="160">
+            <template #default="{ row }">
+              {{ formatPublishedTime(row.publishedAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="识别状态" width="90">
+            <template #default="{ row }">
+              <el-tag v-if="row.identificationStatus === 'identified'" type="success" size="small">
+                已识别
+              </el-tag>
+              <el-tag v-else-if="row.identificationStatus === 'failed'" type="danger" size="small">
+                失败
+              </el-tag>
+              <el-tag v-else type="info" size="small" effect="plain">未识别</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="280" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="info" size="small" @click="handleViewDetail(row.id)">
+                详情
+              </el-button>
+              <el-button link type="success" size="small" @click="handleDownload(row)">
+                下载
+              </el-button>
+              <el-button
+                v-if="row.mappingStatus !== 'identified'"
+                link
+                type="primary"
+                size="small"
+                :loading="identifyingIds.includes(row.id)"
+                @click="handleIdentify(row.id)"
+              >
+                识别
+              </el-button>
+              <el-button
+                v-else
+                link
+                type="success"
+                size="small"
+                @click="handleViewUnified(row)"
+              >
+                {{ getUnifiedLabel(row.mediaType) }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 移动端：卡片列表视图 -->
+      <div v-else v-loading="loading" class="mobile-card-list">
+        <div
+          v-for="row in resources"
+          :key="row.id"
+          class="resource-card"
+          :class="{ 'resource-card-selected': selectedRows.some(r => r.id === row.id) }"
+        >
+          <!-- 卡片顶部：复选框 + 标题 + 识别状态 -->
+          <div class="card-top">
+            <el-checkbox
+              :model-value="selectedRows.some(r => r.id === row.id)"
+              class="card-checkbox"
+              @change="(checked) => {
+                if (checked) {
+                  selectedRows.value = [...selectedRows.value, row]
+                } else {
+                  selectedRows.value = selectedRows.value.filter(r => r.id !== row.id)
+                }
+              }"
+            />
+            <div class="card-title-block" @click="handleViewDetail(row.id)">
+              <div class="card-title">{{ row.title }}</div>
+              <div v-if="row.subtitle" class="card-subtitle">{{ row.subtitle }}</div>
+            </div>
+            <div class="card-status">
+              <el-tag v-if="row.identificationStatus === 'identified'" type="success" size="small">已识别</el-tag>
+              <el-tag v-else-if="row.identificationStatus === 'failed'" type="danger" size="small">失败</el-tag>
+              <el-tag v-else type="info" size="small" effect="plain">未识别</el-tag>
+            </div>
+          </div>
+
+          <!-- 卡片元信息 -->
+          <div class="card-meta">
+            <span class="meta-item">
+              <el-tag :type="getCategoryType(row.category)" size="small">{{ getCategoryLabel(row.category) }}</el-tag>
+            </span>
+            <span class="meta-item meta-text">{{ row.siteName }}</span>
+            <span class="meta-item meta-text">{{ formatSize(row.sizeBytes) }}</span>
+            <span class="meta-item meta-text">做种 {{ row.seeders ?? '-' }}</span>
+          </div>
+          <div class="card-date">{{ formatPublishedTime(row.publishedAt) }}</div>
+
+          <!-- 卡片操作按钮 -->
+          <div class="card-actions">
+            <el-button size="small" type="info" plain @click="handleViewDetail(row.id)">详情</el-button>
+            <el-button size="small" type="success" plain @click="handleDownload(row)">下载</el-button>
             <el-button
               v-if="row.mappingStatus !== 'identified'"
-              link
-              type="primary"
               size="small"
+              type="primary"
+              plain
               :loading="identifyingIds.includes(row.id)"
               @click="handleIdentify(row.id)"
-            >
-              识别
-            </el-button>
+            >识别</el-button>
             <el-button
               v-else
-              link
-              type="success"
               size="small"
+              type="success"
+              plain
               @click="handleViewUnified(row)"
-            >
-              {{ getUnifiedLabel(row.mediaType) }}
-            </el-button>
+            >{{ getUnifiedLabel(row.mediaType) }}</el-button>
+          </div>
+        </div>
 
-          </template>
-        </el-table-column>
-      </el-table>
+        <div v-if="!loading && resources.length === 0" class="empty-state">
+          <span>暂无资源数据</span>
+        </div>
       </div>
 
       <!-- 分页 -->
       <div class="pagination-container">
+        <!-- 桌面端：完整分页 -->
         <el-pagination
+          v-if="!isMobile"
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
           :total="pagination.total"
@@ -234,6 +323,23 @@
           @size-change="handleSizeChange"
           @current-change="handlePageChange"
         />
+        <!-- 移动端：简化分页 -->
+        <div v-else class="mobile-pagination">
+          <el-button
+            :disabled="pagination.page <= 1"
+            class="mobile-page-btn"
+            @click="handlePageChange(pagination.page - 1)"
+          >上一页</el-button>
+          <span class="mobile-page-info">
+            {{ pagination.page }} / {{ Math.ceil(pagination.total / pagination.pageSize) || 1 }}
+            <span class="mobile-page-total">共 {{ pagination.total }} 条</span>
+          </span>
+          <el-button
+            :disabled="pagination.page >= Math.ceil(pagination.total / pagination.pageSize)"
+            class="mobile-page-btn"
+            @click="handlePageChange(pagination.page + 1)"
+          >下一页</el-button>
+        </div>
       </div>
     </el-card>
 
@@ -254,16 +360,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, View, MagicStick, Download } from '@element-plus/icons-vue'
+import { Search, Refresh, View, MagicStick, Download, Filter, ArrowUp } from '@element-plus/icons-vue'
 import api from '@/api'
 import type { PTResource } from '@/types'
 import DownloadDialog from '@/components/download/DownloadDialog.vue'
 import TaskProgressDialog from '@/components/TaskProgressDialog.vue'
 
 const router = useRouter()
+
+// 移动端检测
+const isMobile = ref(false)
+const showMobileFilters = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 // 状态
 const loading = ref(false)
@@ -632,9 +746,25 @@ const getCategoryLabel = (category: string) => {
   return labelMap[category] || category
 }
 
+// 获取激活的筛选数量（移动端用）
+const activeFilterCount = () => {
+  let count = 0
+  if (filters.siteId) count++
+  if (filters.category) count++
+  if (filters.originalCategoryId) count++
+  if (filters.identificationStatus) count++
+  return count
+}
+
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   loadSites()
   loadResources()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
@@ -916,51 +1046,255 @@ html.ocean .selection-info {
   color: #8EAEC8;
 }
 
+/* ========== 移动端筛选切换按钮 ========== */
+.mobile-toolbar-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.btn-filter-toggle {
+  position: relative;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.filter-badge {
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.mobile-batch-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* 筛选面板折叠 */
+.filter-bar-hidden {
+  display: none;
+}
+
+/* ========== 移动端卡片列表 ========== */
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.resource-card {
+  background: var(--bg-color-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+  transition: border-color 0.2s;
+  cursor: default;
+}
+
+.resource-card-selected {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 6%, var(--bg-color-overlay));
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-checkbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.card-title-block {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color-primary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.card-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card-status {
+  flex-shrink: 0;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.meta-text {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+}
+
+.card-date {
+  font-size: 11px;
+  color: var(--text-color-placeholder);
+  margin-bottom: 10px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-actions .el-button {
+  min-height: 44px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-color-secondary);
+  font-size: 14px;
+}
+
+/* ========== 移动端分页 ========== */
+.mobile-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.mobile-page-btn {
+  min-height: 44px;
+  min-width: 80px;
+}
+
+.mobile-page-info {
+  font-size: 13px;
+  color: var(--text-color-regular);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-page-total {
+  font-size: 11px;
+  color: var(--text-color-secondary);
+}
+
 /* ========== 响应式布局 ========== */
 @media (max-width: 768px) {
   .card-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
   }
 
   .header-right {
     width: 100%;
-    flex-wrap: wrap;
+    display: flex;
+    gap: 8px;
   }
 
   .search-input {
-    width: 100%;
+    flex: 1;
+  }
+
+  /* 移动端只显示图标，隐藏按钮文字 */
+  .btn-text-desktop {
+    display: none;
+  }
+
+  .btn-search,
+  .btn-refresh {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 10px;
   }
 
   .toolbar-section {
     flex-direction: column;
+    gap: 10px;
   }
 
   .filter-bar {
     width: 100%;
   }
 
-  .batch-actions {
+  /* 移动端筛选表单：竖向排列 */
+  .filter-form :deep(.el-form-item) {
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    justify-content: flex-end;
+    margin-bottom: 8px;
+    margin-right: 0;
   }
 
-  /* 表格容器：右侧渐变阴影提示横向可滚动 */
-  .table-scroll-wrapper {
-    position: relative;
-    overflow: hidden;
+  .filter-form :deep(.el-form-item__label) {
+    text-align: left;
+    margin-bottom: 4px;
+    padding: 0;
+    font-size: 12px;
   }
 
-  .table-scroll-wrapper::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 32px;
-    height: 100%;
-    background: linear-gradient(to left, var(--nf-bg-base, #fff) 0%, transparent 100%);
-    pointer-events: none;
-    z-index: 10;
+  .filter-form :deep(.el-form-item__content) {
+    width: 100%;
+    margin-left: 0 !important;
   }
+
+  .pagination-container {
+    justify-content: center;
+  }
+}
+
+/* ========== 深色主题适配 ========== */
+html.dark .resource-card {
+  background-color: #221e30;
+  border-color: #3d3660;
+}
+
+html.dark .resource-card-selected {
+  border-color: var(--primary-color);
+  background-color: #2a2440;
+}
+
+/* ========== 海洋主题适配 ========== */
+html.ocean .resource-card {
+  background-color: #1a3150;
+  border-color: #2a4a6e;
+}
+
+html.ocean .resource-card-selected {
+  border-color: var(--primary-color);
+  background-color: #1e3a5c;
 }
 </style>
