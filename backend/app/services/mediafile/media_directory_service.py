@@ -77,17 +77,11 @@ class MediaDirectoryService:
             # 这里的 issue_flags 是 JSON 类型
             
             # 构建问题筛选条件
+            # 使用 cast(JSON, String) + LIKE 适配 SQLite 和 PostgreSQL JSON 列
+            # PostgreSQL JSONB 支持 @> 运算符，但 JSON 类型不支持，统一用文本匹配
             issue_conditions = []
             for issue in issues:
-                if settings.database.DB_TYPE == 'sqlite':
-                    # SQLite: 使用 LIKE 模糊匹配 JSON 字符串
-                    # format: search for key existence. since we only store {"key": true}, presence of key is enough.
-                    # e.g. LIKE '%"missing_poster"%'
-                    # Not using json_extract because of potential version/behavior issues reported
-                    issue_conditions.append(MediaDirectory.issue_flags.cast(String).like(f'%"{issue}"%'))
-                else:
-                    # Postgres: 使用 contains (@>)
-                    issue_conditions.append(MediaDirectory.issue_flags.contains({issue: True}))
+                issue_conditions.append(MediaDirectory.issue_flags.cast(String).like(f'%"{issue}"%'))
 
             if issue_conditions:
                 query = query.where(or_(*issue_conditions))
