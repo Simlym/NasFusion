@@ -716,6 +716,7 @@ class SubscriptionCheckHandler(BaseTaskHandler):
         TV订阅专用：按集数分组，每组选出质量最优的资源，返回待下载列表。
 
         同一集（或相同集数范围）的多个资源只选一个最优的，避免重复下载。
+        当大包（如全140集）与单集资源重叠时，优先保留单集资源，移除冗余的大包。
         """
         from collections import defaultdict
 
@@ -731,9 +732,9 @@ class SubscriptionCheckHandler(BaseTaskHandler):
             else:
                 ungrouped.append(r)
 
-        best_resources: List[PTResource] = []
-
-        for group_resources in group_map.values():
+        # 每组选出最优资源
+        best_per_group: Dict[tuple, PTResource] = {}
+        for group_key, group_resources in group_map.items():
             best = None
             if quality_priority:
                 for quality in quality_priority:
@@ -745,7 +746,33 @@ class SubscriptionCheckHandler(BaseTaskHandler):
                         break
             if not best:
                 best = group_resources[0]
-            best_resources.append(best)
+            best_per_group[group_key] = best
+
+        # 去除被其他更小分组完全覆盖的大包，避免重复下载
+        # 例如：已有 E135、E136、E137 的单集资源，就不需要再下载 E1-E140 的大包
+        keys_to_remove: Set[tuple] = set()
+        group_keys = list(best_per_group.keys())
+
+        for i, key_a in enumerate(group_keys):
+            set_a = set(key_a)
+            for j, key_b in enumerate(group_keys):
+                if i == j:
+                    continue
+                set_b = set(key_b)
+                # 如果 key_a 是 key_b 的真超集（key_a 包含 key_b 的所有集数且更大）
+                # 说明 key_a 是大包，key_b 是其中的子集（单集/小合集）
+                if set_a > set_b:
+                    # key_a 是大包且有更小的分组覆盖其中部分集数 → 标记大包为冗余
+                    keys_to_remove.add(key_a)
+                    logger.info(
+                        f"移除冗余大包资源: {best_per_group[key_a].title} "
+                        f"(覆盖{len(key_a)}集), 因为已有更小分组覆盖其子集"
+                    )
+                    break  # key_a 已标记删除，无需继续检查
+
+        best_resources: List[PTResource] = [
+            r for k, r in best_per_group.items() if k not in keys_to_remove
+        ]
 
         # 无法分组的资源：按质量选一个追加（保守处理）
         if ungrouped:
