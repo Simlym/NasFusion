@@ -165,13 +165,13 @@ postgres + backend + nginx（网关：前端静态文件 + 反向代理，已合
   # 本地源码构建调试
   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
   ```
-- 镜像源通过 `.env` 的 `IMAGE_REGISTRY` 切换（中国大陆推荐阿里云）：
-  - `ghcr.io/simlym`（默认/海外）/ `registry.cn-hangzhou.aliyuncs.com/simlym`（国内）/ `docker.io/simlym`
+- 镜像源通过 `.env` 的 `IMAGE_REGISTRY` 切换：
+  - `docker.io/simlym`（默认）/ `ghcr.io/simlym`（备用）
 - **Redis 已移除**（代码从未实际使用，仅 APScheduler 做任务调度）
 
 ### CI 自动构建（`.github/workflows/build-images.yml`）
 
-`docker buildx` 构建 `linux/amd64,linux/arm64` 多架构镜像，推送到 **GHCR + Docker Hub + 阿里云 ACR** 三仓库（后两者未配 secrets 时自动跳过）。
+`docker buildx` 构建 `linux/amd64,linux/arm64` 多架构镜像，推送到 **Docker Hub（首选）+ GHCR（备用）**。Docker Hub 需配置 `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets，未配置则仅推 GHCR。
 
 | 触发 | 产出镜像标签 | 面向 |
 |------|------------|------|

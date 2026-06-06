@@ -49,10 +49,9 @@ docker compose up -d
 # http://<NAS_IP>:8080
 ```
 
-> **🇨🇳 中国大陆用户加速**：默认从 GHCR 拉取，直连较慢。可在 `.env` 中切换镜像源：
+> **镜像源**：默认从 Docker Hub 拉取。如需切换到备用源 GHCR，在 `.env` 中设置：
 > ```bash
-> # 阿里云（国内直连最快）
-> IMAGE_REGISTRY=registry.cn-hangzhou.aliyuncs.com/simlym
+> IMAGE_REGISTRY=ghcr.io/simlym
 > ```
 > 改完后重新执行 `docker compose pull && docker compose up -d`。
 
