@@ -149,6 +149,70 @@ def downgrade() -> None:
 
 ---
 
+## 部署与发版
+
+### 部署架构（3 容器）
+
+用户部署使用**预构建镜像，无需在 NAS 上本地编译**：
+
+```
+postgres + backend + nginx（网关：前端静态文件 + 反向代理，已合并原 frontend 容器）
+```
+
+- **`docker-compose.yml`**：用户版，纯 `image:` 拉取，无 `build:`，用户只需此文件 + `.env`
+- **`docker-compose.build.yml`**：开发版，叠加 `build:` 配置供本地源码调试
+  ```bash
+  # 本地源码构建调试
+  docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+  ```
+- 镜像源通过 `.env` 的 `IMAGE_REGISTRY` 切换（中国大陆推荐阿里云）：
+  - `ghcr.io/simlym`（默认/海外）/ `registry.cn-hangzhou.aliyuncs.com/simlym`（国内）/ `docker.io/simlym`
+- **Redis 已移除**（代码从未实际使用，仅 APScheduler 做任务调度）
+
+### CI 自动构建（`.github/workflows/build-images.yml`）
+
+`docker buildx` 构建 `linux/amd64,linux/arm64` 多架构镜像，推送到 **GHCR + Docker Hub + 阿里云 ACR** 三仓库（后两者未配 secrets 时自动跳过）。
+
+| 触发 | 产出镜像标签 | 面向 |
+|------|------------|------|
+| push 到 `main`（改了 backend/frontend/nginx 等） | `edge` + `sha-xxxx` | 自测/尝鲜 |
+| push 仅改文档 | 跳过（`paths` 过滤） | — |
+| **打 `v*` tag**（如 `v0.2.0`）并 push | `v0.2.0` + `latest` + `sha-xxxx` | **普通用户** |
+
+> ⚠️ `paths` 过滤只对 `branches` 生效、对 `tags` 不生效——打 tag 一定会触发构建。
+> `latest` 只在打 tag 发版时更新，普通用户的 `IMAGE_TAG=latest` 永远拿正式版本，不会拉到 main 中间提交。
+
+### 版本号 = Git tag 单一真相源 ⭐
+
+**核心原则**：应用版本号唯一来源是 Git tag，构建期注入镜像，运行时读出，禁止在配置文件里写死。
+
+注入链路：
+```
+git tag v0.2.0  →  CI 构建 --build-arg APP_VERSION=v0.2.0（取自 metadata-action 的 version 输出）
+                →  backend/Dockerfile: ARG/ENV APP_VERSION
+                →  config.py settings.APP_VERSION（本地源码运行默认为 dev）
+                →  GET /api/v1/system/version
+                →  前端「设置 → 系统 → 关于」展示 + 与 GitHub Releases 比对更新
+```
+
+**约束**：
+- ❌ 禁止在 `.env` / `docker-compose.yml` 设置 `APP_VERSION`（会覆盖镜像注入值，导致界面版本与实际脱节）
+- ✅ `APP_NAME` 可保留为用户配置（品牌名）
+- 更新检查：`version_service.py` 请求 GitHub Releases API（`Simlym/NasFusion`），后端缓存 6 小时、走 `OPENAI_PROXY` 代理、失败静默降级（`latest=None`，不影响主流程）
+
+### 发版操作
+
+```bash
+git checkout main && git pull
+git tag -a v0.2.0 -m "发版说明"
+git push origin v0.2.0       # 自动构建 → 三仓库产出 v0.2.0 + latest
+# 随后在 GitHub 创建对应 Release，「检查更新」才有数据可比
+```
+
+详见：[生产环境部署](backend/docs/production_deploy.md)
+
+---
+
 ## 核心开发规范
 
 ### 1. 命名规范
@@ -323,8 +387,14 @@ A: 检查环境变量 `VITE_API_BASE_URL` 是否包含 `/api/v1`，API 模块是
 ### Q: 数据库迁移失败？
 A: 查看详细指南：[backend/docs/alembic_migration.md](backend/docs/alembic_migration.md)
 
+### Q: 界面显示的版本号不对 / 一直是旧版本？
+A: 版本号唯一来源是 Git tag，构建期注入镜像。检查 `.env` / `docker-compose.yml` 是否误设了 `APP_VERSION`（会覆盖镜像注入值），删除即可。详见[部署与发版 → 版本号](#版本号--git-tag-单一真相源-)。
+
+### Q: 如何发布新版本？
+A: `git tag -a v0.x.x -m "说明" && git push origin v0.x.x` 触发 CI 自动构建,随后在 GitHub 创建 Release。详见[部署与发版 → 发版操作](#发版操作)。
+
 ---
 
 **文档维护者**: Claude Code
-**最后更新**: 2026-01-24
-**版本**: v3.0
+**最后更新**: 2026-06-06
+**版本**: v3.1

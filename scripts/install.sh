@@ -33,9 +33,9 @@ fi
 echo -e "${GREEN}✓${NC} Docker 和 Docker Compose 检测通过"
 echo ""
 
-# 检查是否已存在配置文件
-if [ -f "backend/.env" ]; then
-    echo -e "${YELLOW}警告：检测到现有配置文件 backend/.env${NC}"
+# 检查是否已存在配置文件（Docker 部署统一使用项目根目录 .env）
+if [ -f ".env" ]; then
+    echo -e "${YELLOW}警告：检测到现有配置文件 .env${NC}"
     read -p "是否覆盖现有配置？(y/N): " overwrite
     if [[ ! $overwrite =~ ^[Yy]$ ]]; then
         echo "安装已取消"
@@ -97,23 +97,23 @@ DATA_ROOT=${DATA_ROOT:-./data}
 echo ""
 echo "正在生成配置文件..."
 
-cp backend/.env.production backend/.env
+cp .env.example .env
 
 # 替换配置项
-sed -i "s/SECRET_KEY=.*/SECRET_KEY=$SECRET_KEY/" backend/.env
-sed -i "s/JWT_SECRET_KEY=.*/JWT_SECRET_KEY=$JWT_SECRET_KEY/" backend/.env
-sed -i "s/DB_POSTGRES_PASSWORD=.*/DB_POSTGRES_PASSWORD=$DB_PASSWORD/" backend/.env
-sed -i "s/TMDB_API_KEY=.*/TMDB_API_KEY=$TMDB_API_KEY/" backend/.env
-sed -i "s/PUID=.*/PUID=$PUID/" backend/.env
-sed -i "s/PGID=.*/PGID=$PGID/" backend/.env
+sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" .env
+sed -i "s|^JWT_SECRET_KEY=.*|JWT_SECRET_KEY=$JWT_SECRET_KEY|" .env
+sed -i "s|^DB_POSTGRES_PASSWORD=.*|DB_POSTGRES_PASSWORD=$DB_PASSWORD|" .env
+sed -i "s|^TMDB_API_KEY=.*|TMDB_API_KEY=$TMDB_API_KEY|" .env
+sed -i "s|^PUID=.*|PUID=$PUID|" .env
+sed -i "s|^PGID=.*|PGID=$PGID|" .env
 
 if [ -n "$OPENAI_API_KEY" ]; then
-    sed -i "s/OPENAI_API_KEY=.*/OPENAI_API_KEY=$OPENAI_API_KEY/" backend/.env
+    sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=$OPENAI_API_KEY|" .env
 fi
 
-# 创建数据目录
+# 创建数据目录（与 docker-compose.yml 中的卷映射保持一致）
 echo "正在创建数据目录..."
-mkdir -p "$DATA_ROOT"/{media,downloads,torrents,logs,cache/nginx}
+mkdir -p "$DATA_ROOT"/{postgres,torrents,logs,cache}
 
 echo -e "${GREEN}✓${NC} 配置文件生成完成"
 echo ""
@@ -146,7 +146,7 @@ echo "======================================"
 echo "  安装完成！"
 echo "======================================"
 echo ""
-echo -e "${GREEN}访问地址：http://localhost${NC}"
+echo -e "${GREEN}访问地址：http://<NAS_IP>:8080${NC}"
 echo ""
 echo "默认管理员账号："
 echo "  用户名：admin"

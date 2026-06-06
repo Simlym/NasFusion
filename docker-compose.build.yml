@@ -1,0 +1,29 @@
+# ==============================================================================
+# NasFusion Docker Compose —— 开发/本地编译版（不拉取预构建镜像）
+# ==============================================================================
+# 用途：本地调试时从源码现场构建镜像。
+#
+# 用法（叠加到主 compose 之上，复用其全部环境变量与卷配置）：
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# 该文件只负责给 backend / nginx 追加 build 配置，其余配置全部继承
+# docker-compose.yml，避免两份文件重复维护导致漂移。
+# ==============================================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PUID: ${PUID:-1024}
+        PGID: ${PGID:-100}
+    # 覆盖为本地构建标签，避免误推/误用远端 latest
+    image: nasfusion/backend:dev
+
+  nginx:
+    build:
+      # 网关镜像需要同时访问 frontend/ 与 nginx/，context 为项目根目录
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    image: nasfusion/nginx:dev

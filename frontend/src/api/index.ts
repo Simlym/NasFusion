@@ -24,6 +24,7 @@ import * as personApi from './modules/person'
 import * as loginHistoryApi from './modules/loginHistory'
 import * as mcpServerApi from './modules/mcpServer'
 import * as llmConfigApi from './modules/llmConfig'
+import * as systemApi from './modules/system'
 
 
 export default {
@@ -49,6 +50,7 @@ export default {
   loginHistory: loginHistoryApi,
   mcpServer: mcpServerApi,
   llmConfig: llmConfigApi,
+  system: systemApi,
 }
 
 
