@@ -98,6 +98,10 @@ RUN chmod 755 /usr/local/bin/entrypoint.sh && \
     mkdir -p /app/data/torrents /app/data/logs /app/data/cache && \
     chown -R ${PUID}:${PGID} /app
 
+# 应用版本号（由 CI 构建时通过 --build-arg APP_VERSION=<git-tag> 注入）
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # 设置 Python 路径
 ENV PYTHONPATH=/app
 

@@ -49,41 +49,6 @@ class DatabaseSettings(BaseSettings):
     )
 
 
-class CelerySettings(BaseSettings):
-    """Celery配置"""
-
-    BROKER_URL: str = Field(default="redis://localhost:6379/0", description="Celery broker URL")
-    RESULT_BACKEND: str = Field(default="redis://localhost:6379/0", description="Celery result backend")
-
-    model_config = SettingsConfigDict(
-        env_prefix="CELERY_",
-        env_file=None,
-        extra="ignore"
-    )
-
-
-class RedisSettings(BaseSettings):
-    """Redis配置"""
-
-    HOST: str = Field(default="localhost", description="Redis主机")
-    PORT: int = Field(default=6379, description="Redis端口")
-    DB: int = Field(default=0, description="Redis数据库编号")
-    PASSWORD: Optional[str] = Field(default=None, description="Redis密码")
-
-    @property
-    def REDIS_URL(self) -> str:
-        """生成Redis连接URL"""
-        if self.PASSWORD:
-            return f"redis://:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DB}"
-        return f"redis://{self.HOST}:{self.PORT}/{self.DB}"
-
-    model_config = SettingsConfigDict(
-        env_prefix="REDIS_",
-        env_file=None,
-        extra="ignore"
-    )
-
-
 class OpenAISettings(BaseSettings):
     """OpenAI配置"""
 
@@ -104,7 +69,7 @@ class Settings(BaseSettings):
 
     # 应用基础配置
     APP_NAME: str = Field(default="NasFusion", description="应用名称")
-    APP_VERSION: str = Field(default="0.1.0", description="应用版本")
+    APP_VERSION: str = Field(default="dev", description="应用版本（镜像构建时由 Git tag 注入）")
     DEBUG: bool = Field(default=False, description="是否开启调试模式")
     SECRET_KEY: str = Field(..., description="应用密钥，用于加密")
 
@@ -114,8 +79,6 @@ class Settings(BaseSettings):
 
     # 子配置
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    celery: CelerySettings = Field(default_factory=CelerySettings)
-    redis: RedisSettings = Field(default_factory=RedisSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
 
     # 外部API配置

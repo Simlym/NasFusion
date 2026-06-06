@@ -131,6 +131,43 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <!-- 关于 / 版本 -->
+        <el-card class="settings-card">
+          <template #header>
+            <span>关于</span>
+          </template>
+          <el-form label-width="120px">
+            <el-form-item label="当前版本">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <el-tag size="large">{{ versionInfo.current }}</el-tag>
+                <el-tag v-if="versionInfo.has_update" type="warning" size="large">
+                  发现新版本 {{ versionInfo.latest }}
+                </el-tag>
+                <el-tag v-else-if="versionInfo.latest && !versionLoading" type="success" size="large">
+                  已是最新
+                </el-tag>
+                <el-button
+                  size="small"
+                  :loading="versionLoading"
+                  @click="handleCheckUpdate"
+                >
+                  检查更新
+                </el-button>
+              </div>
+              <div class="form-item-tips">
+                <template v-if="versionInfo.has_update">
+                  <el-icon style="vertical-align: middle;"><Warning /></el-icon>
+                  新版本可用，
+                  <a :href="versionInfo.release_url" target="_blank" rel="noopener">查看更新内容</a>
+                </template>
+                <template v-else>
+                  版本号在镜像构建时自动生成；更新检查来自 GitHub Releases。
+                </template>
+              </div>
+            </el-form-item>
+          </el-form>
+        </el-card>
       </div>
     </div>
   </div>
@@ -143,11 +180,50 @@ import { Warning } from '@element-plus/icons-vue'
 import { useSettingsStore } from '@/stores'
 import { getLogLevel, setLogLevel } from '@/api/modules/log'
 import { getSetting, upsertSetting } from '@/api/modules/settings'
+import { getVersionInfo, checkVersionUpdate, type VersionInfo } from '@/api/modules/system'
 
 const settingsStore = useSettingsStore()
 
 const loading = ref(false)
 const animeSettingLoading = ref(false)
+
+// 版本信息
+const versionLoading = ref(false)
+const versionInfo = ref<VersionInfo>({
+  current: '-',
+  latest: null,
+  has_update: false,
+  release_url: '',
+})
+
+const loadVersionInfo = async () => {
+  try {
+    const res = await getVersionInfo()
+    versionInfo.value = res.data
+  } catch (error) {
+    console.error('加载版本信息失败:', error)
+  }
+}
+
+const handleCheckUpdate = async () => {
+  versionLoading.value = true
+  try {
+    const res = await checkVersionUpdate(true)
+    versionInfo.value = res.data
+    if (res.data.has_update) {
+      ElMessage.success(`发现新版本 ${res.data.latest}`)
+    } else if (res.data.latest) {
+      ElMessage.success('当前已是最新版本')
+    } else {
+      ElMessage.warning('暂时无法获取最新版本（请检查网络或代理）')
+    }
+  } catch (error) {
+    console.error('检查更新失败:', error)
+    ElMessage.error('检查更新失败')
+  } finally {
+    versionLoading.value = false
+  }
+}
 
 const showAdultContent = computed({
   get: () => settingsStore.showAdultContent,
@@ -342,6 +418,7 @@ onMounted(() => {
   settingsStore.reloadSettings()
   loadLogLevel()
   loadBackdropCount()
+  loadVersionInfo()
 })
 </script>
 

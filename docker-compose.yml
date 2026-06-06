@@ -1,11 +1,18 @@
 # ==============================================================================
-# NasFusion Docker Compose - 群晖 NAS 优化配置
+# NasFusion Docker Compose —— 用户部署版（拉取预构建镜像，无需本地编译）
 # ==============================================================================
 # 使用说明：
-# 1. 适用于群晖 DSM 7.x 系统
-# 2. 复制 .env.example 为 .env 并修改配置
-# 3. 设置正确的 PUID/PGID（执行 `id` 命令查看，admin 通常是 1024:100）
-# 4. 运行：docker-compose -f docker-compose.nas.yml up -d
+# 1. 复制 .env.example 为 .env 并修改配置
+# 2. 设置正确的 PUID/PGID（执行 `id` 命令查看，群晖 admin 通常是 1024:100）
+# 3. 启动：docker compose up -d
+#
+# 镜像源切换（中国大陆推荐用阿里云加速）：
+#   在 .env 中设置 IMAGE_REGISTRY，例如：
+#     - GHCR（默认/海外）:   IMAGE_REGISTRY=ghcr.io/simlym
+#     - 阿里云（国内直连）:   IMAGE_REGISTRY=registry.cn-hangzhou.aliyuncs.com/simlym
+#     - Docker Hub:          IMAGE_REGISTRY=docker.io/simlym
+#
+# 开发/本地编译请使用 docker-compose.build.yml
 # ==============================================================================
 
 services:
@@ -21,8 +28,6 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
     volumes:
       - ${DATA_PATH:-./data}/postgres:/var/lib/postgresql/data
-    ports:
-      - "${DB_EXTERNAL_PORT:-5432}:5432"  # 外部访问端口（默认5432，建议改为5433避免冲突）
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_POSTGRES_USER:-nasfusion}"]
       interval: 10s
@@ -30,59 +35,21 @@ services:
       retries: 5
     networks:
       - nasfusion-network
-    # 群晖 Docker 不支持 CPU/内存限制，已注释
-    # mem_limit: 4g
-    # mem_reservation: 512m
-    # cpus: 2.0
-
     labels:
       - "io.portainer.category=Media Management"
       - "io.portainer.description=NasFusion PostgreSQL Database"
 
-  redis:
-    image: redis:7-alpine
-    container_name: nasfusion-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - ${DATA_PATH:-./data}/redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    networks:
-      - nasfusion-network
-    environment:
-      TZ: ${TZ:-Asia/Shanghai}
-    # 群晖 Docker 不支持 CPU/内存限制，已注释
-    # mem_limit: 512m
-    # mem_reservation: 256m
-    # cpus: 0.5
-
-    labels:
-      - "io.portainer.category=Media Management"
-      - "io.portainer.description=NasFusion Redis Cache"
-
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        PUID: ${PUID:-1024}
-        PGID: ${PGID:-100}
-    image: nasfusion/backend:latest
+    image: ${IMAGE_REGISTRY:-ghcr.io/simlym}/nasfusion-backend:${IMAGE_TAG:-latest}
     container_name: nasfusion-backend
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       # ===== 应用配置 =====
       APP_NAME: ${APP_NAME:-NasFusion}
-      APP_VERSION: ${APP_VERSION:-0.1.0}
+      # APP_VERSION 由镜像构建时注入（取自 Git tag），此处不覆盖
       DEBUG: ${DEBUG:-false}
       API_V1_PREFIX: ${API_V1_PREFIX:-/api/v1}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-["*"]}
@@ -96,58 +63,42 @@ services:
 
       # ===== 数据库配置 =====
       DB_TYPE: ${DB_TYPE:-postgresql}
-      # PostgreSQL 连接配置（Docker 网络中使用容器服务名）
       DB_POSTGRES_SERVER: ${DB_POSTGRES_SERVER:-postgres}
       DB_POSTGRES_USER: ${DB_POSTGRES_USER:-nasfusion}
       DB_POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD:?请在 .env 中设置数据库密码}
       DB_POSTGRES_DB: ${DB_POSTGRES_DB:-nasfusion}
       DB_POSTGRES_PORT: ${DB_POSTGRES_PORT:-5432}
 
-      # ===== Redis 配置 =====
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DB: ${REDIS_DB:-0}
-
       # ===== 文件路径配置（容器内路径） =====
       TORRENT_PATH: /app/data/torrents
       LOG_PATH: /app/data/logs
 
-
-
       # ===== 日志配置 =====
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-json}
-      
+
       # ===== 时区配置 =====
       TZ: ${TZ:-Asia/Shanghai}
 
       # ===== 用户权限 =====
       PUID: ${PUID:-1024}
       PGID: ${PGID:-100}
-      
+
       # ===== 存储卷配置（用于 UI 显示和路径映射）=====
       VOLUME_1_PATH: ${VOLUME_1_PATH:-/volume1}
       VOLUME_2_PATH: ${VOLUME_2_PATH:-}
       VOLUME_3_PATH: ${VOLUME_3_PATH:-}
       VOLUME_4_PATH: ${VOLUME_4_PATH:-}
-      
-      # 卷挂载基础目录（容器内）
       VOLUME_MOUNTS_BASE: /mnt
     volumes:
       # ===== 应用数据目录 =====
       - ${LOG_PATH:-./data/logs}:/app/data/logs
       - ${CACHE_PATH:-./data/cache}:/app/data/cache
       - ${TORRENT_PATH:-./data/torrents}:/app/data/torrents
-      
+
       # ===== 存储卷挂载（支持硬链接的关键！）=====
-      # 说明：
-      # - 将整个卷挂载到 /mnt/volumeN，而不是分别挂载子目录
-      # - 这样同一卷内的下载目录和媒体库共享设备ID，支持硬链接
-      # - 用户在 Web 界面"存储设置"中配置具体使用的目录
-      #
-      # 主存储卷（必须配置）
+      # 将整个卷挂载到 /mnt/volumeN，同一卷内下载目录与媒体库共享设备ID，支持硬链接
       - ${VOLUME_1_PATH:-/dev/null}:/mnt/volume1
-      # 扩展存储卷（可选，根据实际情况启用）
       - ${VOLUME_2_PATH:-/dev/null}:/mnt/volume2
       - ${VOLUME_3_PATH:-/dev/null}:/mnt/volume3
       - ${VOLUME_4_PATH:-/dev/null}:/mnt/volume4
@@ -159,54 +110,20 @@ services:
       start_period: 90s
     networks:
       - nasfusion-network
-    # 群晖 Docker 不支持 CPU/内存限制，已注释
-    # mem_limit: 4g
-    # mem_reservation: 1g
-    # cpus: 2.0
-
     labels:
       - "io.portainer.category=Media Management"
       - "io.portainer.description=NasFusion Backend API"
-      - "io.portainer.icon=https://raw.githubusercontent.com/your-repo/NasFusion/main/docs/images/logo.png"
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    image: nasfusion/frontend:latest
-    container_name: nasfusion-frontend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 30s
-    networks:
-      - nasfusion-network
-    environment:
-      TZ: ${TZ:-Asia/Shanghai}
-    # 群晖 Docker 不支持 CPU/内存限制，已注释
-    # mem_limit: 256m
-    # cpus: 0.5
-
-    labels:
-      - "io.portainer.category=Media Management"
-      - "io.portainer.description=NasFusion Frontend UI"
-
+  # 网关：前端静态文件 + 反向代理（已合并原 frontend 容器）
   nginx:
-    image: nginx:alpine
+    image: ${IMAGE_REGISTRY:-ghcr.io/simlym}/nasfusion-nginx:${IMAGE_TAG:-latest}
     container_name: nasfusion-nginx
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-      frontend:
-        condition: service_healthy
     ports:
       - "${HTTP_PORT:-8080}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
@@ -216,13 +133,9 @@ services:
       - nasfusion-network
     environment:
       TZ: ${TZ:-Asia/Shanghai}
-    # 群晖 Docker 不支持 CPU/内存限制，已注释
-    # mem_limit: 256m
-    # cpus: 0.5
-
     labels:
       - "io.portainer.category=Media Management"
-      - "io.portainer.description=NasFusion Reverse Proxy"
+      - "io.portainer.description=NasFusion Gateway (Frontend + Reverse Proxy)"
 
 networks:
   nasfusion-network:

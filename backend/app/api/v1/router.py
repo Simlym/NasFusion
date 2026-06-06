@@ -30,6 +30,7 @@ from app.api.v1 import (
     resource_identification,
     scheduled_tasks,
     subscriptions,
+    system,
     system_logs,
     system_settings,
     task_executions,
@@ -61,6 +62,7 @@ api_router.include_router(notification_rules.router)
 api_router.include_router(notification_templates.router)
 api_router.include_router(notification_dispatch.router)
 api_router.include_router(notification_debug.router)
+api_router.include_router(system.router)
 api_router.include_router(system_settings.router)
 api_router.include_router(system_logs.router)
 api_router.include_router(downloaders.router)

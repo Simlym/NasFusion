@@ -40,25 +40,7 @@ if [ "$DB_TYPE" = "postgresql" ]; then
     echo "PostgreSQL is ready!"
 fi
 
-# Wait for Redis to be ready
-echo "Waiting for Redis to be ready..."
-
-max_attempts=30
-attempt=0
-
-while ! nc -z ${REDIS_HOST:-redis} ${REDIS_PORT:-6379}; do
-    attempt=$((attempt + 1))
-    if [ $attempt -ge $max_attempts ]; then
-        echo "WARNING: Redis is not available after $max_attempts attempts (continuing anyway)"
-        break
-    fi
-    echo "Redis is unavailable - sleeping (attempt $attempt/$max_attempts)"
-    sleep 2
-done
-
-if nc -z ${REDIS_HOST:-redis} ${REDIS_PORT:-6379}; then
-    echo "Redis is ready!"
-fi
+# 注：Redis 当前版本未启用，已移除等待逻辑
 
 # Create necessary data directories
 echo "Creating data directories..."
