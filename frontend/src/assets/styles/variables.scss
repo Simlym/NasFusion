@@ -308,53 +308,53 @@ html.ocean {
 }
 
 // ============================================
-// WARM THEME - 暖光橙韵 (Style)
+// WARM THEME - 暖光橙韵 (Warm Amber Style)
 // ============================================
 html.warm {
   // Glassmorphism Tokens - Warm Theme
-  --nf-glass-bg: rgba(240, 235, 227, 0.88);
-  --nf-glass-border: rgba(228, 217, 206, 0.70);
-  --nf-glass-sheet-bg: rgba(255, 255, 255, 0.95);
-  --nf-glass-primary-tint: rgba(249, 115, 22, 0.11);
+  --nf-glass-bg: rgba(250, 245, 237, 0.88);
+  --nf-glass-border: rgba(218, 202, 184, 0.65);
+  --nf-glass-sheet-bg: rgba(255, 253, 249, 0.95);
+  --nf-glass-primary-tint: rgba(245, 158, 11, 0.12);
 
-  // Background Colors - 暖米色调
-  --nf-bg-base: #F0EBE3;
-  --nf-bg-page: #FAF8F5;
-  --nf-bg-container: #FFFFFF;
+  // Background Colors - 奶油暖纸色调
+  --nf-bg-base: #F2EBE0;
+  --nf-bg-page: #FAF6F0;
+  --nf-bg-container: #FFFDF9;
   --nf-bg-elevated: #FFFFFF;
-  --nf-bg-overlay: #F2EDE6;
-  --nf-bg-hover: #E8E0D5;
+  --nf-bg-overlay: #EDE4D8;
+  --nf-bg-hover: #E5D9CA;
 
   // Border Colors - 暖棕色边框
-  --nf-border-base: #E4D9CE;
-  --nf-border-light: #EDE6DF;
-  --nf-border-lighter: #F5F0EB;
-  --nf-border-dark: #D4C5B8;
+  --nf-border-base: #E2D6C5;
+  --nf-border-light: #EDE2D4;
+  --nf-border-lighter: #F5EDE2;
+  --nf-border-dark: #CDBFAE;
 
-  // Text Colors - 暖深色文字
-  --nf-text-primary: #1C1814;
-  --nf-text-regular: #3D3730;
-  --nf-text-secondary: #7A6B5E;
-  --nf-text-placeholder: #B5A9A0;
-  --nf-text-disabled: #D4C5B8;
+  // Text Colors - 暖深棕色文字（降低蓝光感）
+  --nf-text-primary: #2C2419;
+  --nf-text-regular: #4D4337;
+  --nf-text-secondary: #8C7D6C;
+  --nf-text-placeholder: #B5A79A;
+  --nf-text-disabled: #D1C4B8;
 
-  // Primary color - 暖橙色 ( Orange)
-  --nf-primary: #F97316;
-  --nf-primary-light: #FB923C;
-  --nf-primary-lighter: #FDBA74;
-  --nf-primary-dark: #EA580C;
-  --nf-primary-darker: #C2410C;
+  // Primary color - 琥珀暖橙色（比亮橙更温润）
+  --nf-primary: #F59E0B;
+  --nf-primary-light: #FBBF24;
+  --nf-primary-lighter: #FCD34D;
+  --nf-primary-dark: #D97706;
+  --nf-primary-darker: #B45309;
 
-  // Shadows (Warm Theme - 暖调阴影)
-  --nf-shadow-xs: 0 1px 2px rgba(120, 80, 40, 0.06);
-  --nf-shadow-sm: 0 2px 4px rgba(120, 80, 40, 0.08);
-  --nf-shadow-base: 0 4px 8px rgba(120, 80, 40, 0.10);
-  --nf-shadow-md: 0 4px 12px rgba(120, 80, 40, 0.12);
-  --nf-shadow-lg: 0 8px 24px rgba(120, 80, 40, 0.14);
-  --nf-shadow-xl: 0 12px 32px rgba(120, 80, 40, 0.18);
+  // Shadows (Warm Theme - 暖褐调阴影)
+  --nf-shadow-xs: 0 1px 2px rgba(100, 70, 35, 0.05);
+  --nf-shadow-sm: 0 2px 4px rgba(100, 70, 35, 0.07);
+  --nf-shadow-base: 0 4px 8px rgba(100, 70, 35, 0.09);
+  --nf-shadow-md: 0 4px 12px rgba(100, 70, 35, 0.11);
+  --nf-shadow-lg: 0 8px 24px rgba(100, 70, 35, 0.13);
+  --nf-shadow-xl: 0 12px 32px rgba(100, 70, 35, 0.16);
 
   // Colored Shadows (暖橙点缀)
-  --nf-shadow-primary: 0 4px 14px rgba(249, 115, 22, 0.30);
+  --nf-shadow-primary: 0 4px 14px rgba(245, 158, 11, 0.28);
   --nf-shadow-success: 0 4px 14px rgba(103, 194, 58, 0.25);
   --nf-shadow-danger: 0 4px 14px rgba(245, 108, 108, 0.25);
 }

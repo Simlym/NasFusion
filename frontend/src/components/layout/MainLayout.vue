@@ -442,22 +442,11 @@ onUnmounted(() => {
   transform: none;
 }
 
-/* 选中状态 - 左侧指示条 + 浅蓝背景 */
+/* 选中状态 - 纯背景色 + 主题色文字（无左侧竖线） */
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background: var(--bg-color-sidebar-active, rgba(59, 130, 246, 0.08)) !important;
+  background: var(--bg-color-sidebar-active, rgba(59, 130, 246, 0.10)) !important;
   color: var(--primary-color, #3B82F6);
   font-weight: 600;
-}
-
-.sidebar-menu :deep(.el-menu-item.is-active)::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  background: var(--primary-color, #3B82F6);
-  border-radius: 0 3px 3px 0;
 }
 
 /* ========== Header - 一体化风格 ========== */

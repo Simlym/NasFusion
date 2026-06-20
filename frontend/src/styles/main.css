@@ -423,6 +423,251 @@ html.ocean .el-card__body {
   background-color: #132742 !important;
 }
 
+/* 暖光主题变量 */
+html.warm {
+  /* 背景层次 - 奶油暖纸色调 */
+  --bg-color: #FAF6F0;
+  --bg-color-light: #FFFDF9;
+  --bg-color-overlay: #F2ECE4;
+
+  /* 侧边栏背景 - 暖色调 */
+  --bg-color-sidebar: #FFFDF9;
+  --bg-color-sidebar-hover: #F5EDE2;
+  --bg-color-sidebar-active: rgba(245, 158, 11, 0.10);
+
+  /* 主色调 - 温润琥珀橙 */
+  --primary-color: #F59E0B;
+  --primary-light: #FBBF24;
+  --primary-lighter: #FCD34D;
+  --primary-dark: #D97706;
+
+  /* 文字颜色 - 暖深棕色 */
+  --text-color-primary: #2C2419;
+  --text-color-regular: #4D4337;
+  --text-color-secondary: #8C7D6C;
+  --text-color-muted: #B5A79A;
+  --text-color-placeholder: #D1C4B8;
+
+  /* 边框颜色 - 暖棕色 */
+  --border-color: #E2D6C5;
+  --border-color-light: #F0E6DA;
+  --border-color-dark: #CDBFAE;
+
+  /* 渐变色 - 暖橙 */
+  --gradient-primary: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
+
+  /* 暖光主题阴影 - 暖褐调 */
+  --box-shadow-xs: 0 1px 2px 0 rgba(100, 70, 35, 0.05);
+  --box-shadow-sm: 0 1px 3px 0 rgba(100, 70, 35, 0.06), 0 1px 2px -1px rgba(100, 70, 35, 0.05);
+  --box-shadow-md: 0 4px 6px -1px rgba(100, 70, 35, 0.08), 0 2px 4px -2px rgba(100, 70, 35, 0.05);
+  --box-shadow-lg: 0 10px 15px -3px rgba(100, 70, 35, 0.09), 0 4px 6px -4px rgba(100, 70, 35, 0.05);
+  --box-shadow-xl: 0 20px 25px -5px rgba(100, 70, 35, 0.10), 0 8px 10px -6px rgba(100, 70, 35, 0.05);
+
+  /* 彩色阴影 */
+  --box-shadow-primary: 0 4px 14px 0 rgba(245, 158, 11, 0.22);
+  --box-shadow-success: 0 4px 14px 0 rgba(16, 185, 129, 0.22);
+
+  /* Element Plus 卡片覆盖 */
+  --el-card-bg-color: #FFFDF9;
+  --el-card-border-color: #E2D6C5;
+
+  /* Brand Gradient (Warm) */
+  --bg-brand-gradient: linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 50%, #FFEDD5 100%);
+}
+
+/* 暖光主题 Element Plus 卡片强制覆盖 */
+html.warm .el-card {
+  --el-card-bg-color: #FFFDF9;
+  background-color: #FFFDF9 !important;
+  border-color: #E2D6C5 !important;
+}
+
+html.warm .el-card__header {
+  background-color: #FFFDF9 !important;
+  border-bottom-color: #E2D6C5 !important;
+}
+
+html.warm .el-card__body {
+  background-color: #FFFDF9 !important;
+}
+
+/* 暖光主题 loading */
+html.warm .el-loading-mask {
+  background-color: var(--bg-color-light, #FFFDF9) !important;
+}
+
+/* 暖光主题表格样式 */
+html.warm .el-table {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: #F5EDE2;
+  --el-table-header-text-color: var(--text-color-primary, #2C2419);
+  --el-table-text-color: var(--text-color-regular, #4D4337);
+  --el-table-border-color: var(--border-color, #E2D6C5);
+  --el-table-row-hover-bg-color: #F5EDE2;
+  background-color: transparent !important;
+}
+
+html.warm .el-table th.el-table__cell {
+  background-color: #F5EDE2 !important;
+  color: var(--text-color-primary, #2C2419) !important;
+  border-color: var(--border-color, #E2D6C5) !important;
+}
+
+html.warm .el-table td.el-table__cell {
+  color: var(--text-color-regular, #4D4337) !important;
+  border-color: var(--border-color, #E2D6C5) !important;
+}
+
+html.warm .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: rgba(240, 230, 218, 0.5) !important;
+}
+
+html.warm .el-table__empty-text {
+  color: var(--text-color-secondary, #8C7D6C) !important;
+}
+
+/* 暖光主题分页器样式 */
+html.warm .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--text-color-regular, #4D4337);
+  --el-pagination-button-disabled-color: var(--text-color-muted, #B5A79A);
+  color: var(--text-color-regular, #4D4337);
+}
+
+html.warm .el-pagination .el-pager li {
+  background-color: transparent;
+  color: var(--text-color-regular, #4D4337);
+}
+
+html.warm .el-pagination .el-pager li:hover {
+  color: var(--primary-color, #F59E0B);
+}
+
+html.warm .el-pagination .el-pager li.is-active {
+  color: var(--primary-color, #F59E0B);
+}
+
+html.warm .el-pagination button {
+  background-color: transparent;
+  color: var(--text-color-regular, #4D4337);
+}
+
+html.warm .el-pagination button:disabled {
+  color: var(--text-color-muted, #B5A79A);
+}
+
+/* 暖光主题表单元素 */
+html.warm .el-input__inner,
+html.warm .el-input__wrapper,
+html.warm .el-textarea__inner {
+  --el-input-bg-color: #FFFDF9;
+  --el-input-border-color: var(--border-color, #E2D6C5);
+  --el-input-text-color: var(--text-color-primary, #2C2419);
+  --el-input-placeholder-color: var(--text-color-muted, #B5A79A);
+}
+
+html.warm .el-select__wrapper {
+  background-color: #FFFDF9 !important;
+  box-shadow: 0 0 0 1px var(--border-color, #E2D6C5) inset !important;
+}
+
+html.warm .el-select__selected-item {
+  color: var(--text-color-primary, #2C2419) !important;
+}
+
+html.warm .el-select__placeholder {
+  color: var(--text-color-muted, #B5A79A) !important;
+}
+
+/* 暖光主题下拉菜单 */
+html.warm .el-select-dropdown {
+  background-color: #FFFDF9 !important;
+  border-color: var(--border-color, #E2D6C5) !important;
+}
+
+html.warm .el-select-dropdown__item {
+  color: var(--text-color-regular, #4D4337) !important;
+}
+
+html.warm .el-select-dropdown__item:hover {
+  background-color: #F5EDE2 !important;
+}
+
+html.warm .el-select-dropdown__item.selected {
+  color: var(--primary-color, #F59E0B) !important;
+}
+
+/* 暖光主题弹窗对话框 */
+html.warm .el-dialog {
+  --el-dialog-bg-color: #FFFDF9;
+  --el-dialog-title-font-size: 18px;
+  background-color: #FFFDF9 !important;
+}
+
+html.warm .el-dialog__header {
+  color: var(--text-color-primary, #2C2419) !important;
+}
+
+html.warm .el-dialog__title {
+  color: var(--text-color-primary, #2C2419) !important;
+}
+
+html.warm .el-dialog__body {
+  color: var(--text-color-regular, #4D4337) !important;
+}
+
+/* 暖光主题分割线 */
+html.warm .el-divider__text {
+  background-color: #FFFDF9 !important;
+  color: var(--text-color-secondary, #8C7D6C) !important;
+}
+
+html.warm .el-divider {
+  border-color: var(--border-color, #E2D6C5) !important;
+}
+
+/* 暖光主题表单标签 */
+html.warm .el-form-item__label {
+  color: var(--text-color-regular, #4D4337) !important;
+}
+
+/* 暖光主题 Tabs 标签页 */
+html.warm .el-tabs__item {
+  color: var(--text-color-secondary, #8C7D6C) !important;
+}
+
+html.warm .el-tabs__item:hover {
+  color: var(--primary-color, #F59E0B) !important;
+}
+
+html.warm .el-tabs__item.is-active {
+  color: var(--primary-color, #F59E0B) !important;
+}
+
+html.warm .el-tabs__active-bar {
+  background-color: var(--primary-color, #F59E0B) !important;
+}
+
+html.warm .el-tabs__nav-wrap::after {
+  background-color: var(--border-color, #E2D6C5) !important;
+}
+
+/* 暖光主题面包屑导航 */
+html.warm .el-breadcrumb__inner,
+html.warm .el-breadcrumb__separator {
+  color: var(--text-color-regular, #4D4337) !important;
+}
+
+html.warm .el-breadcrumb__inner.is-link,
+html.warm .el-breadcrumb__inner a {
+  color: var(--text-color-regular, #4D4337) !important;
+}
+
+html.warm .el-breadcrumb__inner:hover {
+  color: var(--primary-color, #F59E0B) !important;
+}
+
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
