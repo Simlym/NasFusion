@@ -51,6 +51,14 @@ export function resumeSubscription(id: number) {
   return request.post<ApiResponse<Subscription>>(`/subscriptions/${id}/resume`)
 }
 
+// 手动修改订阅状态
+export function updateSubscriptionStatus(
+  id: number,
+  status: 'active' | 'paused' | 'completed' | 'cancelled'
+) {
+  return request.post<ApiResponse<Subscription>>(`/subscriptions/${id}/status`, { status })
+}
+
 // 手动检查订阅
 export function checkSubscription(id: number) {
   return request.post<ApiResponse<void>>(`/subscriptions/${id}/check`)

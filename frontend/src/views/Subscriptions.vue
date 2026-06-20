@@ -95,6 +95,13 @@
                       恢复
                     </el-dropdown-item>
                     <el-dropdown-item
+                      :icon="Switch"
+                      divided
+                      @click="handleChangeStatus(subscription)"
+                    >
+                      修改状态
+                    </el-dropdown-item>
+                    <el-dropdown-item
                       :icon="Delete"
                       class="danger-item"
                       @click="handleDelete(subscription.id)"
@@ -170,6 +177,30 @@
       :edit-data="editingSubscription"
       @success="handleEditSuccess"
     />
+
+    <!-- 修改状态对话框 -->
+    <el-dialog
+      v-model="statusDialogVisible"
+      title="修改订阅状态"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <div class="status-dialog-body">
+        <p class="status-dialog-title" v-if="statusTarget">{{ statusTarget.title }}</p>
+        <el-radio-group v-model="selectedStatus" class="status-radio-group">
+          <el-radio value="active">活跃（继续检查并下载）</el-radio>
+          <el-radio value="paused">暂停（停止检查）</el-radio>
+          <el-radio value="completed">已完成（停止检查）</el-radio>
+          <el-radio value="cancelled">已取消（停止检查）</el-radio>
+        </el-radio-group>
+      </div>
+      <template #footer>
+        <el-button @click="statusDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="statusSaving" @click="handleConfirmStatus">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -190,13 +221,15 @@ import {
   VideoPlay,
   View,
   MoreFilled,
-  Loading
+  Loading,
+  Switch
 } from '@element-plus/icons-vue'
 import {
   getSubscriptionList,
   pauseSubscription,
   resumeSubscription,
-  deleteSubscription
+  deleteSubscription,
+  updateSubscriptionStatus
 } from '@/api/modules/subscription'
 import SubscriptionDialog from '@/components/subscription/SubscriptionDialog.vue'
 import type { Subscription } from '@/types/subscription'
@@ -219,6 +252,12 @@ const pagination = reactive({ page: 1, pageSize: 20 })
 const editDialogVisible = ref(false)
 const editingSubscription = ref<Subscription | null>(null)
 const isEditMode = ref(true)
+
+// 修改状态相关
+const statusDialogVisible = ref(false)
+const statusTarget = ref<Subscription | null>(null)
+const selectedStatus = ref<'active' | 'paused' | 'completed' | 'cancelled'>('active')
+const statusSaving = ref(false)
 
 // 加载订阅列表
 const loadSubscriptions = async (append = false) => {
@@ -314,6 +353,33 @@ const handleResume = async (id: number) => {
     handleRefresh()
   } catch (error) {
     ElMessage.error('恢复订阅失败')
+  }
+}
+
+// 打开修改状态对话框
+const handleChangeStatus = (subscription: Subscription) => {
+  statusTarget.value = subscription
+  selectedStatus.value = subscription.status as 'active' | 'paused' | 'completed' | 'cancelled'
+  statusDialogVisible.value = true
+}
+
+// 确认修改状态
+const handleConfirmStatus = async () => {
+  if (!statusTarget.value) return
+  if (selectedStatus.value === statusTarget.value.status) {
+    statusDialogVisible.value = false
+    return
+  }
+  statusSaving.value = true
+  try {
+    await updateSubscriptionStatus(statusTarget.value.id, selectedStatus.value)
+    ElMessage.success('订阅状态已更新')
+    statusDialogVisible.value = false
+    handleRefresh()
+  } catch (error) {
+    ElMessage.error('修改订阅状态失败')
+  } finally {
+    statusSaving.value = false
   }
 }
 
@@ -591,6 +657,22 @@ onUnmounted(() => {
   &.has-resource {
     color: var(--el-color-success);
   }
+}
+
+// 修改状态对话框
+.status-dialog-body {
+  .status-dialog-title {
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--nf-text-primary);
+  }
+}
+
+.status-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 // 删除菜单项颜色

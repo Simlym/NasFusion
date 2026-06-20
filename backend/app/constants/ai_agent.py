@@ -31,96 +31,31 @@ LLM_PROVIDER_DISPLAY_NAMES = {
 
 # ===== 智谱模型 =====
 # GLM-5 系列（最新一代）
-ZHIPU_MODEL_GLM_5 = "glm-5"
 ZHIPU_MODEL_GLM_5_1 = "glm-5.1"
 ZHIPU_MODEL_GLM_5_TURBO = "glm-5-turbo"
-# GLM-4.8 系列
-ZHIPU_MODEL_GLM_4_8 = "glm-4.8"
-# GLM-4.7 系列
-ZHIPU_MODEL_GLM_4_7 = "glm-4.7"
-ZHIPU_MODEL_GLM_4_7V = "glm-4.7v"
-# GLM-4.6 系列（Claude Code 编程）
-ZHIPU_MODEL_GLM_4_6 = "glm-4.6"
-# GLM-Z1 推理模型系列
-ZHIPU_MODEL_GLM_Z1_FLASH = "glm-z1-flash"
-ZHIPU_MODEL_GLM_Z1_AIR = "glm-z1-air"
-ZHIPU_MODEL_GLM_Z1_AIRX = "glm-z1-airx"
-# GLM-4 系列
-ZHIPU_MODEL_GLM_4_PLUS = "glm-4-plus"
-ZHIPU_MODEL_GLM_4_AIR = "glm-4-air"
-ZHIPU_MODEL_GLM_4_AIRX = "glm-4-airx"
-ZHIPU_MODEL_GLM_4_FLASH = "glm-4-flash"
-ZHIPU_MODEL_GLM_4_FLASHX = "glm-4-flashx"
-ZHIPU_MODEL_GLM_4_LONG = "glm-4-long"
-ZHIPU_MODEL_GLM_4 = "glm-4"
 
 ZHIPU_MODELS = [
     ZHIPU_MODEL_GLM_5_1,
-    ZHIPU_MODEL_GLM_5,
     ZHIPU_MODEL_GLM_5_TURBO,
-    ZHIPU_MODEL_GLM_4_8,
-    ZHIPU_MODEL_GLM_4_7,
-    ZHIPU_MODEL_GLM_4_7V,
-    ZHIPU_MODEL_GLM_4_6,
-    ZHIPU_MODEL_GLM_Z1_FLASH,
-    ZHIPU_MODEL_GLM_Z1_AIR,
-    ZHIPU_MODEL_GLM_Z1_AIRX,
-    ZHIPU_MODEL_GLM_4_PLUS,
-    ZHIPU_MODEL_GLM_4_AIR,
-    ZHIPU_MODEL_GLM_4_AIRX,
-    ZHIPU_MODEL_GLM_4_FLASH,
-    ZHIPU_MODEL_GLM_4_FLASHX,
-    ZHIPU_MODEL_GLM_4_LONG,
-    ZHIPU_MODEL_GLM_4,
 ]
 
 ZHIPU_MODEL_DISPLAY_NAMES = {
     ZHIPU_MODEL_GLM_5_1: "GLM-5.1 (最新旗舰·Claude Code)",
-    ZHIPU_MODEL_GLM_5: "GLM-5 (旗舰)",
     ZHIPU_MODEL_GLM_5_TURBO: "GLM-5-Turbo (旗舰·快速)",
-    ZHIPU_MODEL_GLM_4_8: "GLM-4.8 (编程增强)",
-    ZHIPU_MODEL_GLM_4_7: "GLM-4.7 (旗舰)",
-    ZHIPU_MODEL_GLM_4_7V: "GLM-4.7V (多模态)",
-    ZHIPU_MODEL_GLM_4_6: "GLM-4.6 (Claude Code 编程)",
-    ZHIPU_MODEL_GLM_Z1_FLASH: "GLM-Z1-Flash (推理·快速)",
-    ZHIPU_MODEL_GLM_Z1_AIR: "GLM-Z1-Air (推理·轻量)",
-    ZHIPU_MODEL_GLM_Z1_AIRX: "GLM-Z1-AirX (推理·极速)",
-    ZHIPU_MODEL_GLM_4_PLUS: "GLM-4-Plus (增强)",
-    ZHIPU_MODEL_GLM_4_AIR: "GLM-4-Air (轻量)",
-    ZHIPU_MODEL_GLM_4_AIRX: "GLM-4-AirX (轻量·极速)",
-    ZHIPU_MODEL_GLM_4_FLASH: "GLM-4-Flash (快速·免费)",
-    ZHIPU_MODEL_GLM_4_FLASHX: "GLM-4-FlashX (快速·增强)",
-    ZHIPU_MODEL_GLM_4_LONG: "GLM-4-Long (长文本)",
-    ZHIPU_MODEL_GLM_4: "GLM-4 (标准)",
 }
 
 # ===== Kimi 模型 (月之暗面) =====
-KIMI_MODEL_K2_5 = "kimi-k2.5"
-KIMI_MODEL_K2 = "kimi-k2"
+KIMI_MODEL_K2_6 = "kimi-k2.6"
 KIMI_MODEL_K2_THINKING = "kimi-k2-thinking"
-KIMI_MODEL_MOONSHOT_V1_AUTO = "moonshot-v1-auto"
-KIMI_MODEL_MOONSHOT_V1_128K = "moonshot-v1-128k"
-KIMI_MODEL_MOONSHOT_V1_32K = "moonshot-v1-32k"
-KIMI_MODEL_MOONSHOT_V1_8K = "moonshot-v1-8k"
 
 KIMI_MODELS = [
-    KIMI_MODEL_K2_5,
-    KIMI_MODEL_K2,
+    KIMI_MODEL_K2_6,
     KIMI_MODEL_K2_THINKING,
-    KIMI_MODEL_MOONSHOT_V1_AUTO,
-    KIMI_MODEL_MOONSHOT_V1_128K,
-    KIMI_MODEL_MOONSHOT_V1_32K,
-    KIMI_MODEL_MOONSHOT_V1_8K,
 ]
 
 KIMI_MODEL_DISPLAY_NAMES = {
-    KIMI_MODEL_K2_5: "Kimi K2.5 (最新旗舰·Claude Code)",
-    KIMI_MODEL_K2: "Kimi K2 (编程)",
+    KIMI_MODEL_K2_6: "Kimi K2.6 (最新旗舰·Claude Code)",
     KIMI_MODEL_K2_THINKING: "Kimi K2 Thinking (推理)",
-    KIMI_MODEL_MOONSHOT_V1_AUTO: "Moonshot V1 Auto (自动)",
-    KIMI_MODEL_MOONSHOT_V1_128K: "Moonshot V1 128K (长文本)",
-    KIMI_MODEL_MOONSHOT_V1_32K: "Moonshot V1 32K",
-    KIMI_MODEL_MOONSHOT_V1_8K: "Moonshot V1 8K",
 }
 
 # ===== OpenAI 模型 =====
@@ -188,8 +123,8 @@ DEEPSEEK_MODELS = [
 ]
 
 DEEPSEEK_MODEL_DISPLAY_NAMES = {
-    DEEPSEEK_MODEL_CHAT: "DeepSeek V3.2 (通用对话)",
-    DEEPSEEK_MODEL_REASONER: "DeepSeek V3.2 (推理·思考模式)",
+    DEEPSEEK_MODEL_CHAT: "DeepSeek V4 (通用对话)",
+    DEEPSEEK_MODEL_REASONER: "DeepSeek V4 (推理·思考模式)",
 }
 
 # ===== 通义千问 模型 =====
@@ -400,7 +335,7 @@ INTERACTION_SOURCES = [
 
 # ===== 默认配置 =====
 DEFAULT_LLM_PROVIDER = LLM_PROVIDER_ZHIPU
-DEFAULT_ZHIPU_MODEL = ZHIPU_MODEL_GLM_5
+DEFAULT_ZHIPU_MODEL = ZHIPU_MODEL_GLM_5_1
 DEFAULT_MAX_TOKENS = 2048
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_TOP_P = 0.9

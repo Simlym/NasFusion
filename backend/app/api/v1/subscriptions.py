@@ -17,6 +17,7 @@ from app.schemas.subscription import (
     SubscriptionListResponse,
     SubscriptionResponse,
     SubscriptionUpdateSchema,
+    SubscriptionStatusUpdateRequest,
     SubscriptionCheckLogListResponse,
     EpisodesStatusResponse,
     EpisodeStatusUpdateRequest,
@@ -240,6 +241,53 @@ async def resume_subscription(
         )
 
     updated_subscription = await SubscriptionService.resume_subscription(db, subscription_id)
+    return updated_subscription
+
+
+@router.post(
+    "/{subscription_id}/status",
+    response_model=SubscriptionResponse,
+    summary="手动修改订阅状态",
+)
+async def update_subscription_status(
+    subscription_id: int,
+    body: SubscriptionStatusUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    手动修改订阅状态
+
+    - **status**: active / paused / completed / cancelled
+
+    会自动同步 is_active 和 completed_at 字段：
+    - active: 重新激活并参与检查调度，清除完成时间
+    - completed: 标记完成并记录完成时间，停止检查调度
+    - paused / cancelled: 停止检查调度
+    """
+    subscription = await SubscriptionService.get_by_id(db, subscription_id)
+    if not subscription:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"订阅ID {subscription_id} 不存在",
+        )
+
+    # 检查权限
+    if subscription.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权操作此订阅",
+        )
+
+    try:
+        updated_subscription = await SubscriptionService.set_status(
+            db, subscription_id, body.status
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
     return updated_subscription
 
 

@@ -210,7 +210,7 @@ const formRef = ref<FormInstance>()
 const form = reactive({
   name: '',
   provider: 'zhipu',
-  model: 'glm-5',
+  model: 'glm-5.1',
   api_key: '',
   api_base: '',
   proxy: '',
@@ -269,7 +269,7 @@ function resetForm() {
   Object.assign(form, {
     name: '',
     provider: 'zhipu',
-    model: 'glm-5',
+    model: 'glm-5.1',
     api_key: '',
     api_base: '',
     proxy: '',

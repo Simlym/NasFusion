@@ -6,7 +6,7 @@
 
 支持的多模态模型：
 - OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo-vision
-- 智谱: glm-4v, glm-4.7v
+- 智谱: glm-4v, glm-5.1
 - Ollama: 支持视觉的本地模型（如 llava）
 """
 import base64
@@ -157,8 +157,8 @@ class MultimodalAdapter:
         "gpt-4-vision-preview": "openai",
         # 智谱
         "glm-4v": "zhipu",
-        "glm-4.7v": "zhipu",
-        "glm-4.7": "zhipu",
+        "glm-5.1": "zhipu",
+        "glm-5": "zhipu",
         # Ollama（部分模型）
         "llava": "ollama",
         "llava-phi3": "ollama",

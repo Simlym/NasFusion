@@ -126,6 +126,11 @@ class SubscriptionCheckHandler(BaseTaskHandler):
 
                 except Exception as e:
                     error_count += 1
+                    # 回滚当前订阅产生的未提交变更，使 session 恢复可用状态
+                    try:
+                        await db.rollback()
+                    except Exception as rollback_err:
+                        logger.error(f"回滚订阅{subscription_id}失败: {rollback_err}")
                     await TaskExecutionService.append_log(
                         db, execution_id,
                         f"订阅 {subscription_id} 检查失败: {str(e)}"
@@ -228,10 +233,12 @@ class SubscriptionCheckHandler(BaseTaskHandler):
         }
 
         # 逐个检查订阅
+        # 每个订阅作为独立工作单元：失败时回滚，避免污染 session 导致后续订阅连带失败
         for subscription in subscriptions:
             try:
                 result = await SubscriptionCheckHandler.check_subscription(
-                    db, subscription.id, execution_id=execution_id
+                    db, subscription.id, execution_id=execution_id,
+                    subscription=subscription
                 )
 
                 stats["checked"] += 1
@@ -241,15 +248,23 @@ class SubscriptionCheckHandler(BaseTaskHandler):
                     stats["downloaded"] += result.get("downloaded_count", 1)
 
             except Exception as e:
-                logger.error(f"检查订阅失败: 订阅{subscription.id}, 错误: {e}")
+                logger.error(f"检查订阅失败: 订阅{subscription.id}, 错误: {e}", exc_info=True)
                 stats["errors"] += 1
+                # 回滚当前订阅产生的未提交变更，使 session 恢复可用状态
+                try:
+                    await db.rollback()
+                except Exception as rollback_err:
+                    logger.error(f"回滚订阅{subscription.id}失败: {rollback_err}")
 
         logger.info(f"订阅检查完成: {stats}")
         return stats
 
     @staticmethod
     async def check_subscription(
-        db: AsyncSession, subscription_id: int, execution_id: Optional[int] = None
+        db: AsyncSession,
+        subscription_id: int,
+        execution_id: Optional[int] = None,
+        subscription: Optional[Subscription] = None,
     ) -> Dict[str, Any]:
         """
         检查单个订阅
@@ -258,14 +273,16 @@ class SubscriptionCheckHandler(BaseTaskHandler):
             db: 数据库会话
             subscription_id: 订阅ID
             execution_id: 任务执行ID (可选，用于日志记录)
+            subscription: 已加载的订阅对象（可选，传入则跳过重复查询）
 
         Returns:
             Dict: 检查结果
         """
         start_time = now()
 
-        # 获取订阅
-        subscription = await SubscriptionService.get_by_id(db, subscription_id)
+        # 获取订阅（外层批量检查已加载时直接复用，避免重复查询）
+        if subscription is None:
+            subscription = await SubscriptionService.get_by_id(db, subscription_id)
         if not subscription:
             raise ValueError(f"订阅不存在: {subscription_id}")
 
@@ -275,9 +292,9 @@ class SubscriptionCheckHandler(BaseTaskHandler):
 
         logger.info(f"开始检查订阅: {subscription_id} - {subscription.title}")
 
-        # 查找匹配的PT资源
+        # 查找匹配的PT资源（复用已加载的订阅对象）
         matched_resources = await SubscriptionService.find_matched_resources(
-            db, subscription_id
+            db, subscription_id, subscription=subscription
         )
 
         # 准备检查结果
@@ -424,9 +441,9 @@ class SubscriptionCheckHandler(BaseTaskHandler):
             task_execution_id=execution_id,  # 使用传入的任务执行ID
         )
 
-        # 更新订阅统计
+        # 更新订阅统计（复用已加载的订阅对象）
         await SubscriptionService.update_subscription_stats(
-            db, subscription_id, check_result
+            db, subscription_id, check_result, subscription=subscription
         )
 
         # 检查订阅是否完成

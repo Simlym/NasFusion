@@ -64,7 +64,7 @@ class AIAgentConfig(BaseModel):
     model = Column(
         String(100),
         nullable=False,
-        default="glm-4-flash",
+        default="glm-5.1",
         comment="使用的模型",
     )
     temperature = Column(

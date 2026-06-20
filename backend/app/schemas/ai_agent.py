@@ -15,7 +15,7 @@ from app.schemas.base import BaseResponseSchema
 class AIAgentConfigBase(BaseModel):
     """AI Agent 配置基础"""
     llm_config_id: Optional[int] = Field(default=None, description="关联的全局LLM配置ID")
-    model: str = Field(default="glm-4-flash", description="模型")
+    model: str = Field(default="glm-5.1", description="模型")
     temperature: str = Field(default="0.7", description="温度参数")
     max_tokens: int = Field(default=2048, description="最大Token数")
     top_p: str = Field(default="0.9", description="Top-P参数")

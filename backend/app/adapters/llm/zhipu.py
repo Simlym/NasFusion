@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 智谱 AI (ZhipuAI) 适配器
-支持 GLM-4 系列模型
+支持 GLM-5 系列模型
 """
 import json
 import time
@@ -32,7 +32,7 @@ class ZhipuAdapter(BaseLLMAdapter):
     配置示例:
     {
         "api_key": "your-api-key",
-        "model": "glm-4-flash",
+        "model": "glm-5.1",
         "temperature": 0.7,
         "max_tokens": 2048,
         "top_p": 0.9,
@@ -49,7 +49,7 @@ class ZhipuAdapter(BaseLLMAdapter):
 
         # 设置默认模型（如果未指定）
         if not self.model:
-            self.model = "glm-4-flash"
+            self.model = "glm-5.1"
 
     @property
     def provider_name(self) -> str:

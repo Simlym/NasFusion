@@ -17,6 +17,7 @@ from app.constants.subscription import (
     SUBSCRIPTION_PRIORITY_MAX,
     SUBSCRIPTION_PRIORITY_MIN,
     SUBSCRIPTION_STATUS_ACTIVE,
+    SUBSCRIPTION_STATUSES,
 )
 from app.schemas.base import BaseResponseSchema
 
@@ -258,6 +259,25 @@ class SubscriptionUpdateSchema(BaseModel):
         from_attributes=True,
         populate_by_name=True,  # 允许同时使用字段名和别名
         alias_generator=to_camel  # 自动将 snake_case 转换为 camelCase
+    )
+
+
+# ==================== 修改订阅状态 ====================
+class SubscriptionStatusUpdateRequest(BaseModel):
+    """手动修改订阅状态请求"""
+
+    status: str = Field(..., description="目标状态: active/paused/completed/cancelled")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v not in SUBSCRIPTION_STATUSES:
+            raise ValueError(f"status 必须为 {SUBSCRIPTION_STATUSES} 之一")
+        return v
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
     )
 
 

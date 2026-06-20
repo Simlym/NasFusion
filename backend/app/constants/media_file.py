@@ -172,14 +172,14 @@ UNIFIED_TABLES = [
 DEFAULT_MOVIE_DIR_TEMPLATE = "{title} ({year})"
 DEFAULT_MOVIE_FILENAME_TEMPLATE = "{title} ({year})"
 
-# 电视剧：/media/TV Shows/剧集名称 (年份)/Season 1/剧集名称 - S01E01 - 集标题.mkv
-# 匹配 TinyMediaManager 命名规则
-DEFAULT_TV_DIR_TEMPLATE = "{title} ({year})/Season {season}"
+# 电视剧：/media/TV Shows/剧集名称 (年份)/Season 01/剧集名称 - S01E01 - 集标题.mkv
+# 匹配 TinyMediaManager 命名规则；季目录必须补零（Season 01），否则 Jellyfin/Emby 可能误判为未知季
+DEFAULT_TV_DIR_TEMPLATE = "{title} ({year})/Season {season:02d}"
 DEFAULT_TV_FILENAME_TEMPLATE = "{title} - S{season:02d}E{episode:02d} - {episode_title}"
 
-# 动漫：/media/Anime/动漫名称 (年份)/Season 1/动漫名称 - S01E01 - 集标题.mkv
-# 匹配 TinyMediaManager 命名规则
-DEFAULT_ANIME_DIR_TEMPLATE = "{title} ({year})/Season {season}"
+# 动漫：/media/Anime/动漫名称 (年份)/Season 01/动漫名称 - S01E01 - 集标题.mkv
+# 匹配 TinyMediaManager 命名规则；季目录必须补零（Season 01），否则 Jellyfin/Emby 可能误判为未知季
+DEFAULT_ANIME_DIR_TEMPLATE = "{title} ({year})/Season {season:02d}"
 DEFAULT_ANIME_FILENAME_TEMPLATE = "{title} - S{season:02d}E{episode:02d} - {episode_title}"
 
 # 电子书：/media/Books/书名/书名.扩展名

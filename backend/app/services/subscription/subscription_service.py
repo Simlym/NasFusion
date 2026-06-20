@@ -257,6 +257,61 @@ class SubscriptionService:
         logger.info(f"恢复订阅: {subscription_id}")
         return subscription
 
+    @staticmethod
+    async def set_status(
+        db: AsyncSession, subscription_id: int, target_status: str
+    ) -> Optional[Subscription]:
+        """
+        手动设置订阅状态，并同步相关字段（is_active / completed_at）
+
+        - active:    激活，清除完成时间
+        - paused:    暂停，保留完成时间
+        - completed: 标记完成，记录完成时间
+        - cancelled: 取消，保留完成时间
+
+        Args:
+            db: 数据库会话
+            subscription_id: 订阅ID
+            target_status: 目标状态
+
+        Returns:
+            Optional[Subscription]: 更新后的订阅
+        """
+        from app.constants.subscription import (
+            SUBSCRIPTION_STATUSES,
+            SUBSCRIPTION_STATUS_CANCELLED,
+            SUBSCRIPTION_STATUS_COMPLETED,
+            SUBSCRIPTION_STATUS_PAUSED,
+        )
+
+        if target_status not in SUBSCRIPTION_STATUSES:
+            raise ValueError(f"无效的订阅状态: {target_status}")
+
+        subscription = await SubscriptionService.get_by_id(db, subscription_id)
+        if not subscription:
+            return None
+
+        subscription.status = target_status
+
+        if target_status == SUBSCRIPTION_STATUS_ACTIVE:
+            # 重新激活：参与检查调度，清除完成时间
+            subscription.is_active = True
+            subscription.completed_at = None
+        elif target_status == SUBSCRIPTION_STATUS_COMPLETED:
+            # 标记完成：停止检查调度，记录完成时间
+            subscription.is_active = False
+            if not subscription.completed_at:
+                subscription.completed_at = now()
+        else:
+            # paused / cancelled：停止检查调度，保留已有完成时间
+            subscription.is_active = False
+
+        await db.commit()
+        await db.refresh(subscription)
+
+        logger.info(f"手动设置订阅{subscription_id}状态为{target_status}")
+        return subscription
+
     # ==================== 订阅匹配逻辑 ====================
 
     @staticmethod
@@ -415,7 +470,9 @@ class SubscriptionService:
 
     @staticmethod
     async def find_matched_resources(
-        db: AsyncSession, subscription_id: int
+        db: AsyncSession,
+        subscription_id: int,
+        subscription: Optional[Subscription] = None,
     ) -> List[PTResource]:
         """
         查找匹配订阅规则的PT资源
@@ -423,11 +480,13 @@ class SubscriptionService:
         Args:
             db: 数据库会话
             subscription_id: 订阅ID
+            subscription: 已加载的订阅对象（可选，传入则跳过重复查询）
 
         Returns:
             List[PTResource]: 匹配的PT资源列表
         """
-        subscription = await SubscriptionService.get_by_id(db, subscription_id)
+        if subscription is None:
+            subscription = await SubscriptionService.get_by_id(db, subscription_id)
         if not subscription:
             return []
 
@@ -526,7 +585,10 @@ class SubscriptionService:
 
     @staticmethod
     async def update_subscription_stats(
-        db: AsyncSession, subscription_id: int, check_result: dict
+        db: AsyncSession,
+        subscription_id: int,
+        check_result: dict,
+        subscription: Optional[Subscription] = None,
     ) -> None:
         """
         更新订阅统计信息
@@ -535,8 +597,10 @@ class SubscriptionService:
             db: 数据库会话
             subscription_id: 订阅ID
             check_result: 检查结果字典
+            subscription: 已加载的订阅对象（可选，传入则跳过重复查询）
         """
-        subscription = await SubscriptionService.get_by_id(db, subscription_id)
+        if subscription is None:
+            subscription = await SubscriptionService.get_by_id(db, subscription_id)
         if not subscription:
             return
 

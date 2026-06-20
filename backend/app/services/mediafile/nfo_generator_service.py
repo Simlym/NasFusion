@@ -426,11 +426,198 @@ class NFOGeneratorService:
             media_file.nfo_path = str(nfo_path)
             await db.commit()
 
+            # 同时确保剧集根目录存在 tvshow.nfo（Jellyfin/Emby 依赖它精确锁定剧集和季）
+            try:
+                NFOGeneratorService._ensure_tvshow_nfo(
+                    nfo_path, tv_series, config, override_info, force=(force or config.overwrite_nfo)
+                )
+            except Exception as e:
+                # tvshow.nfo 生成失败不应影响单集 NFO 的结果
+                logger.warning(f"生成 tvshow.nfo 失败（不影响单集NFO）: {e}")
+
             return str(nfo_path)
 
         except Exception as e:
             logger.error(f"写入NFO文件失败: {nfo_path}, 错误: {e}")
             return None
+
+    @staticmethod
+    def _ensure_tvshow_nfo(
+        episode_nfo_path: Path,
+        tv_series: UnifiedTVSeries,
+        config: OrganizeConfig,
+        override_info: Optional[dict] = None,
+        force: bool = False,
+    ) -> Optional[str]:
+        """
+        确保剧集根目录存在 tvshow.nfo
+
+        剧集目录结构：剧集名 (年份)/Season 01/单集.nfo
+        因此剧集根目录 = 单集所在目录的父目录（当其父目录名形如 "Season 01" / "S01" 时）。
+        若单集不在季目录下（极少数扁平结构），则取单集所在目录作为剧集根目录。
+
+        Args:
+            episode_nfo_path: 单集 NFO 的完整路径
+            tv_series: 电视剧元数据
+            config: 整理配置
+            override_info: 订阅覆写信息（title/year）
+            force: 是否覆盖已存在的 tvshow.nfo
+
+        Returns:
+            tvshow.nfo 路径，跳过或失败返回 None
+        """
+        import re
+
+        season_dir = episode_nfo_path.parent
+        # 判断单集是否位于季目录下（Season 01 / Season 1 / S01 等）
+        if re.match(r"^(Season\s*\d+|S\d+|Specials)$", season_dir.name, re.IGNORECASE):
+            show_dir = season_dir.parent
+        else:
+            show_dir = season_dir
+
+        tvshow_nfo_path = show_dir / "tvshow.nfo"
+
+        # 已存在且不强制覆盖则跳过（避免每集都重写）
+        if tvshow_nfo_path.exists() and not force:
+            logger.debug(f"tvshow.nfo 已存在，跳过: {tvshow_nfo_path}")
+            return str(tvshow_nfo_path)
+
+        xml_content = NFOGeneratorService._build_tvshow_xml(
+            tv_series, config.nfo_format, override_info
+        )
+
+        with open(tvshow_nfo_path, "w", encoding="utf-8") as f:
+            f.write(xml_content)
+        logger.info(f"生成 tvshow.nfo 成功: {tvshow_nfo_path}")
+        return str(tvshow_nfo_path)
+
+    @staticmethod
+    def _build_tvshow_xml(
+        tv_series: UnifiedTVSeries,
+        nfo_format: str,
+        override_info: Optional[dict] = None,
+    ) -> str:
+        """
+        构建剧集根目录 tvshow.nfo 的 XML 内容
+
+        Jellyfin/Emby 依据 tvshow.nfo 的 uniqueid/tmdbid 精确锁定剧集，
+        从而避免中文剧名（带全角符号）被误识别、剧集被拆分到「未知季」。
+
+        Args:
+            tv_series: 电视剧元数据
+            nfo_format: NFO 格式
+            override_info: 订阅覆写信息（title/year）
+
+        Returns:
+            格式化的 XML 字符串
+        """
+        root = ET.Element("tvshow")
+
+        # ============ uniqueid 标签（Jellyfin/Emby 推荐格式）============
+        if tv_series.tmdb_id:
+            uniqueid_tmdb = ET.SubElement(root, "uniqueid", type="tmdb", default="true")
+            uniqueid_tmdb.text = str(tv_series.tmdb_id)
+        if tv_series.imdb_id:
+            uniqueid_imdb = ET.SubElement(root, "uniqueid", type="imdb", default="false")
+            uniqueid_imdb.text = tv_series.imdb_id
+        if tv_series.tvdb_id:
+            uniqueid_tvdb = ET.SubElement(root, "uniqueid", type="tvdb", default="false")
+            uniqueid_tvdb.text = str(tv_series.tvdb_id)
+
+        # ============ 标题（优先订阅覆写）============
+        title = None
+        if override_info and override_info.get("title"):
+            title = override_info["title"]
+        elif tv_series.title:
+            title = tv_series.title
+        if title:
+            ET.SubElement(root, "title").text = title
+        if tv_series.original_title:
+            ET.SubElement(root, "originaltitle").text = tv_series.original_title
+
+        # ============ 年份和首播日期 ============
+        year_value = None
+        if override_info and override_info.get("year"):
+            year_value = str(override_info["year"])
+        elif tv_series.year:
+            year_value = str(tv_series.year)
+        if year_value:
+            ET.SubElement(root, "year").text = year_value
+        if tv_series.first_air_date:
+            ET.SubElement(root, "premiered").text = str(tv_series.first_air_date)
+
+        # ============ 简介 ============
+        if tv_series.overview:
+            ET.SubElement(root, "plot").text = tv_series.overview
+            ET.SubElement(root, "outline").text = tv_series.overview
+        if tv_series.tagline:
+            ET.SubElement(root, "tagline").text = tv_series.tagline
+
+        # ============ 状态/季数 ============
+        if tv_series.status:
+            ET.SubElement(root, "status").text = tv_series.status
+
+        # ============ 评分（标准 ratings 结构）============
+        if tv_series.rating_tmdb:
+            ratings = ET.SubElement(root, "ratings")
+            rating_elem = ET.SubElement(ratings, "rating", name="tmdb", max="10", default="true")
+            ET.SubElement(rating_elem, "value").text = str(tv_series.rating_tmdb)
+            if tv_series.votes_tmdb:
+                ET.SubElement(rating_elem, "votes").text = str(tv_series.votes_tmdb)
+            # 兼容旧格式
+            ET.SubElement(root, "rating").text = str(tv_series.rating_tmdb)
+
+        # ============ ID 标识 ============
+        if tv_series.tmdb_id:
+            ET.SubElement(root, "tmdbid").text = str(tv_series.tmdb_id)
+        if tv_series.imdb_id:
+            ET.SubElement(root, "imdbid").text = tv_series.imdb_id
+        if tv_series.tvdb_id:
+            ET.SubElement(root, "tvdbid").text = str(tv_series.tvdb_id)
+
+        # ============ 类型 ============
+        if tv_series.genres:
+            for genre in tv_series.genres:
+                ET.SubElement(root, "genre").text = str(genre)
+
+        # ============ 制作公司/电视台（Studio）============
+        if tv_series.networks:
+            for network in tv_series.networks[:5]:
+                if isinstance(network, dict):
+                    ET.SubElement(root, "studio").text = network.get("name", "")
+                else:
+                    ET.SubElement(root, "studio").text = str(network)
+        elif tv_series.production_companies:
+            for company in tv_series.production_companies[:5]:
+                if isinstance(company, dict):
+                    ET.SubElement(root, "studio").text = company.get("name", "")
+                else:
+                    ET.SubElement(root, "studio").text = str(company)
+
+        # ============ 演员 ============
+        if tv_series.actors:
+            for actor in tv_series.actors[:15]:
+                actor_elem = ET.SubElement(root, "actor")
+                ET.SubElement(actor_elem, "name").text = actor.get("name", "")
+                ET.SubElement(actor_elem, "type").text = "Actor"
+                if actor.get("character") or actor.get("role"):
+                    ET.SubElement(actor_elem, "role").text = actor.get("character") or actor.get("role", "")
+                if actor.get("thumb_url") or actor.get("thumb"):
+                    ET.SubElement(actor_elem, "thumb").text = actor.get("thumb_url") or actor.get("thumb", "")
+                if actor.get("tmdb_id"):
+                    ET.SubElement(actor_elem, "tmdbid").text = str(actor["tmdb_id"])
+
+        # ============ 图片 ============
+        if tv_series.poster_url:
+            ET.SubElement(root, "thumb", aspect="poster").text = tv_series.poster_url
+        if tv_series.backdrop_url:
+            fanart = ET.SubElement(root, "fanart")
+            ET.SubElement(fanart, "thumb").text = tv_series.backdrop_url
+
+        # 格式化 XML
+        xml_str = ET.tostring(root, encoding="unicode")
+        dom = minidom.parseString(xml_str)
+        return dom.toprettyxml(indent="  ", encoding="utf-8").decode("utf-8")
 
     @staticmethod
     async def _fetch_episode_info_with_fallback(
