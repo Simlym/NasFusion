@@ -3,7 +3,7 @@
 # 多阶段构建优化镜像大小
 # ==============================================================================
 
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
@@ -17,7 +17,7 @@ WORKDIR /app
 # ==============================================================================
 # 构建阶段：安装依赖
 # ==============================================================================
-FROM base as builder
+FROM base AS builder
 
 # 配置 apt 使用清华镜像源加速下载
 RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
@@ -48,7 +48,7 @@ RUN pip install --upgrade pip setuptools wheel -i https://pypi.tuna.tsinghua.edu
 # ==============================================================================
 # 运行阶段：最小化镜像
 # ==============================================================================
-FROM base as runtime
+FROM base AS runtime
 
 # 配置 apt 使用清华镜像源加速下载
 RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
