@@ -186,10 +186,11 @@ docker exec nasfusion-backend chmod +x /app/scripts/merge_duplicate_movies.py
 **解决方案**：
 
 ```bash
-# 进入容器安装依赖
-docker exec nasfusion-backend pip install python-dotenv
+# 进入容器临时安装依赖
+docker exec nasfusion-backend uv pip install python-dotenv
 
-# 或在 requirements.txt 中添加后重新构建
+# 或用 uv add 写入 pyproject.toml / uv.lock 后重新构建镜像
+#   （本地执行）uv add python-dotenv
 ```
 
 ### Q5: 如何查看脚本输出日志？

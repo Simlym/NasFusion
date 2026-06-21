@@ -43,50 +43,46 @@ git clone <repository-url>
 cd NasFusion/backend
 ```
 
-2. **创建虚拟环境**
+2. **安装依赖（使用 [uv](https://docs.astral.sh/uv/)）**
 
 ```bash
-python -m venv venv
+# uv 自动创建 .venv 并按 uv.lock 安装全部依赖（含开发工具）
+uv sync
 
-# Windows
-venv\Scripts\activate
-
-# Linux/Mac
-source venv/bin/activate
+# 仅安装运行时依赖（不含 pytest/black 等）
+uv sync --no-dev
 ```
 
-3. **安装依赖**
+> 首次运行 uv 会依据 `.python-version`（3.11）自动准备解释器，无需手动建虚拟环境。
 
-```bash
-pip install -r requirements.txt
-```
-
-4. **配置环境变量**
+3. **配置环境变量**
 
 ```bash
 cp .env.example .env
 # 编辑.env文件，配置数据库和其他设置
 ```
 
-5. **初始化数据库**
+4. **初始化数据库**
 
 ```bash
 # 使用Alembic迁移（推荐）
-alembic upgrade head
+uv run alembic upgrade head
 
 # 或者开发环境自动创建（DEBUG=true时）
-python -m app.main
+uv run python -m app
 ```
 
-6. **运行开发服务器**
+5. **运行开发服务器**
 
 ```bash
-# 方式1：直接运行
-python -m app.main
+# 方式1：模块入口（推荐）
+uv run python -m app
 
 # 方式2：使用uvicorn
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+> 添加依赖用 `uv add <包名>`（开发依赖加 `--dev`），uv 会自动更新 `pyproject.toml` 与 `uv.lock`。
 
 7. **访问API文档**
 
@@ -124,7 +120,8 @@ backend/
 │   └── e2e/               # 端到端测试
 ├── alembic/               # 数据库迁移
 ├── scripts/               # 运维脚本
-├── requirements.txt       # 依赖列表
+├── pyproject.toml         # 项目元数据与依赖（uv 管理）
+├── uv.lock                # 依赖锁定文件
 ├── .env.example           # 环境变量示例
 └── README.md              # 本文档
 ```

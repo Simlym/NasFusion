@@ -18,6 +18,10 @@ services:
       args:
         PUID: ${PUID:-1024}
         PGID: ${PGID:-100}
+        # 本地构建默认走清华源加速（CI 直接调 Dockerfile，不经本文件，仍用官方源）。
+        # 如需官方源：在 .env 设 APT_MIRROR= 与 PIP_INDEX=https://pypi.org/simple
+        APT_MIRROR: ${APT_MIRROR:-mirrors.tuna.tsinghua.edu.cn}
+        PIP_INDEX: ${PIP_INDEX:-https://pypi.tuna.tsinghua.edu.cn/simple}
     # 覆盖为本地构建标签，避免误推/误用远端 latest
     image: nasfusion/backend:dev
 

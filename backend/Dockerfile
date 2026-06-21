@@ -15,15 +15,31 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # ==============================================================================
-# 构建阶段：安装依赖
+# 构建阶段：用 uv 安装依赖到独立 venv
 # ==============================================================================
 FROM base AS builder
 
-# 配置 apt 使用清华镜像源加速下载
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+# 引入 uv 二进制（官方静态镜像，无需 pip 安装）
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /bin/
 
-# 安装构建依赖（优化：移除 g++，添加必要的库）
+# ----------------------------------------------------------------------------
+# 镜像源参数（默认官方源，对 GitHub CI 最快）。
+# 国内本地构建可临时切清华，例如：
+#   docker build \
+#     --build-arg APT_MIRROR=mirrors.tuna.tsinghua.edu.cn \
+#     --build-arg PIP_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple .
+#   APT_MIRROR 为空（默认）时不替换 apt 源。
+# ----------------------------------------------------------------------------
+ARG APT_MIRROR=""
+ARG PIP_INDEX="https://pypi.org/simple"
+
+# 仅当显式传入 APT_MIRROR 时才替换 Debian 源
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list; \
+    fi
+
+# 安装构建依赖（个别包无预编译 wheel 时需要编译）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -32,27 +48,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖文件
-COPY requirements.txt .
+# uv 配置：
+#  - 用系统 Python（镜像自带 3.11），不让 uv 再下载
+#  - 字节码预编译，加快容器启动
+#  - PyPI 源由 PIP_INDEX 决定（默认官方）
+ENV UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_DEFAULT_INDEX=${PIP_INDEX}
 
-# 配置 pip 使用国内镜像源并安装 Python 依赖
-# 使用清华镜像提高下载速度和成功率
-# 使用预编译包加速构建
-RUN pip install --upgrade pip setuptools wheel -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install --no-warn-script-location \
-    --prefer-binary \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    --trusted-host pypi.tuna.tsinghua.edu.cn \
-    -r requirements.txt
+# 先只复制依赖清单，最大化利用构建缓存（源码变更不会触发重装依赖）
+COPY pyproject.toml uv.lock ./
+
+# 按 lock 安装运行时依赖到项目内 .venv（--no-dev 排除测试/格式化工具，--no-install-project 不装自身）
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # ==============================================================================
 # 运行阶段：最小化镜像
 # ==============================================================================
 FROM base AS runtime
 
-# 配置 apt 使用清华镜像源加速下载
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+# 镜像源参数（默认官方源；与 builder 阶段一致，国内本地构建可传 APT_MIRROR 切换）
+ARG APT_MIRROR=""
+
+# 仅当显式传入 APT_MIRROR 时才替换 Debian 源
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+        sed -i "s/deb.debian.org/${APT_MIRROR}/g" /etc/apt/sources.list; \
+    fi
 
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -66,9 +90,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # 清理
     && rm -rf /var/lib/apt/lists/*
 
-# 从构建阶段复制 Python 依赖（系统安装的包）
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# 从构建阶段复制已装好依赖的虚拟环境
+COPY --from=builder /app/.venv /app/.venv
+
+# 让 venv 的可执行文件（uvicorn、alembic 等）直接可用
+ENV PATH="/app/.venv/bin:$PATH"
 
 # 创建非 root 用户（支持 PUID/PGID）
 ARG PUID=1024

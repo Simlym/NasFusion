@@ -62,19 +62,16 @@ docker compose up -d
 ### 本地开发
 
 ```bash
-# 后端
+# 后端（使用 uv，自动创建 .venv 并安装依赖）
 cd backend
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# 或 venv\Scripts\activate  # Windows
-pip install -r requirements.txt
+uv sync
 
 # ⚠️ 必须先配置环境变量，否则启动会报错
 cp .env.example .env
 # 编辑 .env，设置 SECRET_KEY 和 JWT_SECRET_KEY（至少 32 字符）
-# 快速生成密钥：python -c "import secrets; print(secrets.token_hex(32))"
+# 快速生成密钥：uv run python -c "import secrets; print(secrets.token_hex(32))"
 
-python -m app.main
+uv run python -m app
 
 # 前端
 cd frontend
