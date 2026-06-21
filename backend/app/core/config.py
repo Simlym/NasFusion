@@ -110,6 +110,13 @@ class Settings(BaseSettings):
     LOG_PATH: str = Field(default="./data/logs", description="日志目录")
     IMAGE_CACHE_PATH: str = Field(default="./data/cache/images", description="图片缓存目录")
 
+    # Telegram 对话接收方式
+    # True（默认）：长轮询，内网即可工作，应用主动拉取消息
+    # False：关闭长轮询，改用 Webhook（需公网 HTTPS 地址）
+    TELEGRAM_POLLING_ENABLED: bool = Field(
+        default=True, description="是否启用 Telegram 长轮询接收对话消息"
+    )
+
     # 任务配置
     SYNC_INTERVAL_MINUTES: int = Field(default=30, description="PT站点同步间隔（分钟）")
     SUBSCRIPTION_CHECK_INTERVAL_MINUTES: int = Field(default=60, description="订阅检查间隔（分钟）")

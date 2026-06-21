@@ -20,10 +20,26 @@ from app.schemas.notification import (
     NotificationChannelUpdate,
 )
 from app.services.notification.notification_channel_service import NotificationChannelService
+from app.services.ai_agent.telegram_polling import telegram_polling_manager
+from app.constants import NOTIFICATION_CHANNEL_TELEGRAM
 from app.utils.timezone import now
 
 router = APIRouter(prefix="/notification-channels", tags=["notification-channels"])
 logger = logging.getLogger(__name__)
+
+
+async def _reload_telegram_polling_if_needed(*channel_types: Optional[str]) -> None:
+    """
+    Telegram 渠道增删改后热重载长轮询任务
+
+    仅当涉及 Telegram 渠道时才触发，避免无谓的重载。失败不影响主流程。
+    """
+    if NOTIFICATION_CHANNEL_TELEGRAM not in channel_types:
+        return
+    try:
+        await telegram_polling_manager.reload()
+    except Exception:
+        logger.exception("重载 Telegram 长轮询失败")
 
 
 @router.get("", response_model=NotificationChannelListResponse)
@@ -124,6 +140,8 @@ async def create_notification_channel(
             f"用户 {current_user.username} 创建通知渠道: {channel.name}, 类型: {channel.channel_type}"
         )
 
+        await _reload_telegram_polling_if_needed(channel.channel_type)
+
         return NotificationChannelResponse.model_validate(channel)
 
     except Exception as e:
@@ -176,6 +194,8 @@ async def update_notification_channel(
             f"用户 {current_user.username} 更新通知渠道: {channel.name} (ID: {channel_id})"
         )
 
+        await _reload_telegram_polling_if_needed(channel.channel_type)
+
         return NotificationChannelResponse.model_validate(channel)
 
     except HTTPException:
@@ -216,12 +236,17 @@ async def delete_notification_channel(
                 status_code=status.HTTP_403_FORBIDDEN, detail="无权限删除此渠道"
             )
 
+        deleted_channel_type = channel.channel_type
+        channel_name = channel.name
+
         await db.delete(channel)
         await db.commit()
 
         logger.info(
-            f"用户 {current_user.username} 删除通知渠道: {channel.name} (ID: {channel_id})"
+            f"用户 {current_user.username} 删除通知渠道: {channel_name} (ID: {channel_id})"
         )
+
+        await _reload_telegram_polling_if_needed(deleted_channel_type)
 
         return None
 

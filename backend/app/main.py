@@ -19,6 +19,7 @@ from app.core.init import initialize_system
 from app.core.logging import setup_logging
 from app.services.task.scheduler_manager import scheduler_manager
 from app.events.manager import event_bus_manager
+from app.services.ai_agent.telegram_polling import telegram_polling_manager
 
 
 @asynccontextmanager
@@ -51,7 +52,13 @@ async def lifespan(app: FastAPI):
     # 启动任务调度器
     await scheduler_manager.start()
 
+    # 启动 Telegram 长轮询（接收对话消息，内网即可工作）
+    await telegram_polling_manager.start()
+
     yield
+
+    # 停止 Telegram 长轮询
+    await telegram_polling_manager.shutdown()
 
     # 关闭任务调度器
     await scheduler_manager.shutdown()

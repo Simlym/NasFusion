@@ -61,12 +61,19 @@ class TelegramAgentHandler:
                     "reply": "您还未绑定 NasFusion 账户，请先在系统设置中绑定 Telegram。",
                 }
 
+            # 获取或创建该 chat 的持续对话，保证多轮上下文连贯
+            conversation = await AIAgentService.get_or_create_telegram_conversation(
+                db,
+                user_id,
+                chat_id,
+            )
+
             # 调用 AI Agent
             result = await AIAgentService.chat(
                 db,
                 user_id,
                 text,
-                conversation_id=None,  # 使用 Telegram 对话
+                conversation_id=conversation.id,
             )
 
             if not result.get("success"):
@@ -244,11 +251,22 @@ async def process_telegram_update(
 
         # 忽略命令（以 / 开头）
         if text.startswith("/"):
+            handler = TelegramAgentHandler(bot_token)
             # 可以在这里处理特定命令
-            if text == "/start":
-                return "👋 欢迎使用 NasFusion AI 助手！\n\n您可以直接发送消息与我对话，例如：\n- 推荐几部科幻电影\n- 搜索复仇者联盟\n- 查看下载状态"
+            if text.startswith("/start"):
+                reply = (
+                    "👋 欢迎使用 AI 助手！\n\n"
+                    f"您当前的 Chat ID 是：`{chat_id}`\n"
+                    "请在系统「通知渠道」中用此 Chat ID 配置 Telegram，完成账户绑定后即可对话。\n\n"
+                    "绑定后可直接发送消息与我对话，例如：\n"
+                    "- 推荐几部科幻电影\n"
+                    "- 搜索复仇者联盟\n"
+                    "- 查看下载状态"
+                )
+                await handler.send_reply(chat_id, reply)
+                return reply
             elif text == "/help":
-                return """🤖 **NasFusion AI 助手**
+                reply = """🤖 **AI 助手**
 
 我可以帮您：
 📽 推荐电影/剧集
@@ -258,10 +276,11 @@ async def process_telegram_update(
 📊 查看系统状态
 
 直接发送消息即可开始对话！"""
+                await handler.send_reply(chat_id, reply)
+                return reply
             return None
 
         # 处理普通消息
-        handler = TelegramAgentHandler(bot_token)
         result = await handler.handle_message(db, chat_id, text)
 
         reply = result.get("reply")
