@@ -28,6 +28,7 @@ from app.schemas.ai_agent import (
     AIConversationResponse,
     AIConversationUpdate,
     AIMessageResponse,
+    AIToolExecutionResponse,
     LLMProviderInfo,
     LLMProvidersResponse,
 )
@@ -502,17 +503,62 @@ async def list_archived_conversations(
 async def get_tools(
     current_user: User = Depends(get_current_user),
 ):
-    """获取可用工具列表"""
+    """获取可用工具/Skill 列表（供前端展示）"""
     from app.services.ai_agent.tool_registry import ToolRegistry
+    from app.constants.ai_agent import AGENT_TOOL_DISPLAY_NAMES
 
-    tools = ToolRegistry.get_all_tools()
-    return {
-        "tools": [
+    # 确保工具与 Skill 已注册（端点可能先于任何对话被调用）
+    from app.services.ai_agent import tools as _tools  # noqa: F401
+    from app.services.ai_agent import skills as _skills  # noqa: F401
+
+    registered = ToolRegistry.get_all_tools()
+    items = []
+    for tool in registered.values():
+        is_skill = "skills" in (tool.__module__ or "")
+        items.append(
             {
                 "name": tool.name,
+                "display_name": AGENT_TOOL_DISPLAY_NAMES.get(tool.name, tool.name),
                 "description": tool.description,
                 "parameters": tool.parameters,
+                "type": "skill" if is_skill else "tool",
             }
-            for tool in tools.values()
-        ]
+        )
+    items.sort(key=lambda x: (x["type"] != "skill", x["name"]))
+    return {
+        "total": len(items),
+        "tool_count": sum(1 for i in items if i["type"] == "tool"),
+        "skill_count": sum(1 for i in items if i["type"] == "skill"),
+        "tools": items,
+    }
+
+
+@router.get("/tool-executions")
+async def list_tool_executions(
+    page: int = 1,
+    page_size: int = 20,
+    conversation_id: Optional[int] = None,
+    tool_name: Optional[str] = None,
+    exec_status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """工具调用记录（最新在前），用于界面查看每次调用的参数、结果、状态、耗时"""
+    executions, total = await AIAgentService.list_tool_executions(
+        db,
+        user_id=current_user.id,
+        page=page,
+        page_size=page_size,
+        conversation_id=conversation_id,
+        tool_name=tool_name,
+        status=exec_status,
+    )
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "executions": [
+            AIToolExecutionResponse.model_validate(e).model_dump()
+            for e in executions
+        ],
     }

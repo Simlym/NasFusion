@@ -176,6 +176,46 @@ class AIAgentService:
         return list(conversations), total
 
     @staticmethod
+    async def list_tool_executions(
+        db: AsyncSession,
+        user_id: int,
+        page: int = 1,
+        page_size: int = 20,
+        conversation_id: Optional[int] = None,
+        tool_name: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> tuple[List[AIToolExecution], int]:
+        """
+        查询工具调用记录（最新在前），供前端「工具调用日志」界面展示。
+
+        支持按对话、工具名、状态过滤。
+        """
+        from sqlalchemy import func
+
+        base = select(AIToolExecution).where(AIToolExecution.user_id == user_id)
+        if conversation_id is not None:
+            base = base.where(AIToolExecution.conversation_id == conversation_id)
+        if tool_name:
+            base = base.where(AIToolExecution.tool_name == tool_name)
+        if status:
+            base = base.where(AIToolExecution.status == status)
+
+        # 计数
+        count_result = await db.execute(
+            select(func.count()).select_from(base.subquery())
+        )
+        total = count_result.scalar() or 0
+
+        # 分页（最新在前）
+        query = (
+            base.order_by(desc(AIToolExecution.created_at))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(query)
+        return list(result.scalars().all()), total
+
+    @staticmethod
     async def get_conversation_messages(
         db: AsyncSession,
         conversation_id: int,
@@ -335,11 +375,19 @@ class AIAgentService:
 
         # 构建消息列表（带上下文压缩）
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
-            {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
+            {
+                "current_time": tz_now().strftime("%Y-%m-%d %H:%M"),
+                "memory_path": PromptManager.get_memory_relpath(user_id),
+            }
         )
         skills_prompt = PromptManager.get_skills_prompt()
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
+
+        # 注入用户长期记忆（Agent 自己用 write_file/edit_file 维护）
+        memory_prompt = PromptManager.get_memory_prompt(user_id)
+        if memory_prompt:
+            system_prompt = system_prompt + "\n\n" + memory_prompt
 
         # 使用上下文管理器构建消息（自动压缩长对话）
         messages, new_summary = await ContextManager.build_messages(
@@ -576,11 +624,19 @@ class AIAgentService:
 
         # 构建消息列表（带上下文压缩）
         system_prompt = config.system_prompt or PromptManager.get_system_prompt(
-            {"current_time": tz_now().strftime("%Y-%m-%d %H:%M")}
+            {
+                "current_time": tz_now().strftime("%Y-%m-%d %H:%M"),
+                "memory_path": PromptManager.get_memory_relpath(user_id),
+            }
         )
         skills_prompt = PromptManager.get_skills_prompt()
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
+
+        # 注入用户长期记忆（Agent 自己用 write_file/edit_file 维护）
+        memory_prompt = PromptManager.get_memory_prompt(user_id)
+        if memory_prompt:
+            system_prompt = system_prompt + "\n\n" + memory_prompt
 
         # 使用上下文管理器构建消息（自动压缩长对话）
         messages, new_summary = await ContextManager.build_messages(

@@ -13,6 +13,7 @@ from app.constants import (
     NOTIFICATION_CHANNEL_STATUS_ERROR,
     NOTIFICATION_CHANNEL_STATUS_HEALTHY,
     NOTIFICATION_CHANNEL_STATUS_TESTING,
+    NOTIFICATION_CHANNEL_TELEGRAM,
 )
 from app.models.notification import NotificationChannel
 from app.utils.timezone import now
@@ -22,6 +23,25 @@ logger = logging.getLogger(__name__)
 
 class NotificationChannelService:
     """通知渠道服务"""
+
+    @staticmethod
+    async def _build_adapter_config(
+        db: AsyncSession, channel: NotificationChannel
+    ) -> Dict[str, Any]:
+        """
+        构建适配器配置
+
+        对 Telegram 渠道注入系统设置中的统一代理地址（与对话链路共用同一份配置），
+        渠道自身 config 已显式指定 proxy 时以渠道为准。
+        """
+        config = dict(channel.config or {})
+        if channel.channel_type == NOTIFICATION_CHANNEL_TELEGRAM and not config.get("proxy"):
+            from app.services.ai_agent.telegram_proxy import get_telegram_proxy
+
+            proxy = await get_telegram_proxy(db)
+            if proxy:
+                config["proxy"] = proxy
+        return config
 
     @staticmethod
     async def get_by_id(
@@ -116,7 +136,8 @@ class NotificationChannelService:
             await db.commit()
 
             # 获取适配器
-            adapter = get_channel_adapter(channel.channel_type, channel.config)
+            adapter_config = await NotificationChannelService._build_adapter_config(db, channel)
+            adapter = get_channel_adapter(channel.channel_type, adapter_config)
 
             # 测试连接
             test_result = await adapter.test_connection()
@@ -219,7 +240,8 @@ class NotificationChannelService:
 
         try:
             # 获取适配器
-            adapter = get_channel_adapter(channel.channel_type, channel.config)
+            adapter_config = await NotificationChannelService._build_adapter_config(db, channel)
+            adapter = get_channel_adapter(channel.channel_type, adapter_config)
 
             # 发送通知
             send_result = await adapter.send(

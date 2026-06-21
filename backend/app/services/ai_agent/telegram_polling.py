@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.core.database import async_session_local
 from app.models import NotificationChannel
 from app.services.ai_agent.telegram_handler import process_telegram_update
+from app.services.ai_agent.telegram_proxy import get_telegram_proxy
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +50,11 @@ class TelegramPoller:
         self.bot_token = bot_token
         self._offset: Optional[int] = None
         self._running = False
-        # 复用 OpenAI 代理配置，便于内网访问 Telegram 时走代理
-        self._proxy = settings.openai.PROXY
+
+    async def _get_proxy(self) -> Optional[str]:
+        """从系统设置读取代理，每次请求前获取以便配置变更即时生效"""
+        async with async_session_local() as db:
+            return await get_telegram_proxy(db)
 
     async def run(self) -> None:
         """启动轮询循环，直到 stop() 被调用"""
@@ -82,7 +86,7 @@ class TelegramPoller:
         """删除已配置的 Webhook，避免与长轮询冲突"""
         try:
             url = f"{TELEGRAM_API_BASE}/bot{self.bot_token}/deleteWebhook"
-            async with httpx.AsyncClient(timeout=10.0, proxy=self._proxy) as client:
+            async with httpx.AsyncClient(timeout=10.0, proxy=await self._get_proxy()) as client:
                 await client.post(url, json={"drop_pending_updates": False})
         except Exception as e:
             logger.debug(f"删除 Webhook 失败（可忽略）: {e}")
@@ -100,7 +104,7 @@ class TelegramPoller:
 
         # 客户端超时需大于长轮询超时，留出网络余量
         timeout = httpx.Timeout(LONG_POLL_TIMEOUT + 15)
-        async with httpx.AsyncClient(timeout=timeout, proxy=self._proxy) as client:
+        async with httpx.AsyncClient(timeout=timeout, proxy=await self._get_proxy()) as client:
             response = await client.post(url, json=params)
             data = response.json()
 

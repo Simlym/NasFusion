@@ -148,8 +148,39 @@ export interface AIConnectionTestResponse {
 
 export interface AITool {
   name: string
+  display_name: string
   description: string
   parameters: any
+  type: 'tool' | 'skill'
+}
+
+export interface AIToolsResponse {
+  total: number
+  tool_count: number
+  skill_count: number
+  tools: AITool[]
+}
+
+export interface AIToolExecution {
+  id: number
+  message_id: number
+  conversation_id: number
+  user_id: number
+  tool_name: string
+  tool_call_id: string
+  arguments?: Record<string, any> | null
+  result?: Record<string, any> | null
+  status: string
+  error_message?: string | null
+  execution_time_ms?: number | null
+  created_at: string
+}
+
+export interface AIToolExecutionsResponse {
+  total: number
+  page: number
+  page_size: number
+  executions: AIToolExecution[]
 }
 
 export interface LLMConfigOption {
@@ -262,10 +293,23 @@ export function getChatStreamUrl() {
 }
 
 /**
- * 获取可用工具列表
+ * 获取可用工具/Skill 列表
  */
 export function getTools() {
-  return request.get<{ tools: AITool[] }>('/ai-agent/tools')
+  return request.get<AIToolsResponse>('/ai-agent/tools')
+}
+
+/**
+ * 获取工具调用记录（最新在前）
+ */
+export function getToolExecutions(params?: {
+  page?: number
+  page_size?: number
+  conversation_id?: number
+  tool_name?: string
+  exec_status?: string
+}) {
+  return request.get<AIToolExecutionsResponse>('/ai-agent/tool-executions', { params })
 }
 
 /**

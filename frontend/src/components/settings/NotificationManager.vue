@@ -85,6 +85,17 @@
                 <el-form-item label="重试间隔（秒）">
                   <el-input-number v-model="globalSettings.retryDelay" :min="1" :max="3600" />
                 </el-form-item>
+
+                <el-form-item label="Telegram 代理地址">
+                  <el-input
+                    v-model="globalSettings.telegramProxy"
+                    placeholder="http://127.0.0.1:7890（可选）"
+                    clearable
+                  />
+                  <div class="form-item-tips">
+                    Telegram 收发消息（对话与通知）受限时，可配置代理服务器，支持 http/socks5
+                  </div>
+                </el-form-item>
               </div>
             </div>
           </el-form>
@@ -968,7 +979,8 @@ const globalSettings = reactive({
   maxRetries: 3,
   retryDelay: 60,
   enableDeduplication: true,
-  deduplicationWindow: 10
+  deduplicationWindow: 10,
+  telegramProxy: ''
 })
 
 // 加载全局设置
@@ -1006,6 +1018,9 @@ const loadGlobalSettings = async () => {
           case 'notification.deduplication_window':
             globalSettings.deduplicationWindow = parseInt(setting.value) || 10
             break
+          case 'telegram_proxy':
+            globalSettings.telegramProxy = setting.value || ''
+            break
         }
       })
     }
@@ -1028,6 +1043,7 @@ const saveGlobalSettings = async () => {
     await upsertSetting('notification', 'notification.retry_delay', String(globalSettings.retryDelay))
     await upsertSetting('notification', 'notification.enable_deduplication', String(globalSettings.enableDeduplication))
     await upsertSetting('notification', 'notification.deduplication_window', String(globalSettings.deduplicationWindow))
+    await upsertSetting('notification', 'telegram_proxy', globalSettings.telegramProxy || '', 'Telegram 代理地址（对话与通知共用，可选）')
 
     ElMessage.success('全局设置已保存')
   } catch (error) {

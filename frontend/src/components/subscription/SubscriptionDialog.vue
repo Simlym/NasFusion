@@ -40,6 +40,15 @@
             </el-row>
           </template>
 
+          <el-form-item v-if="isEdit" label="订阅状态">
+            <el-select v-model="formData.status" placeholder="选择状态" style="width: 100%">
+              <el-option label="活跃（继续检查并下载）" value="active" />
+              <el-option label="暂停（停止检查）" value="paused" />
+              <el-option label="已完成（停止检查）" value="completed" />
+              <el-option label="已取消（停止检查）" value="cancelled" />
+            </el-select>
+          </el-form-item>
+
           <el-form-item label="用户备注">
             <el-input v-model="formData.userNotes" type="textarea" :rows="2" placeholder="添加个人备注（可选）" />
           </el-form-item>

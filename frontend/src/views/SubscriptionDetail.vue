@@ -29,7 +29,6 @@
               >
                 恢复
               </el-button>
-              <el-button :icon="Switch" @click="handleChangeStatus">修改状态</el-button>
               <el-button type="primary" :icon="Edit" @click="handleEdit">编辑</el-button>
             </div>
           </div>
@@ -229,30 +228,6 @@
         </span>
       </template>
     </el-dialog>
-
-    <!-- 修改状态对话框 -->
-    <el-dialog
-      v-model="statusDialogVisible"
-      title="修改订阅状态"
-      width="400px"
-      append-to-body
-      :close-on-click-modal="false"
-    >
-      <el-radio-group v-model="selectedStatus" class="status-radio-group">
-        <el-radio value="active">活跃（继续检查并下载）</el-radio>
-        <el-radio value="paused">暂停（停止检查）</el-radio>
-        <el-radio value="completed">已完成（停止检查）</el-radio>
-        <el-radio value="cancelled">已取消（停止检查）</el-radio>
-      </el-radio-group>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="statusDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="statusSaving" @click="handleConfirmStatus">
-            确定
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -260,14 +235,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Edit, VideoPause, VideoPlay, Download, Search, Switch } from '@element-plus/icons-vue'
+import { Edit, VideoPause, VideoPlay, Download, Search } from '@element-plus/icons-vue'
 import {
   getSubscriptionDetail,
   getEpisodesStatus,
   refreshEpisodesStatus,
   pauseSubscription,
   resumeSubscription,
-  updateSubscriptionStatus,
   syncSubscriptionPTResources,
   updateEpisodeStatus
 } from '@/api/modules/subscription'
@@ -298,11 +272,6 @@ const resourcesTableRef = ref<HTMLElement | null>(null)
 const syncDialogVisible = ref(false)
 const syncKeyword = ref('')
 const syncing = ref(false)
-
-// 修改状态相关
-const statusDialogVisible = ref(false)
-const selectedStatus = ref<'active' | 'paused' | 'completed' | 'cancelled'>('active')
-const statusSaving = ref(false)
 
 // 过滤后的资源列表
 const filteredResources = computed(() => {
@@ -476,33 +445,6 @@ const handleResume = async () => {
   }
 }
 
-// 打开修改状态对话框
-const handleChangeStatus = () => {
-  if (!subscription.value) return
-  selectedStatus.value = subscription.value.status as 'active' | 'paused' | 'completed' | 'cancelled'
-  statusDialogVisible.value = true
-}
-
-// 确认修改状态
-const handleConfirmStatus = async () => {
-  if (!subscription.value) return
-  if (selectedStatus.value === subscription.value.status) {
-    statusDialogVisible.value = false
-    return
-  }
-  statusSaving.value = true
-  try {
-    await updateSubscriptionStatus(subscription.value.id, selectedStatus.value)
-    ElMessage.success('订阅状态已更新')
-    statusDialogVisible.value = false
-    loadSubscriptionDetail()
-  } catch (error) {
-    ElMessage.error('修改订阅状态失败')
-  } finally {
-    statusSaving.value = false
-  }
-}
-
 // 编辑订阅
 const handleEdit = () => {
   editDialogVisible.value = true
@@ -633,12 +575,6 @@ onMounted(async () => {
 <style scoped>
 .page-container {
   width: 100%;
-}
-
-.status-radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
 .page-title {

@@ -52,6 +52,7 @@ dependencies = [
     "aiofiles==23.2.1",
     # Monitoring
     "python-json-logger==2.0.7",
+    "telegramify-markdown>=1.2.0",
 ]
 
 [dependency-groups]

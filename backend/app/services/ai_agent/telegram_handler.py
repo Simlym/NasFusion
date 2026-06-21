@@ -27,8 +27,10 @@ class TelegramAgentHandler:
 
     TELEGRAM_API_BASE = "https://api.telegram.org"
 
-    def __init__(self, bot_token: str):
+    def __init__(self, bot_token: str, proxy: Optional[str] = None):
         self.bot_token = bot_token
+        # 代理 URL，发送回复时走代理（用于内网访问 Telegram API）
+        self.proxy = proxy
 
     async def handle_message(
         self,
@@ -83,56 +85,10 @@ class TelegramAgentHandler:
                     "reply": f"处理失败: {result.get('error', '未知错误')}",
                 }
 
-            # 格式化回复
+            # 回复内容
+            # 说明：工具调用后 AIAgentService 已让 LLM 二次生成完整回复，
+            # 这里不再手动拼接工具结果摘要，避免与 AI 回复重复。
             reply = result.get("content", "")
-
-            # 如果有工具调用结果，添加摘要
-            tool_results = result.get("tool_results")
-            if tool_results:
-                for tr in tool_results:
-                    tool_name = tr.get("tool", "")
-                    tool_result = tr.get("result", {})
-
-                    # 根据工具类型格式化
-                    if tool_name == "movie_recommend" and tool_result.get("movies"):
-                        movies = tool_result["movies"]
-                        reply += "\n\n🎬 **推荐电影:**"
-                        for i, m in enumerate(movies[:5], 1):
-                            rating = m.get("douban_rating") or m.get("tmdb_rating") or "N/A"
-                            reply += f"\n{i}. {m['title']} ({m.get('year', 'N/A')}) ⭐{rating}"
-
-                    elif tool_name == "tv_recommend" and tool_result.get("tv_series"):
-                        tv_list = tool_result["tv_series"]
-                        reply += "\n\n📺 **推荐剧集:**"
-                        for i, tv in enumerate(tv_list[:5], 1):
-                            rating = tv.get("douban_rating") or tv.get("tmdb_rating") or "N/A"
-                            reply += f"\n{i}. {tv['title']} ({tv.get('first_air_year', 'N/A')}) ⭐{rating}"
-
-                    elif tool_name == "resource_search" and tool_result.get("resources"):
-                        resources = tool_result["resources"]
-                        reply += "\n\n🔍 **搜索结果:**"
-                        for i, r in enumerate(resources[:5], 1):
-                            promo = "🆓" if r.get("is_free") else ""
-                            reply += f"\n{i}. {r['title'][:30]} {promo}"
-
-                    elif tool_name == "download_status" and tool_result.get("tasks"):
-                        tasks = tool_result["tasks"]
-                        reply += "\n\n⬇️ **下载状态:**"
-                        for t in tasks[:5]:
-                            status_emoji = {
-                                "downloading": "⏬",
-                                "seeding": "🌱",
-                                "completed": "✅",
-                                "error": "❌",
-                            }.get(t["status"], "⏳")
-                            reply += f"\n{status_emoji} {t['title'][:25]}"
-
-                    elif tool_name == "subscription_list" and tool_result.get("subscriptions"):
-                        subs = tool_result["subscriptions"]
-                        reply += "\n\n📋 **订阅列表:**"
-                        for s in subs[:5]:
-                            status_emoji = "✅" if s["status"] == "active" else "⏸"
-                            reply += f"\n{status_emoji} {s['title']}"
 
             return {
                 "success": True,
@@ -148,44 +104,85 @@ class TelegramAgentHandler:
                 "reply": f"处理出错: {str(e)}",
             }
 
+    # Telegram 单条消息最大长度
+    MAX_MESSAGE_LENGTH = 4096
+
     async def send_reply(
         self,
         chat_id: str,
         text: str,
-        parse_mode: str = "Markdown",
     ) -> bool:
         """
         发送回复消息
 
+        将 AI 输出的 Markdown 转换为 Telegram MarkdownV2 后发送
+        （表格转等宽代码块、加粗/斜体/标题/列表等正确渲染）。
+        若 MarkdownV2 解析失败，自动降级为纯文本重发，确保消息可达。
+
         Args:
             chat_id: Telegram Chat ID
-            text: 回复文本
-            parse_mode: 解析模式
+            text: 回复文本（Markdown）
 
         Returns:
             是否发送成功
         """
+        # 先按原始文本截断，避免超长（转义后长度会增加，发送前再兜底截断）
+        if len(text) > self.MAX_MESSAGE_LENGTH:
+            text = text[: self.MAX_MESSAGE_LENGTH - 6] + "\n..."
+
+        # 转换为 Telegram MarkdownV2
+        markdown_v2 = self._to_markdown_v2(text)
+        if len(markdown_v2) > self.MAX_MESSAGE_LENGTH:
+            markdown_v2 = markdown_v2[: self.MAX_MESSAGE_LENGTH]
+
+        # 优先用 MarkdownV2 发送，解析失败则降级为纯文本
+        if await self._send_message(chat_id, markdown_v2, parse_mode="MarkdownV2"):
+            return True
+
+        logger.warning("MarkdownV2 发送失败，降级为纯文本重发")
+        return await self._send_message(chat_id, text, parse_mode=None)
+
+    @staticmethod
+    def _to_markdown_v2(text: str) -> str:
+        """将通用 Markdown 转换为 Telegram MarkdownV2，失败则原样返回"""
+        try:
+            import telegramify_markdown
+
+            return telegramify_markdown.standardize(text)
+        except Exception:
+            logger.exception("Markdown 转换失败，使用原文")
+            return text
+
+    async def _send_message(
+        self,
+        chat_id: str,
+        text: str,
+        parse_mode: Optional[str] = None,
+    ) -> bool:
+        """调用 sendMessage 发送一条消息"""
         try:
             url = f"{self.TELEGRAM_API_BASE}/bot{self.bot_token}/sendMessage"
-
-            # 截断过长消息
-            if len(text) > 4096:
-                text = text[:4090] + "\n..."
-
-            data = {
+            data: Dict[str, Any] = {
                 "chat_id": chat_id,
                 "text": text,
-                "parse_mode": parse_mode,
             }
+            if parse_mode:
+                data["parse_mode"] = parse_mode
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, proxy=self.proxy) as client:
                 response = await client.post(url, json=data)
                 response_data = response.json()
 
-            return response_data.get("ok", False)
+            if not response_data.get("ok"):
+                logger.warning(
+                    f"Telegram 发送返回错误 (parse_mode={parse_mode}): "
+                    f"{response_data.get('description')}"
+                )
+                return False
+            return True
 
-        except Exception as e:
-            logger.exception(f"发送 Telegram 回复失败: {str(e)}")
+        except Exception:
+            logger.exception("发送 Telegram 消息失败")
             return False
 
     async def _find_user_by_chat_id(
@@ -249,9 +246,13 @@ async def process_telegram_update(
         if not chat_id or not text:
             return None
 
+        # 读取代理配置（发送回复时使用）
+        from app.services.ai_agent.telegram_proxy import get_telegram_proxy
+        proxy = await get_telegram_proxy(db)
+
         # 忽略命令（以 / 开头）
         if text.startswith("/"):
-            handler = TelegramAgentHandler(bot_token)
+            handler = TelegramAgentHandler(bot_token, proxy=proxy)
             # 可以在这里处理特定命令
             if text.startswith("/start"):
                 reply = (
@@ -281,6 +282,7 @@ async def process_telegram_update(
             return None
 
         # 处理普通消息
+        handler = TelegramAgentHandler(bot_token, proxy=proxy)
         result = await handler.handle_message(db, chat_id, text)
 
         reply = result.get("reply")

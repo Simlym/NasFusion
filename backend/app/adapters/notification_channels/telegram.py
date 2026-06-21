@@ -34,6 +34,8 @@ class TelegramNotificationChannel(BaseNotificationChannel):
 
         self.bot_token = self.get_config_value("bot_token")
         self.chat_id = self.get_config_value("chat_id")
+        # 代理 URL，用于内网访问 Telegram API（与 TMDB 代理同样的统一系统设置注入）
+        self.proxy = self.get_config_value("proxy") or None
         self.parse_mode = self.get_config_value("parse_mode", "Markdown")
         self.disable_notification = self.get_config_value("disable_notification", False)
         self.disable_web_page_preview = self.get_config_value(
@@ -99,7 +101,7 @@ class TelegramNotificationChannel(BaseNotificationChannel):
             # 发送请求
             url = f"{self.TELEGRAM_API_BASE}/bot{self.bot_token}/sendMessage"
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, proxy=self.proxy) as client:
                 response = await client.post(url, json=data)
                 response_data = response.json()
 
@@ -157,7 +159,7 @@ class TelegramNotificationChannel(BaseNotificationChannel):
 
             url = f"{self.TELEGRAM_API_BASE}/bot{self.bot_token}/getMe"
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, proxy=self.proxy) as client:
                 response = await client.get(url)
                 response_data = response.json()
 

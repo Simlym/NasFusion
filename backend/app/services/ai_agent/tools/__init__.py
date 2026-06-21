@@ -31,6 +31,15 @@ from app.services.ai_agent.tools.query import (
 from app.services.ai_agent.tools.sync import PTSyncTool
 from app.services.ai_agent.tools.tasks_tool import TaskManageTool
 from app.services.ai_agent.tools.settings import SettingsManageTool
+from app.services.ai_agent.tools.site import SiteManageTool
+from app.services.ai_agent.tools.organize import OrganizeMediaTool
+from app.services.ai_agent.tools.watch import WatchHistoryTool
+from app.services.ai_agent.tools.files import (
+    ListDirectoryTool,
+    ReadFileTool,
+    WriteFileTool,
+    EditFileTool,
+)
 
 
 __all__ = [
@@ -51,4 +60,11 @@ __all__ = [
     "PTSyncTool",
     "TaskManageTool",
     "SettingsManageTool",
+    "SiteManageTool",
+    "OrganizeMediaTool",
+    "WatchHistoryTool",
+    "ListDirectoryTool",
+    "ReadFileTool",
+    "WriteFileTool",
+    "EditFileTool",
 ]

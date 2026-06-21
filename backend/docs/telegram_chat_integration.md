@@ -28,7 +28,25 @@
 
 ## 代理
 
-内网访问 Telegram API 受限时，配置 `OPENAI_PROXY`，长轮询会复用该代理。
+内网访问 Telegram API 受限时，在「通知设置 → 全局设置 → Telegram 代理地址」配置代理
+（支持 http/socks5），收发消息（长轮询、对话回复、通知发送、连接测试）全链路共用。
+
+代理存储于系统设置 `category='notification', key='telegram_proxy'`，与 TMDB 代理同样的
+管理方式：Web 可配、热生效、各服务代理互不影响。读取逻辑见 `telegram_proxy.py`。
+
+## 消息格式（Markdown → Telegram）
+
+AI 输出的是通用 Markdown，Telegram 不支持表格等语法，直接发会显示成原始文本。
+回复发送前用 `telegramify-markdown` 的 `standardize()` 转换为 Telegram MarkdownV2：
+
+- 表格 → ` ``` ` 等宽代码块（手机端对齐显示）
+- `**加粗**` → `*加粗*`、`*斜体*` → `_斜体_`、`# 标题`、有序/无序列表等正确渲染
+
+转换在 `TelegramAgentHandler.send_reply` 中完成；若 MarkdownV2 解析失败（实体不合法等），
+自动降级为纯文本重发，保证消息可达。
+
+> 注意：工具调用后 `AIAgentService` 已让 LLM 二次生成完整回复，handler **不再**手动拼接
+> 工具结果摘要，避免与 AI 回复内容重复。
 
 ## 相关文件
 

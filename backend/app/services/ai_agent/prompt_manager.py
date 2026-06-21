@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 SKILLS_DIR = Path(__file__).parent / "skills"
 
+# 单个用户记忆注入 system prompt 的总量上限（字符），超出截断防爆 context
+MAX_MEMORY_CHARS = 4000
+
 
 class PromptManager:
     """提示词管理器（热加载 + Jinja2 模板）"""
@@ -92,21 +95,85 @@ class PromptManager:
 
     @classmethod
     def get_skills_prompt(cls) -> str:
-        """扫描 skills/*/SKILL.md，提取 frontmatter description 注入系统提示词"""
+        """
+        扫描 SKILL.md，提取 frontmatter description 注入系统提示词。
+
+        来源两处：
+        1. 内置 skills/*/SKILL.md（随代码发布）
+        2. 用户沙箱 data/agent/skills/*/SKILL.md（用户自定义，无需改代码）
+        """
         lines = []
+        seen = set()
         try:
-            for skill_md in sorted(SKILLS_DIR.glob("*/SKILL.md")):
-                content = skill_md.read_text(encoding="utf-8")
-                data = cls._parse_frontmatter(content)
-                name = data.get("name", "")
-                description = data.get("description", "")
-                if name and description:
-                    lines.append(f"- {name}: {description}")
+            skill_dirs = [SKILLS_DIR.glob("*/SKILL.md")]
+            # 沙箱内用户自定义 skill（延迟导入避免循环依赖）
+            try:
+                from app.services.ai_agent.tools._fs_sandbox import get_sandbox_root
+
+                user_skills = get_sandbox_root() / "skills"
+                if user_skills.exists():
+                    skill_dirs.append(user_skills.glob("*/SKILL.md"))
+            except Exception:
+                logger.debug("沙箱 skills 目录不可用，跳过")
+
+            for source in skill_dirs:
+                for skill_md in sorted(source):
+                    content = skill_md.read_text(encoding="utf-8")
+                    data = cls._parse_frontmatter(content)
+                    name = data.get("name", "")
+                    description = data.get("description", "")
+                    if name and description and name not in seen:
+                        seen.add(name)
+                        lines.append(f"- {name}: {description}")
         except Exception:
             logger.exception("读取 SKILL.md 失败")
         if not lines:
             return ""
         return "## 可用 Skills\n" + "\n".join(lines)
+
+    @classmethod
+    def get_memory_prompt(cls, user_id: int) -> str:
+        """
+        读取用户长期记忆并拼成 system prompt 片段。
+
+        记忆是 Agent 自己用 write_file/edit_file 写在沙箱
+        data/agent/memory/user_{id}/*.md 下的 Markdown，
+        供后续会话注入，实现「自学习」用户偏好。超量截断。
+        """
+        try:
+            from app.services.ai_agent.tools._fs_sandbox import get_sandbox_root
+
+            mem_dir = get_sandbox_root() / "memory" / f"user_{user_id}"
+            if not mem_dir.exists():
+                return ""
+
+            blocks = []
+            total = 0
+            for md in sorted(mem_dir.glob("*.md")):
+                try:
+                    text = md.read_text(encoding="utf-8").strip()
+                except OSError:
+                    continue
+                if not text:
+                    continue
+                block = f"### {md.stem}\n{text}"
+                if total + len(block) > MAX_MEMORY_CHARS:
+                    blocks.append("（记忆内容较多，已截断；可用 read_file 读取完整记忆）")
+                    break
+                blocks.append(block)
+                total += len(block)
+
+            if not blocks:
+                return ""
+            return "## 关于用户的长期记忆\n" + "\n\n".join(blocks)
+        except Exception:
+            logger.exception("读取用户记忆失败")
+            return ""
+
+    @staticmethod
+    def get_memory_relpath(user_id: int) -> str:
+        """返回该用户记忆目录的沙箱相对路径，用于在 system prompt 告知 Agent 写入位置。"""
+        return f"memory/user_{user_id}"
 
     @staticmethod
     def _parse_frontmatter(content: str) -> dict:

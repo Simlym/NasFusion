@@ -9,6 +9,7 @@
         <el-button class="new-chat-btn" type="primary" @click="handleNewConversation" :icon="Plus">
           新对话
         </el-button>
+        <el-button :icon="Tools" @click="openToolsDrawer" title="工具与调用日志" />
         <el-button :icon="Setting" @click="showConfigDialog = true" title="设置" />
       </div>
 
@@ -45,6 +46,7 @@
       <div class="mobile-header">
         <el-button class="menu-btn" :icon="Menu" @click="sidebarVisible = true" />
         <span class="mobile-title">AI 助手</span>
+        <el-button :icon="Tools" @click="openToolsDrawer" />
         <el-button :icon="Setting" @click="showConfigDialog = true" />
       </div>
 
@@ -202,6 +204,93 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 工具与调用日志抽屉 -->
+    <el-drawer
+      v-model="showToolsDrawer"
+      title="工具与调用日志"
+      size="520px"
+      :destroy-on-close="false"
+    >
+      <el-tabs v-model="toolsTab">
+        <!-- 工具/Skill 列表 -->
+        <el-tab-pane name="tools">
+          <template #label>
+            <span>可用工具 <el-tag size="small" round>{{ toolsMeta.total }}</el-tag></span>
+          </template>
+          <div v-loading="toolsLoading" class="tools-pane">
+            <div class="tools-summary">
+              <el-tag type="primary" size="small">工具 {{ toolsMeta.tool_count }}</el-tag>
+              <el-tag type="success" size="small">Skill {{ toolsMeta.skill_count }}</el-tag>
+            </div>
+            <div v-for="t in toolList" :key="t.name" class="tool-card">
+              <div class="tool-card-head">
+                <span class="tool-name">{{ t.display_name }}</span>
+                <el-tag :type="t.type === 'skill' ? 'success' : 'info'" size="small">
+                  {{ t.type === 'skill' ? 'Skill' : '工具' }}
+                </el-tag>
+                <code class="tool-id">{{ t.name }}</code>
+              </div>
+              <div class="tool-desc">{{ t.description }}</div>
+            </div>
+            <el-empty v-if="!toolsLoading && toolList.length === 0" description="暂无工具" />
+          </div>
+        </el-tab-pane>
+
+        <!-- 调用日志 -->
+        <el-tab-pane name="logs" label="调用日志">
+          <div v-loading="execLoading" class="logs-pane">
+            <div class="logs-toolbar">
+              <el-select
+                v-model="execStatusFilter"
+                placeholder="全部状态"
+                clearable
+                size="small"
+                style="width: 120px"
+                @change="loadExecutions"
+              >
+                <el-option label="成功" value="completed" />
+                <el-option label="失败" value="failed" />
+              </el-select>
+              <el-button size="small" :icon="Refresh" @click="loadExecutions">刷新</el-button>
+            </div>
+
+            <el-collapse v-if="executions.length" accordion>
+              <el-collapse-item v-for="e in executions" :key="e.id" :name="e.id">
+                <template #title>
+                  <div class="log-title">
+                    <el-icon v-if="e.status === 'completed'" color="#67c23a"><CircleCheck /></el-icon>
+                    <el-icon v-else color="#f56c6c"><CircleClose /></el-icon>
+                    <span class="log-tool">{{ toolDisplayNames[e.tool_name] || e.tool_name }}</span>
+                    <span v-if="e.execution_time_ms != null" class="log-time">{{ e.execution_time_ms }}ms</span>
+                    <span class="log-date">{{ formatTime(e.created_at) }}</span>
+                  </div>
+                </template>
+                <div class="log-body">
+                  <div v-if="e.error_message" class="log-error">错误：{{ e.error_message }}</div>
+                  <div class="log-section">参数</div>
+                  <pre class="log-json">{{ prettyJson(e.arguments) }}</pre>
+                  <div class="log-section">结果</div>
+                  <pre class="log-json">{{ prettyJson(e.result) }}</pre>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+            <el-empty v-if="!execLoading && executions.length === 0" description="暂无调用记录" />
+
+            <div v-if="execTotal > execPageSize" class="logs-pager">
+              <el-pagination
+                small
+                layout="prev, pager, next"
+                :total="execTotal"
+                :page-size="execPageSize"
+                :current-page="execPage"
+                @current-change="onExecPageChange"
+              />
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </el-drawer>
   </div>
 </template>
 
@@ -217,6 +306,10 @@ import {
   Setting,
   Menu,
   Loading,
+  Tools,
+  Refresh,
+  CircleCheck,
+  CircleClose,
 } from '@element-plus/icons-vue'
 import AppIcon from '@/components/common/AppIcon.vue'
 import { marked } from 'marked'
@@ -226,6 +319,8 @@ import type {
   AIConversation,
   AIMessage,
   LLMConfigOption,
+  AITool,
+  AIToolExecution,
 } from '@/api/modules/aiAgent'
 
 // ==================== 状态 ====================
@@ -255,6 +350,75 @@ const configForm = ref({
   enable_tools: true,
   enable_streaming: true,
 })
+
+// ==================== 工具与调用日志抽屉 ====================
+const showToolsDrawer = ref(false)
+const toolsTab = ref('tools')
+
+const toolList = ref<AITool[]>([])
+const toolsMeta = ref({ total: 0, tool_count: 0, skill_count: 0 })
+const toolsLoading = ref(false)
+
+const executions = ref<AIToolExecution[]>([])
+const execLoading = ref(false)
+const execTotal = ref(0)
+const execPage = ref(1)
+const execPageSize = ref(20)
+const execStatusFilter = ref<string>('')
+
+function openToolsDrawer() {
+  showToolsDrawer.value = true
+  if (toolList.value.length === 0) loadTools()
+  loadExecutions()
+}
+
+async function loadTools() {
+  toolsLoading.value = true
+  try {
+    const res = await api.aiAgent.getTools()
+    toolList.value = res.data.tools
+    toolsMeta.value = {
+      total: res.data.total,
+      tool_count: res.data.tool_count,
+      skill_count: res.data.skill_count,
+    }
+  } catch (e) {
+    ElMessage.error('加载工具列表失败')
+  } finally {
+    toolsLoading.value = false
+  }
+}
+
+async function loadExecutions() {
+  execLoading.value = true
+  try {
+    const res = await api.aiAgent.getToolExecutions({
+      page: execPage.value,
+      page_size: execPageSize.value,
+      exec_status: execStatusFilter.value || undefined,
+    })
+    executions.value = res.data.executions
+    execTotal.value = res.data.total
+  } catch (e) {
+    ElMessage.error('加载调用日志失败')
+  } finally {
+    execLoading.value = false
+  }
+}
+
+function onExecPageChange(page: number) {
+  execPage.value = page
+  loadExecutions()
+}
+
+function prettyJson(v: any): string {
+  if (v == null) return '—'
+  try {
+    return JSON.stringify(v, null, 2)
+  } catch {
+    return String(v)
+  }
+}
 
 // 工具显示名映射
 const toolDisplayNames: Record<string, string> = {
@@ -1061,6 +1225,112 @@ onMounted(async () => {
     .el-form-item__label {
       font-size: 13px;
     }
+  }
+}
+
+/* 工具与调用日志抽屉 */
+.tools-pane {
+  .tools-summary {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .tool-card {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 8px;
+    background: var(--el-fill-color-blank);
+
+    .tool-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+
+      .tool-name {
+        font-weight: 600;
+      }
+
+      .tool-id {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        background: var(--el-fill-color-light);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+    }
+
+    .tool-desc {
+      font-size: 13px;
+      color: var(--el-text-color-regular);
+      line-height: 1.5;
+    }
+  }
+}
+
+.logs-pane {
+  .logs-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .log-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+
+    .log-tool {
+      font-weight: 600;
+    }
+
+    .log-time {
+      font-size: 12px;
+      color: var(--el-color-primary);
+    }
+
+    .log-date {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .log-body {
+    .log-error {
+      color: var(--el-color-danger);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .log-section {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--el-text-color-secondary);
+      margin: 6px 0 2px;
+    }
+
+    .log-json {
+      margin: 0;
+      padding: 8px;
+      font-size: 12px;
+      background: var(--el-fill-color-light);
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 240px;
+      overflow: auto;
+    }
+  }
+
+  .logs-pager {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
   }
 }
 </style>
