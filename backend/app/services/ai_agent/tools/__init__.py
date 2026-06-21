@@ -40,6 +40,7 @@ from app.services.ai_agent.tools.files import (
     WriteFileTool,
     EditFileTool,
 )
+from app.services.ai_agent.tools.disk_diagnose import DiskDiagnoseTool
 
 
 __all__ = [
@@ -67,4 +68,5 @@ __all__ = [
     "ReadFileTool",
     "WriteFileTool",
     "EditFileTool",
+    "DiskDiagnoseTool",
 ]
