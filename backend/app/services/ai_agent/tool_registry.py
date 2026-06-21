@@ -4,6 +4,9 @@ AI Agent 工具注册表
 
 管理所有可用的 Agent 工具
 """
+import copy
+import hashlib
+import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Type
@@ -11,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Type
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.llm.base import ToolDefinition
+from app.constants.ai_agent import AGENT_CONFIRM_FIELD
 
 
 logger = logging.getLogger(__name__)
@@ -32,13 +36,45 @@ class BaseTool(ABC):
     # 参数 JSON Schema
     parameters: Dict[str, Any] = {}
 
+    # 是否为危险工具：True 时参与「二次确认协议」，schema 自动注入 __confirm__ 字段。
+    # 是否每次都需要确认由 requires_confirmation(arguments) 决定（默认始终需要）。
+    dangerous: bool = False
+
+    @classmethod
+    def requires_confirmation(cls, arguments: Dict[str, Any]) -> bool:
+        """
+        判断本次调用是否需要用户二次确认。
+
+        默认：危险工具的所有调用都需确认。可被子类重写以实现条件危险
+        （例如仅当 action=delete 时才需确认）。
+        """
+        return cls.dangerous
+
+    @classmethod
+    def get_confirmation_prompt(cls, arguments: Dict[str, Any]) -> str:
+        """返回给用户的确认提示文案。子类应重写以描述具体的不可逆影响。"""
+        return f"⚠️ 工具「{cls.name}」将执行一项不可逆操作，确认执行吗？"
+
     @classmethod
     def get_definition(cls) -> ToolDefinition:
         """获取工具定义（给 LLM）"""
+        parameters = cls.parameters
+        # 危险工具：在 schema 中显式声明 __confirm__，否则 LLM 无法回传确认令牌
+        if cls.dangerous:
+            parameters = copy.deepcopy(cls.parameters) if cls.parameters else {}
+            parameters.setdefault("type", "object")
+            parameters.setdefault("properties", {})
+            parameters["properties"][AGENT_CONFIRM_FIELD] = {
+                "type": "string",
+                "description": (
+                    "危险操作确认令牌。首次调用请勿填写；当工具返回 requires_confirmation 时，"
+                    "在获得用户明确同意后，将返回的 confirmation_token 原样填入以执行。"
+                ),
+            }
         return ToolDefinition(
             name=cls.name,
             description=cls.description,
-            parameters=cls.parameters,
+            parameters=parameters,
         )
 
     @classmethod
@@ -244,6 +280,20 @@ class ToolRegistry:
         )
         return arguments
 
+    @staticmethod
+    def _confirmation_token(tool_name: str, arguments: Dict[str, Any]) -> str:
+        """
+        基于工具名 + 参数（排除确认字段本身）派生确认令牌。
+
+        令牌与具体参数绑定：一旦 LLM 改动参数，旧令牌即失效，从而保证
+        「用户看到的待确认操作」与「实际执行的操作」一致。
+        """
+        payload = {k: v for k, v in arguments.items() if k != AGENT_CONFIRM_FIELD}
+        raw = tool_name + ":" + json.dumps(
+            payload, sort_keys=True, ensure_ascii=False, default=str
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+
     @classmethod
     async def execute_tool(
         cls,
@@ -278,6 +328,25 @@ class ToolRegistry:
             arguments = cls._adapt_arguments(tool_name, resolved_name, arguments)
 
         tool_class = cls._tools[resolved_name]
+
+        # 危险操作二次确认：未携带有效确认令牌时，先返回确认请求而不执行
+        try:
+            needs_confirm = tool_class.requires_confirmation(arguments)
+        except Exception:
+            needs_confirm = getattr(tool_class, "dangerous", False)
+        if needs_confirm:
+            expected = cls._confirmation_token(resolved_name, arguments)
+            if arguments.get(AGENT_CONFIRM_FIELD) != expected:
+                logger.info(f"危险操作待用户确认: {resolved_name}")
+                return {
+                    "success": False,
+                    "requires_confirmation": True,
+                    "confirmation_token": expected,
+                    "confirmation_prompt": tool_class.get_confirmation_prompt(arguments),
+                    "message": "此操作涉及不可逆变更，需用户明确确认后才能执行。",
+                }
+            # 已确认：剥离确认字段，避免传入工具 execute 干扰业务逻辑
+            arguments = {k: v for k, v in arguments.items() if k != AGENT_CONFIRM_FIELD}
 
         try:
             result = await tool_class.execute(db, user_id, arguments)

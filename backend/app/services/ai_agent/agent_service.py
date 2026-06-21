@@ -419,6 +419,11 @@ class AIAgentService:
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
 
+        # 危险操作确认协议（始终注入，即使用户自定义了 system_prompt）
+        safety_prompt = PromptManager.get_safety_prompt()
+        if safety_prompt:
+            system_prompt = system_prompt + "\n\n" + safety_prompt
+
         # 注入用户长期记忆（Agent 自己用 write_file/edit_file 维护）
         memory_prompt = PromptManager.get_memory_prompt(user_id)
         if memory_prompt:
@@ -676,6 +681,11 @@ class AIAgentService:
         skills_prompt = PromptManager.get_skills_prompt()
         if skills_prompt:
             system_prompt = system_prompt + "\n\n" + skills_prompt
+
+        # 危险操作确认协议（始终注入，即使用户自定义了 system_prompt）
+        safety_prompt = PromptManager.get_safety_prompt()
+        if safety_prompt:
+            system_prompt = system_prompt + "\n\n" + safety_prompt
 
         # 注入用户长期记忆（Agent 自己用 write_file/edit_file 维护）
         memory_prompt = PromptManager.get_memory_prompt(user_id)

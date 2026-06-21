@@ -228,6 +228,9 @@ class DownloadManageTool(BaseTool):
     description = """管理下载任务：暂停、恢复或删除。需要先通过下载状态工具获取任务ID。
     删除任务时可选择是否同时删除已下载的文件。"""
 
+    # 参与二次确认协议（但仅 delete 真正触发，见 requires_confirmation）
+    dangerous = True
+
     parameters = {
         "type": "object",
         "properties": {
@@ -248,6 +251,20 @@ class DownloadManageTool(BaseTool):
         },
         "required": ["task_id", "action"],
     }
+
+    @classmethod
+    def requires_confirmation(cls, arguments: Dict[str, Any]) -> bool:
+        """仅删除操作需要确认；暂停/恢复可逆，无需确认。"""
+        return arguments.get("action") == "delete"
+
+    @classmethod
+    def get_confirmation_prompt(cls, arguments: Dict[str, Any]) -> str:
+        task_id = arguments.get("task_id")
+        if arguments.get("delete_files"):
+            scope = "并**一并删除已下载的文件（数据不可恢复）**"
+        else:
+            scope = "（保留已下载文件）"
+        return f"⚠️ 即将删除下载任务 ID={task_id} {scope}，确认执行吗？"
 
     @classmethod
     async def execute(

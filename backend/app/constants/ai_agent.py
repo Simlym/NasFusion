@@ -219,6 +219,9 @@ AGENT_TOOL_READ_FILE = "read_file"
 AGENT_TOOL_WRITE_FILE = "write_file"
 AGENT_TOOL_EDIT_FILE = "edit_file"
 
+# 危险操作二次确认：携带此字段并填入有效令牌方可执行危险工具
+AGENT_CONFIRM_FIELD = "__confirm__"
+
 AGENT_TOOLS = [
     AGENT_TOOL_MOVIE_RECOMMEND,
     AGENT_TOOL_TV_RECOMMEND,
