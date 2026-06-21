@@ -27,39 +27,39 @@ HEALTH_STATUSES = [
     HEALTH_STATUS_UNHEALTHY,
 ]
 
-# ========== 站点类型 ==========
+# ========== 站点类型 / 框架 ==========
+#
+# 设计说明（重要）：
+#   站点的 `type` 字段语义 = 框架(schema) 或 预设ID(preset_id)。
+#   - 手动配置：选「框架」（nexusphp / mteam / unit3d / generic_json_api）。
+#   - 快速添加：从预设创建，`type` = preset_id（如 hdsky / chdbits）。
+#   真正决定用哪个适配器的是 preset.schema，路由在 adapters/pt_sites/__init__.py。
+#   框架枚举的单一真相源是 site_presets.py 的 SITE_SCHEMA_*；此处仅保留少量
+#   「站点类型」常量做向后兼容。
 
-# 站点类型（对应适配器）
-# API站点
+# 站点类型（对应适配器/框架）
 SITE_TYPE_MTEAM = "mteam"
+SITE_TYPE_NEXUSPHP = "nexusphp"  # 通用NexusPHP适配器（网页解析）
 
-# NexusPHP站点（网页解析）
-SITE_TYPE_NEXUSPHP = "nexusphp"  # 通用NexusPHP适配器
-SITE_TYPE_HDSKY = "hdsky"        # 天空
-SITE_TYPE_CHDBITS = "chdbits"    # 彩虹岛
-SITE_TYPE_PTHOME = "pthome"      # 铂金家
-SITE_TYPE_OURBITS = "ourbits"    # 我堡
-SITE_TYPE_HDCHINA = "hdchina"    # 瓷器
+# —— 以下为具体站点常量（已废弃）——
+# 具体站点不应再作为「站点类型」使用，统一由 site_presets.py 的预设(preset_id)表达，
+# 框架路由由 preset.schema=nexusphp 还原其行为。保留仅为兼容存量引用，勿在新代码中使用。
+SITE_TYPE_HDSKY = "hdsky"        # 天空（deprecated，用 preset）
+SITE_TYPE_CHDBITS = "chdbits"    # 彩虹岛（deprecated，用 preset）
+SITE_TYPE_PTHOME = "pthome"      # 铂金家（deprecated，用 preset）
+SITE_TYPE_OURBITS = "ourbits"    # 我堡（deprecated，用 preset）
+SITE_TYPE_HDCHINA = "hdchina"    # 瓷器（deprecated，且 site_presets 中无此预设）
 
+# 站点类型（框架级，供下拉/展示）。具体站点请走预设列表 get_preset_list()。
 SITE_TYPES = [
     SITE_TYPE_MTEAM,
     SITE_TYPE_NEXUSPHP,
-    SITE_TYPE_HDSKY,
-    SITE_TYPE_CHDBITS,
-    SITE_TYPE_PTHOME,
-    SITE_TYPE_OURBITS,
-    SITE_TYPE_HDCHINA,
 ]
 
-# 站点类型显示名称
+# 站点类型显示名称（框架级）
 SITE_TYPE_DISPLAY_NAMES = {
     SITE_TYPE_MTEAM: "馒头 (API)",
     SITE_TYPE_NEXUSPHP: "NexusPHP通用",
-    SITE_TYPE_HDSKY: "天空",
-    SITE_TYPE_CHDBITS: "彩虹岛",
-    SITE_TYPE_PTHOME: "铂金家",
-    SITE_TYPE_OURBITS: "我堡",
-    SITE_TYPE_HDCHINA: "瓷器",
 }
 
 # ========== 站点能力类型 ==========

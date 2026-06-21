@@ -9,29 +9,16 @@ NexusPHP站点通用适配器
 - PT-Plugin-Plus: https://github.com/pt-plugins/PT-Plugin-Plus
 """
 
-import asyncio
 import logging
 import re
-import ssl
-import traceback
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse, parse_qs
 
 import httpx
 from bs4 import BeautifulSoup
 
-# requests 作为 fallback（某些代理场景下 httpx 的 TLS 握手可能失败）
-try:
-    import requests
-    from requests.adapters import HTTPAdapter
-    from urllib3.util.retry import Retry
-    REQUESTS_AVAILABLE = True
-except ImportError:
-    REQUESTS_AVAILABLE = False
-
 from app.adapters.base import BasePTSiteAdapter
-from app.utils.timezone import now, parse_pt_site_time
+from app.adapters.pt_sites._http_mixin import HttpClientMixin, REQUESTS_AVAILABLE
 from app.utils.tv_parser import extract_tv_info
 from app.constants import (
     MEDIA_TYPE_ANIME,
@@ -44,15 +31,8 @@ from app.constants.site_presets import get_site_preset
 
 logger = logging.getLogger(__name__)
 
-# 禁用 SSL 警告（仅在开发/调试时使用）
-try:
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-except ImportError:
-    pass
 
-
-class NexusPHPAdapter(BasePTSiteAdapter):
+class NexusPHPAdapter(HttpClientMixin, BasePTSiteAdapter):
     """
     NexusPHP站点通用适配器
 
@@ -79,17 +59,16 @@ class NexusPHPAdapter(BasePTSiteAdapter):
         """
         super().__init__(config)
 
+        # 初始化共享 HTTP 基础设施（cookie/proxy/重试/限速/UA/SSL 等）
+        self._init_http(config)
+
         # 加载预设配置
         self.preset_id = config.get("preset_id")
         self.preset = get_site_preset(self.preset_id) if self.preset_id else None
 
-        # 基础配置
-        self.cookie = config.get("auth_cookie", "")
+        # 基础配置（HTTP 相关已由 _init_http 初始化）
         self.passkey = config.get("auth_passkey", "")
         self.domain = config.get("domain", "")
-        self.proxy_config = config.get("proxy_config") or {}
-        self.request_interval = config.get("request_interval", 5)
-        self._last_request_time = 0.0
 
         # 验证 Cookie 格式
         if self.cookie:
@@ -110,43 +89,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
 
         # 站点ID
         self.site_id = None
-
-        # User-Agent
-        self.user_agent = config.get(
-            "user_agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
-
-        # SSL配置（默认禁用验证以兼容更多站点）
-        self.verify_ssl = config.get("verify_ssl", False)
-
-        # 重试配置
-        self.max_retries = config.get("max_retries", 3)
-        self.retry_delay = config.get("retry_delay", 2)  # 秒
-
-        # 是否优先使用 requests 库（在代理场景下更稳定）
-        self.prefer_requests = config.get("prefer_requests", True)
-
-        # HTTP客户端配置
-        self.client_config = {
-            "timeout": httpx.Timeout(30.0),
-            "follow_redirects": True,
-            "verify": self.verify_ssl,
-            "http2": False,  # 禁用HTTP/2，避免某些站点兼容问题
-        }
-
-        # 代理配置
-        self.proxy_url = None
-        if self.proxy_config:
-            self.proxy_url = self._build_proxy_url()
-            if self.proxy_url:
-                self.client_config["proxy"] = self.proxy_url
-                logger.info(f"[{self.site_name}] 代理已启用: {self._mask_proxy_url(self.proxy_url)}")
-            else:
-                logger.warning(f"[{self.site_name}] 代理配置存在但无法构建URL: {self.proxy_config}")
-        else:
-            logger.info(f"[{self.site_name}] 未配置代理，直连模式")
 
         # NexusPHP特有配置（从预设或config加载）
         nexusphp_config = config.get("nexusphp_config") or {}
@@ -178,32 +120,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
                 # 兼容旧格式
                 self.category_map = self.preset["categories"]
 
-    def _build_proxy_url(self) -> Optional[str]:
-        """构建代理URL"""
-        proxy_url = self.proxy_config.get("url")
-
-        if not proxy_url and self.proxy_config.get("host"):
-            p_type = self.proxy_config.get("type", "http")
-            p_host = self.proxy_config.get("host")
-            p_port = self.proxy_config.get("port")
-            p_user = self.proxy_config.get("username")
-            p_pass = self.proxy_config.get("password")
-
-            auth_part = ""
-            if p_user and p_pass:
-                auth_part = f"{p_user}:{p_pass}@"
-
-            if p_host and p_port:
-                proxy_url = f"{p_type}://{auth_part}{p_host}:{p_port}"
-
-        return proxy_url
-
-    def _mask_proxy_url(self, proxy_url: str) -> str:
-        """掩码代理URL中的敏感信息"""
-        if not proxy_url:
-            return "None"
-        return re.sub(r"://([^:]+):([^@]+)@", r"://***:***@", proxy_url)
-
     def _get_default_selectors(self) -> Dict[str, str]:
         """获取默认的CSS选择器配置"""
         return {
@@ -228,270 +144,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
             "detail_imdb": "a[href*='imdb.com/title']",
             "detail_douban": "a[href*='douban.com/subject']",
         }
-
-    async def _wait_for_rate_limit(self):
-        """等待速率限制"""
-        current_time = asyncio.get_event_loop().time()
-        time_since_last = current_time - self._last_request_time
-        if time_since_last < self.request_interval:
-            await asyncio.sleep(self.request_interval - time_since_last)
-        self._last_request_time = asyncio.get_event_loop().time()
-
-    def _get_headers(self) -> Dict[str, str]:
-        """获取请求头 - 模拟完整浏览器请求"""
-        headers = {
-            "User-Agent": self.user_agent,
-            "Cookie": self.cookie,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Cache-Control": "max-age=0",
-            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": '"Windows"',
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-User": "?1",
-            "Upgrade-Insecure-Requests": "1",
-        }
-        if self.base_url:
-            headers["Referer"] = self.base_url
-        return headers
-
-    async def _make_request(
-        self,
-        url: str,
-        method: str = "GET",
-        **kwargs,
-    ) -> httpx.Response:
-        """
-        发送HTTP请求（带重试和fallback机制）
-
-        优先使用httpx异步请求，如果失败则尝试使用requests同步请求。
-
-        Args:
-            url: 请求URL
-            method: 请求方法
-            **kwargs: 其他请求参数
-
-        Returns:
-            HTTP响应
-        """
-        await self._wait_for_rate_limit()
-
-        headers = self._get_headers()
-        if "headers" in kwargs:
-            headers.update(kwargs.pop("headers"))
-
-        # 简化日志
-        logger.info(f"[{self.site_name}] Requesting {url}")
-
-        # 如果配置了优先使用 requests，直接使用 requests
-        if self.prefer_requests and REQUESTS_AVAILABLE:
-            return await self._make_request_with_requests(url, method, headers, **kwargs)
-
-        # 尝试使用 httpx
-        last_error = None
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                response = await self._make_request_with_httpx(url, method, headers, **kwargs)
-                return response
-            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.RemoteProtocolError) as e:
-                # 连接错误、TLS握手失败、协议错误直接尝试 fallback
-                # RemoteProtocolError 包括 "peer closed connection" 等情况
-                last_error = e
-                logger.warning(
-                    f"[{self.site_name}] httpx 连接/协议失败 ({type(e).__name__}): {e}"
-                )
-                break  # 不重试，直接尝试 requests
-            except httpx.HTTPStatusError as e:
-                # HTTP状态错误不重试，直接抛出
-                logger.error(f"[{self.site_name}] HTTP状态错误: {e.response.status_code}")
-                raise
-            except Exception as e:
-                # 其他错误（包括 ReadTimeout）重试
-                last_error = e
-                logger.warning(
-                    f"[{self.site_name}] 请求失败 (重试 {attempt}/{self.max_retries}): "
-                    f"{type(e).__name__}: {e}"
-                )
-                if attempt < self.max_retries:
-                    await asyncio.sleep(self.retry_delay * attempt)
-
-        # httpx 失败，尝试 fallback 到 requests
-        if REQUESTS_AVAILABLE:
-            logger.warning(f"[{self.site_name}] httpx 请求失败，尝试使用 requests 库...")
-            try:
-                return await self._make_request_with_requests(url, method, headers, **kwargs)
-            except Exception as e:
-                logger.error(f"[{self.site_name}] requests 也失败了: {e}")
-                if last_error:
-                    raise last_error
-                raise
-
-        # 如果 requests 不可用，抛出原始错误
-        if last_error:
-            raise last_error
-        raise Exception(f"[{self.site_name}] 请求失败，未知错误")
-
-    async def _make_request_with_httpx(
-        self,
-        url: str,
-        method: str,
-        headers: Dict[str, str],
-        **kwargs,
-    ) -> httpx.Response:
-        """
-        使用 httpx 发送请求
-
-        Args:
-            url: 请求URL
-            method: 请求方法
-            headers: 请求头
-            **kwargs: 其他请求参数
-
-        Returns:
-            HTTP响应
-        """
-        async with httpx.AsyncClient(**self.client_config) as client:
-            if method.upper() == "GET":
-                response = await client.get(url, headers=headers, **kwargs)
-            else:
-                response = await client.post(url, headers=headers, **kwargs)
-            response.raise_for_status()
-
-            logger.info(
-                f"[{self.site_name}] Response: status={response.status_code}, "
-                f"content_length={len(response.content)} bytes"
-            )
-            return response
-
-    async def _make_request_with_requests(
-        self,
-        url: str,
-        method: str,
-        headers: Dict[str, str],
-        **kwargs,
-    ) -> httpx.Response:
-        """
-        使用 requests 库发送请求（fallback方案）
-
-        Args:
-            url: 请求URL
-            method: 请求方法
-            headers: 请求头
-            **kwargs: 其他请求参数
-
-        Returns:
-            模拟的httpx.Response对象
-        """
-        if not REQUESTS_AVAILABLE:
-            raise ImportError("requests 库未安装")
-
-        # 创建带重试的 session
-        session = requests.Session()
-
-        # 配置重试策略
-        retry_strategy = Retry(
-            total=self.max_retries,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
-        )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-
-        # 代理配置
-        proxies = None
-        if self.proxy_url:
-            proxies = {
-                "http": self.proxy_url,
-                "https": self.proxy_url,
-            }
-
-        # 在线程池中执行同步请求
-        loop = asyncio.get_event_loop()
-
-        def do_request():
-            try:
-                if method.upper() == "GET":
-                    return session.get(
-                        url,
-                        headers=headers,
-                        proxies=proxies,
-                        verify=self.verify_ssl,
-                        timeout=30,
-                    )
-                else:
-                    return session.post(
-                        url,
-                        headers=headers,
-                        proxies=proxies,
-                        verify=self.verify_ssl,
-                        timeout=30,
-                        **kwargs,
-                    )
-            finally:
-                session.close()
-
-        response = await loop.run_in_executor(None, do_request)
-
-        logger.info(
-            f"[{self.site_name}] [requests] Response: "
-            f"status={response.status_code}, content_length={len(response.content)} bytes"
-        )
-
-        # 检查 Cloudflare 挑战
-        if self._is_cloudflare_challenge(response.text):
-            logger.error(f"[{self.site_name}] 检测到 Cloudflare 挑战，需要浏览器仿真")
-            raise Exception("Cloudflare challenge detected, browser emulation required")
-
-        response.raise_for_status()
-        # print(response.content)
-
-        # 转换为 httpx.Response 兼容对象
-        return self._convert_requests_response(response)
-
-    def _convert_requests_response(self, response: "requests.Response") -> httpx.Response:
-        """
-        将 requests.Response 转换为 httpx.Response 兼容对象
-
-        Args:
-            response: requests响应对象
-
-        Returns:
-            httpx.Response兼容对象
-        """
-        # 创建一个简单的包装类
-        class ResponseWrapper:
-            def __init__(self, requests_resp):
-                self._resp = requests_resp
-                self.status_code = requests_resp.status_code
-                self.headers = requests_resp.headers
-                self.text = requests_resp.text
-                self.content = requests_resp.content
-                self._content = requests_resp.content
-                self.url = requests_resp.url
-                self.http_version = "HTTP/1.1"
-
-        return ResponseWrapper(response)
-
-    def _is_cloudflare_challenge(self, html: str) -> bool:
-        """检测是否是 Cloudflare 挑战页面"""
-        if not html:
-            return False
-        cloudflare_indicators = [
-            "cf-browser-verification",
-            "cf_chl_opt",
-            "challenge-platform",
-            "Checking your browser",
-            "DDoS protection by Cloudflare",
-            "Ray ID:",
-            "_cf_chl_tk",
-        ]
-        return any(indicator in html for indicator in cloudflare_indicators)
 
     async def authenticate(self) -> bool:
         """
@@ -1036,71 +688,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
 
         return None
 
-    def _parse_size(self, size_text: str) -> int:
-        """解析文件大小为字节数"""
-        if not size_text:
-            return 0
-
-        size_text = size_text.upper().strip()
-
-        # 匹配数字和单位
-        match = re.search(r"([\d.]+)\s*(TB|GB|MB|KB|B)", size_text)
-        if not match:
-            return 0
-
-        value = float(match.group(1))
-        unit = match.group(2)
-
-        multipliers = {
-            "TB": 1024 ** 4,
-            "GB": 1024 ** 3,
-            "MB": 1024 ** 2,
-            "KB": 1024,
-            "B": 1,
-        }
-
-        return int(value * multipliers.get(unit, 1))
-
-    def _parse_int(self, elem) -> int:
-        """从元素中解析整数"""
-        if not elem:
-            return 0
-
-        text = elem.get_text(strip=True)
-        # 移除逗号和空格
-        text = re.sub(r"[,\s]", "", text)
-
-        try:
-            return int(text)
-        except (ValueError, TypeError):
-            return 0
-
-    def _parse_time(self, time_str: str) -> Optional[datetime]:
-        """解析时间字符串"""
-        if not time_str:
-            return None
-
-        try:
-            return parse_pt_site_time(time_str)
-        except Exception:
-            pass
-
-        # 尝试常见格式
-        formats = [
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d %H:%M",
-            "%Y-%m-%d",
-            "%m-%d %H:%M",
-        ]
-
-        for fmt in formats:
-            try:
-                return datetime.strptime(time_str.strip(), fmt)
-            except ValueError:
-                continue
-
-        return None
-
     def _parse_pagination(self, soup: BeautifulSoup) -> Dict[str, int]:
         """
         解析分页信息
@@ -1597,33 +1184,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
             logger.error(f"[{self.site_name}] 获取用户信息失败: {e}")
             return None
 
-    @staticmethod
-    def _parse_size_text(size_text: str) -> int:
-        """
-        解析大小文本为字节数
-
-        Args:
-            size_text: 如 "1.5 TB", "500 GB"
-
-        Returns:
-            字节数
-        """
-        # 去掉逗号和多余空格
-        size_text = size_text.replace(",", "").strip()
-        match = re.match(r"([\d.]+)\s*([TGMKPI]+B)", size_text, re.IGNORECASE)
-        if not match:
-            # Fallback: 尝试旧格式
-            match = re.match(r"([\d.]+)\s*([TGMKB]+)", size_text, re.IGNORECASE)
-        if not match:
-            return 0
-
-        value = float(match.group(1))
-        # 统一处理 TiB/GiB 等格式（去掉 i）
-        unit = match.group(2).upper().replace("I", "")
-
-        units = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4, "PB": 1024**5}
-        return int(value * units.get(unit, 1))
-
     async def health_check(self) -> bool:
         """
         健康检查
@@ -1689,52 +1249,6 @@ class NexusPHPAdapter(BasePTSiteAdapter):
         pass
 
 
-class HDSkyAdapter(NexusPHPAdapter):
-    """
-    天空站（HDSky）适配器
-
-    继承自NexusPHP通用适配器，处理HDSky特有的配置
-    """
-
-    def __init__(self, config: Dict[str, Any], metadata_mappings: Optional[Dict] = None):
-        config["preset_id"] = "hdsky"
-        super().__init__(config, metadata_mappings)
-
-
-class CHDBitsAdapter(NexusPHPAdapter):
-    """
-    彩虹岛（CHDBits）适配器
-    """
-
-    def __init__(self, config: Dict[str, Any], metadata_mappings: Optional[Dict] = None):
-        config["preset_id"] = "chdbits"
-        super().__init__(config, metadata_mappings)
-
-
-class PTHomeAdapter(NexusPHPAdapter):
-    """
-    铂金家（PTHome）适配器
-    """
-
-    def __init__(self, config: Dict[str, Any], metadata_mappings: Optional[Dict] = None):
-        config["preset_id"] = "pthome"
-        super().__init__(config, metadata_mappings)
-
-
-class OurBitsAdapter(NexusPHPAdapter):
-    """
-    我堡（OurBits）适配器
-    """
-
-    def __init__(self, config: Dict[str, Any], metadata_mappings: Optional[Dict] = None):
-        config["preset_id"] = "ourbits"
-        super().__init__(config, metadata_mappings)
-
-
 __all__ = [
     "NexusPHPAdapter",
-    "HDSkyAdapter",
-    "CHDBitsAdapter",
-    "PTHomeAdapter",
-    "OurBitsAdapter",
 ]

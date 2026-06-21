@@ -253,11 +253,15 @@
     <el-dialog v-model="quickDialogVisible" title="快速添加站点" width="500px" @close="handleQuickDialogClose">
       <el-form ref="quickFormRef" :model="quickForm" :rules="quickRules" label-width="100px">
         <el-form-item label="选择站点" prop="preset_id">
-          <el-select v-model="quickForm.preset_id" placeholder="请选择站点" style="width: 100%" @change="handlePresetChange">
-            <el-option v-for="preset in presets" :key="preset.id" :label="preset.display_name" :value="preset.id">
-              <span>{{ preset.display_name }}</span>
-              <span style="color: #8492a6; font-size: 12px; margin-left: 8px">{{ preset.description }}</span>
-            </el-option>
+          <el-select v-model="quickForm.preset_id" placeholder="请选择站点" style="width: 100%" filterable
+            @change="handlePresetChange">
+            <el-option-group v-for="group in presetGroups" :key="group.key" :label="group.label">
+              <el-option v-for="preset in group.presets" :key="preset.id" :label="preset.display_name"
+                :value="preset.id">
+                <span class="preset-option-name">{{ preset.display_name }}</span>
+                <span class="preset-option-domain">{{ preset.domain }}</span>
+              </el-option>
+            </el-option-group>
           </el-select>
         </el-form-item>
 
@@ -303,11 +307,14 @@
             <el-form-item label="站点名称" prop="name">
               <el-input v-model="form.name" placeholder="请输入站点名称" />
             </el-form-item>
-            <el-form-item label="站点类型" prop="type">
-              <el-select v-model="form.type" placeholder="请选择站点类型">
-                <el-option v-for="option in SITE_TYPE_OPTIONS" :key="option.value" :label="option.label"
+            <el-form-item label="站点框架" prop="type">
+              <el-select v-model="form.type" placeholder="请选择站点框架（解析协议）" style="width: 100%">
+                <el-option v-for="option in SITE_SCHEMA_OPTIONS" :key="option.value" :label="option.label"
                   :value="option.value" />
               </el-select>
+              <el-text type="info" size="small">
+                这里选的是解析框架。具体站点（天空 / 彩虹岛等）建议用「快速添加」从预设创建。
+              </el-text>
             </el-form-item>
             <el-form-item label="域名" prop="domain">
               <el-input v-model="form.domain" placeholder="例如: example.com" />
@@ -440,7 +447,7 @@ import {
   type SitePreset,
   type CreateFromPresetForm
 } from '@/api/modules/site'
-import { SITE_TYPE_OPTIONS, AUTH_TYPE_OPTIONS } from '@/constants/site'
+import { SITE_SCHEMA_OPTIONS, AUTH_TYPE_OPTIONS } from '@/constants/site'
 import { AuthType, SyncMode } from '@/types/site'
 import { formatNumber, formatFileSize } from '@/utils/format'
 
@@ -455,6 +462,9 @@ const SITE_COLORS: Record<string, string> = {
   nexusphp: '#64748b',
   gazelle: '#ec4899',
   unit3d: '#6366f1',
+  blutopia: '#6366f1',
+  tnode: '#0d9488',
+  generic_json_api: '#0d9488',
   other: '#94a3b8'
 }
 
@@ -469,6 +479,9 @@ const SITE_SHORT_NAMES: Record<string, string> = {
   nexusphp: 'NP',
   gazelle: 'GZ',
   unit3d: 'U3',
+  blutopia: 'BLU',
+  tnode: 'TN',
+  generic_json_api: 'API',
   other: 'PT'
 }
 
@@ -504,6 +517,28 @@ const quickForm = reactive<CreateFromPresetForm>({
 })
 
 const selectedPreset = computed(() => presets.value.find(p => p.id === quickForm.preset_id))
+
+// 预设按框架(schema)分组展示
+const presetGroups = computed(() => {
+  const groups: { key: string; label: string; presets: SitePreset[] }[] = []
+
+  // 按框架分组（保持 SITE_SCHEMA_OPTIONS 的顺序）
+  for (const { value: schema, label } of SITE_SCHEMA_OPTIONS) {
+    const inSchema = presets.value.filter(p => p.schema === schema)
+    if (inSchema.length > 0) {
+      groups.push({ key: schema, label, presets: inSchema })
+    }
+  }
+
+  // 兜底：schema 不在已知框架列表中的预设
+  const knownSchemas = new Set(SITE_SCHEMA_OPTIONS.map(o => o.value))
+  const others = presets.value.filter(p => !knownSchemas.has(p.schema))
+  if (others.length > 0) {
+    groups.push({ key: 'other', label: '其他', presets: others })
+  }
+
+  return groups
+})
 
 const quickRules: FormRules = {
   preset_id: [{ required: true, message: '请选择站点', trigger: 'change' }]
@@ -549,7 +584,7 @@ const proxyConfig = reactive({
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入站点名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择站点类型', trigger: 'change' }],
+  type: [{ required: true, message: '请选择站点框架', trigger: 'change' }],
   domain: [{ required: true, message: '请输入域名', trigger: 'blur' }],
   base_url: [
     { required: true, message: '请输入站点地址', trigger: 'blur' },
@@ -880,6 +915,17 @@ onMounted(() => { loadSites() })
 <style scoped>
 .sites-settings {
   padding: 20px;
+}
+
+/* 快速添加 - 预设下拉选项 */
+.preset-option-name {
+  font-weight: 500;
+}
+
+.preset-option-domain {
+  color: var(--text-color-muted);
+  font-size: 12px;
+  margin-left: 8px;
 }
 
 /* 工具栏 */

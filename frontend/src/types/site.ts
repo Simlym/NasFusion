@@ -2,15 +2,15 @@
  * PT站点相关类型定义
  */
 
-// PT站点类型
-export enum SiteType {
-  MTEAM = 'mteam',
-  CHDBITS = 'chdbits',
-  HDCHINA = 'hdchina',
+// PT站点框架（schema）— 决定使用哪个适配器解析。
+// 注意：站点的 `type` 字段实际存的是框架(手动配置)或预设ID(快速添加)，
+// 框架可选值与后端 site_presets.py 的 SITE_SCHEMA_* 一致。
+export enum SiteSchema {
   NEXUSPHP = 'nexusphp',
-  GAZELLE = 'gazelle',
+  MTEAM = 'mteam',
   UNIT3D = 'unit3d',
-  OTHER = 'other'
+  GAZELLE = 'gazelle',
+  GENERIC_JSON_API = 'generic_json_api'
 }
 
 // PT站点认证类型

@@ -651,6 +651,8 @@ class PTResourceService:
             "domain": site.domain,
             "proxy_config": site.proxy_config,
             "request_interval": site.request_interval or 2,
+            # 透传 preset_id 供适配器按框架 schema 路由并加载预设
+            "preset_id": site.preset_id or site.type,
         }
 
         # 添加认证信息（需要解密）

@@ -3,51 +3,41 @@
  * 与后端 backend/app/constants/pt_site.py 保持一致
  */
 
-// 站点类型常量
-export const SITE_TYPE_MTEAM = 'mteam'
-export const SITE_TYPE_NEXUSPHP = 'nexusphp'
-export const SITE_TYPE_HDSKY = 'hdsky'
-export const SITE_TYPE_CHDBITS = 'chdbits'
-export const SITE_TYPE_PTHOME = 'pthome'
-export const SITE_TYPE_OURBITS = 'ourbits'
-export const SITE_TYPE_HDCHINA = 'hdchina'
-export const SITE_TYPE_GAZELLE = 'gazelle'
-export const SITE_TYPE_UNIT3D = 'unit3d'
-export const SITE_TYPE_OTHER = 'other'
+/**
+ * 站点框架（schema）— 决定使用哪个适配器解析站点。
+ * 这是「手动配置」时真正要选的东西：选的是解析协议/框架，而非某个具体站点。
+ * 具体站点（天空 / 彩虹岛 / 铂金家…）请走「快速添加」从预设创建。
+ * 与后端 backend/app/constants/site_presets.py 的 SITE_SCHEMA_* 保持一致。
+ */
+export const SITE_SCHEMA_NEXUSPHP = 'nexusphp'
+export const SITE_SCHEMA_MTEAM = 'mteam'
+export const SITE_SCHEMA_UNIT3D = 'unit3d'
+export const SITE_SCHEMA_GAZELLE = 'gazelle'
+export const SITE_SCHEMA_GENERIC_JSON_API = 'generic_json_api'
 
-// 站点类型列表
-export const SITE_TYPES = [
-  SITE_TYPE_MTEAM,
-  SITE_TYPE_NEXUSPHP,
-  SITE_TYPE_HDSKY,
-  SITE_TYPE_CHDBITS,
-  SITE_TYPE_PTHOME,
-  SITE_TYPE_OURBITS,
-  SITE_TYPE_HDCHINA,
-  SITE_TYPE_GAZELLE,
-  SITE_TYPE_UNIT3D,
-  SITE_TYPE_OTHER
-] as const
-
-// 站点类型显示名称映射
-export const SITE_TYPE_LABELS: Record<string, string> = {
-  [SITE_TYPE_MTEAM]: '馒头 (API)',
-  [SITE_TYPE_NEXUSPHP]: 'NexusPHP通用',
-  [SITE_TYPE_HDSKY]: '天空',
-  [SITE_TYPE_CHDBITS]: '彩虹岛',
-  [SITE_TYPE_PTHOME]: '铂金家',
-  [SITE_TYPE_OURBITS]: '我堡',
-  [SITE_TYPE_HDCHINA]: '瓷器',
-  [SITE_TYPE_GAZELLE]: 'Gazelle',
-  [SITE_TYPE_UNIT3D]: 'Unit3D',
-  [SITE_TYPE_OTHER]: '其他'
+// 框架显示名称映射
+export const SITE_SCHEMA_LABELS: Record<string, string> = {
+  [SITE_SCHEMA_NEXUSPHP]: 'NexusPHP（网页解析）',
+  [SITE_SCHEMA_MTEAM]: '馒头 / M-Team（API）',
+  [SITE_SCHEMA_UNIT3D]: 'Unit3D（国际站，网页解析）',
+  [SITE_SCHEMA_GENERIC_JSON_API]: '通用 JSON API'
+  // 注：gazelle 暂无对应适配器（后端未注册），故不在手动配置下拉中提供
 }
 
-// 站点类型选项（用于下拉框）
-export const SITE_TYPE_OPTIONS = SITE_TYPES.map((value) => ({
-  label: SITE_TYPE_LABELS[value],
+// 框架选项（用于「手动配置」站点类型下拉框）
+// 仅列出后端 SCHEMA_REGISTRY 已注册、可正常工作的框架。
+export const SITE_SCHEMA_OPTIONS = [
+  SITE_SCHEMA_NEXUSPHP,
+  SITE_SCHEMA_MTEAM,
+  SITE_SCHEMA_UNIT3D,
+  SITE_SCHEMA_GENERIC_JSON_API
+].map((value) => ({
+  label: SITE_SCHEMA_LABELS[value],
   value
 }))
+
+// 兼容别名：旧代码引用 SITE_TYPE_OPTIONS 的地方继续可用（现指向框架选项）
+export const SITE_TYPE_OPTIONS = SITE_SCHEMA_OPTIONS
 
 // 站点状态常量
 export const SITE_STATUS_ACTIVE = 'active'
