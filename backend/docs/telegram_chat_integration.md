@@ -26,6 +26,20 @@
 3. 在系统「通知渠道」中新建 Telegram 渠道，填入 `bot_token` 和 `chat_id`，启用
 4. 直接给 Bot 发消息即可对话（如「推荐几部科幻电影」「查看下载状态」）
 
+## 图片识别（多模态）
+
+直接给 Bot 发图片即可（可附 caption 作为提问，如「这是哪部剧」）：
+
+1. `process_telegram_update` 检测到 `message.photo`，取最大尺寸的 `file_id`
+2. `download_photo_as_base64` 经 `getFile` 下载图片，用 `multimodal.ImageProcessor`
+   压缩归一化为 JPEG 再 base64
+3. 以 `images=[base64]` 传入 `AIAgentService.chat()`，附加到当前用户消息，由
+   OpenAI 兼容适配器下发为 `image_url`
+4. 无 caption 时使用默认提问（识别影视作品名）
+
+> ⚠️ 需当前 LLM 为多模态模型（`gpt-4o` / `gpt-4-turbo` / `glm-4v` / `llava` 等）。
+> 非多模态模型时不会静默丢弃图片，而是提示用户切换模型。
+
 ## 代理
 
 内网访问 Telegram API 受限时，在「通知设置 → 全局设置 → Telegram 代理地址」配置代理

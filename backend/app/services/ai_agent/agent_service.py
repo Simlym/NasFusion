@@ -318,12 +318,46 @@ class AIAgentService:
             }
         )
 
+    # 与 OpenAI 兼容适配器 _is_multimodal_model 保持一致的关键字，
+    # 确保「这里判定支持」与「适配器实际下发图片」不会脱节
+    _VISION_MODEL_KEYWORDS = ("gpt-4o", "gpt-4-turbo", "vision", "glm-4v", "llava")
+
+    @classmethod
+    def _model_supports_vision(cls, model: Optional[str]) -> bool:
+        """根据模型名判断是否具备图片识别能力。"""
+        if not model:
+            return False
+        model_lower = model.lower()
+        return any(kw in model_lower for kw in cls._VISION_MODEL_KEYWORDS)
+
+    @staticmethod
+    def _attach_images(messages: List[ChatMessage], images: List[str], vision: bool) -> None:
+        """把本轮图片附加到最近一条用户消息上。
+
+        - vision=True：附加 base64 图片，供多模态适配器下发
+        - vision=False：不附加图片，改为在文本中明确提示模型不支持，
+          避免「收了图却被静默丢弃」的体验
+        """
+        for msg in reversed(messages):
+            if msg.role != MESSAGE_ROLE_USER:
+                continue
+            if vision:
+                msg.images = images
+            else:
+                note = (
+                    "\n\n[系统提示：用户发送了图片，但当前模型不支持图片识别，"
+                    "请告知用户切换到多模态模型（如 gpt-4o、glm-4v）后重试。]"
+                )
+                msg.content = (msg.content or "") + note
+            return
+
     @staticmethod
     async def chat(
         db: AsyncSession,
         user_id: int,
         message: str,
         conversation_id: Optional[int] = None,
+        images: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         处理聊天消息
@@ -333,6 +367,7 @@ class AIAgentService:
             user_id: 用户ID
             message: 用户消息
             conversation_id: 对话ID（可选）
+            images: 本轮附带的图片（base64 JPEG 列表，仅用于当前调用，不持久化二进制）
 
         Returns:
             聊天响应
@@ -358,12 +393,12 @@ class AIAgentService:
         else:
             conversation = await AIAgentService.create_conversation(db, user_id)
 
-        # 添加用户消息
+        # 添加用户消息（图片二进制不入库，仅用占位符标注便于历史阅读）
         user_message = await AIAgentService.add_message(
             db,
             conversation.id,
             MESSAGE_ROLE_USER,
-            message,
+            message or ("[图片]" if images else message),
         )
 
         # 获取历史消息
@@ -412,6 +447,15 @@ class AIAgentService:
                 "success": False,
                 "error": f"AI配置错误: {str(e)}",
             }
+
+        # 多模态：把本轮图片附加到当前用户消息（模型不支持时改为文本提示）。
+        # 以适配器实际解析出的 model 为准（全局配置场景下 config.model 可能为空）
+        if images:
+            AIAgentService._attach_images(
+                messages,
+                images,
+                AIAgentService._model_supports_vision(getattr(adapter, "model", None)),
+            )
 
         # 获取工具定义（内部 + 外部 MCP Server）
         tools = None

@@ -38,6 +38,7 @@ class TelegramAgentHandler:
         chat_id: str,
         text: str,
         user_id: Optional[int] = None,
+        images: Optional[list] = None,
     ) -> Dict[str, Any]:
         """
         处理 Telegram 消息
@@ -47,6 +48,7 @@ class TelegramAgentHandler:
             chat_id: Telegram Chat ID
             text: 消息文本
             user_id: NasFusion 用户ID（可选，如果已绑定）
+            images: 本轮附带的图片（base64 JPEG 列表，用于多模态识别）
 
         Returns:
             处理结果
@@ -76,6 +78,7 @@ class TelegramAgentHandler:
                 user_id,
                 text,
                 conversation_id=conversation.id,
+                images=images,
             )
 
             if not result.get("success"):
@@ -215,6 +218,50 @@ class TelegramAgentHandler:
             logger.exception(f"查找用户失败: {str(e)}")
             return None
 
+    async def download_photo_as_base64(self, file_id: str) -> Optional[str]:
+        """
+        通过 Telegram getFile 下载图片，压缩归一化为 JPEG 并返回 base64。
+
+        流程：getFile 取 file_path -> 下载文件字节 -> 压缩为 JPEG -> base64。
+        压缩依赖 Pillow，若不可用则退回原始字节（Telegram 照片本身为 JPEG）。
+
+        Args:
+            file_id: Telegram 文件 ID（取 message.photo 中最大尺寸）
+
+        Returns:
+            base64 字符串或 None
+        """
+        try:
+            import base64
+
+            get_file_url = f"{self.TELEGRAM_API_BASE}/bot{self.bot_token}/getFile"
+            async with httpx.AsyncClient(timeout=30.0, proxy=self.proxy) as client:
+                resp = await client.post(get_file_url, json={"file_id": file_id})
+                data = resp.json()
+                if not data.get("ok"):
+                    logger.warning(f"getFile 失败: {data.get('description')}")
+                    return None
+
+                file_path = data["result"].get("file_path")
+                if not file_path:
+                    return None
+
+                download_url = (
+                    f"{self.TELEGRAM_API_BASE}/file/bot{self.bot_token}/{file_path}"
+                )
+                file_resp = await client.get(download_url)
+                image_bytes = file_resp.content
+
+            # 压缩 / 归一化为 JPEG（失败则退回原始字节）
+            from app.services.ai_agent.multimodal import ImageProcessor
+
+            jpeg_bytes = ImageProcessor.compress_image(image_bytes) or image_bytes
+            return base64.b64encode(jpeg_bytes).decode("utf-8")
+
+        except Exception:
+            logger.exception("下载 Telegram 图片失败")
+            return None
+
 
 # Telegram Webhook 处理（可选，用于实时接收消息）
 
@@ -242,13 +289,40 @@ async def process_telegram_update(
 
         chat_id = str(message.get("chat", {}).get("id"))
         text = message.get("text", "")
+        photos = message.get("photo")
 
-        if not chat_id or not text:
+        # 既无文本也无图片则忽略
+        if not chat_id or (not text and not photos):
             return None
 
         # 读取代理配置（发送回复时使用）
         from app.services.ai_agent.telegram_proxy import get_telegram_proxy
         proxy = await get_telegram_proxy(db)
+
+        # 图片消息（可带 caption 作为提问），交给多模态 Agent
+        if photos:
+            handler = TelegramAgentHandler(bot_token, proxy=proxy)
+            # Telegram 的 photo 数组按尺寸升序，取最后一个（最大）
+            file_id = photos[-1].get("file_id") if photos else None
+            image_b64 = (
+                await handler.download_photo_as_base64(file_id) if file_id else None
+            )
+            if not image_b64:
+                await handler.send_reply(chat_id, "图片下载失败，请稍后重试。")
+                return None
+
+            caption = message.get("caption", "")
+            prompt = caption or (
+                "请识别这张图片中的影视作品（电影/剧集名称）。"
+                "如果能识别，简要介绍并说明是否可以在系统中为我搜索相关资源。"
+            )
+            result = await handler.handle_message(
+                db, chat_id, prompt, images=[image_b64]
+            )
+            reply = result.get("reply")
+            if reply:
+                await handler.send_reply(chat_id, reply)
+            return reply
 
         # 忽略命令（以 / 开头）
         if text.startswith("/"):
