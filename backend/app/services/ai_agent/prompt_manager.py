@@ -132,6 +132,20 @@ class PromptManager:
         return "## 可用 Skills\n" + "\n".join(lines)
 
     @classmethod
+    def get_safety_prompt(cls) -> str:
+        """危险操作二次确认协议，始终注入（即使用户自定义了 system_prompt）。"""
+        return (
+            "## 危险操作确认协议\n"
+            "部分工具涉及删除/清理等不可逆操作。当你调用这类工具后，若返回 "
+            "`requires_confirmation=true`，表示该操作**尚未执行**，须先获得用户确认：\n"
+            "1. 必须把返回的 `confirmation_prompt` **原样转达用户**，等待其明确同意（如「确认」「是」）。\n"
+            "2. 用户明确同意前，**禁止重复调用该工具，也不得自行编造确认令牌**。\n"
+            "3. 用户同意后，再次调用同一工具，**保持其余参数完全一致**，并附带 "
+            "`__confirm__=<confirmation_token>`（用返回的令牌原样填入）。\n"
+            "4. 用户拒绝或未明确同意时，放弃该操作并告知用户已取消。"
+        )
+
+    @classmethod
     def get_memory_prompt(cls, user_id: int) -> str:
         """
         读取用户长期记忆并拼成 system prompt 片段。

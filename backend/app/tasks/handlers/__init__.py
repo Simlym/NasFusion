@@ -19,6 +19,7 @@ from app.tasks.handlers.person_detail_sync_handler import PersonDetailSyncHandle
 from app.tasks.handlers.credits_backfill_handler import CreditsBackfillHandler
 from app.tasks.handlers.person_merge_handler import PersonMergeHandler
 from app.tasks.handlers.duplicate_media_merge_handler import DuplicateMediaMergeHandler
+from app.tasks.handlers.system_watchdog_handler import SystemWatchdogHandler
 
 __all__ = [
     "PTResourceSyncHandler",
@@ -40,5 +41,6 @@ __all__ = [
     "CreditsBackfillHandler",
     "PersonMergeHandler",
     "DuplicateMediaMergeHandler",
+    "SystemWatchdogHandler",
 ]
 

@@ -24,6 +24,7 @@ from app.constants import (
     TASK_TYPE_CREDITS_BACKFILL,
     TASK_TYPE_PERSON_MERGE,
     TASK_TYPE_DUPLICATE_MEDIA_MERGE,
+    TASK_TYPE_SYSTEM_WATCHDOG,
 )
 from app.constants.trending import (
     DEFAULT_TRENDING_SYNC_COUNT,
@@ -553,6 +554,47 @@ async def init_duplicate_media_merge_task(db: AsyncSession):
     return task
 
 
+async def init_system_watchdog_task(db: AsyncSession):
+    """
+    初始化系统巡检任务（Watchdog）
+
+    每小时主动巡检磁盘空间与 PT 站点健康，发现异常通过事件总线推送通知。
+    """
+    result = await db.execute(
+        select(ScheduledTask).where(ScheduledTask.task_type == TASK_TYPE_SYSTEM_WATCHDOG).limit(1)
+    )
+    existing_task = result.scalar()
+
+    if existing_task:
+        logger.debug(f"系统巡检任务已存在: {existing_task.task_name} (ID: {existing_task.id})")
+        return existing_task
+
+    task = ScheduledTask(
+        task_type=TASK_TYPE_SYSTEM_WATCHDOG,
+        task_name="系统巡检（磁盘/站点）",
+        description="每小时巡检磁盘空间与 PT 站点健康（Cookie 过期、同步失败），异常时主动推送通知",
+        schedule_type=SCHEDULE_TYPE_INTERVAL,
+        schedule_config={"interval": 1, "unit": "hours"},
+        handler=TASK_TYPE_SYSTEM_WATCHDOG,
+        handler_params={
+            "usage_warn_percent": 90,
+            "free_warn_gb": 20,
+            "cookie_expiry_warn_days": 3,
+        },
+        enabled=True,
+        priority=4,
+        max_retries=1,
+    )
+
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+
+    logger.info(f"已创建系统巡检任务: {task.task_name} (ID: {task.id})")
+
+    return task
+
+
 async def init_system_tasks():
     """
     初始化所有系统任务
@@ -594,6 +636,9 @@ async def init_system_tasks():
 
             # 初始化重复影视合并任务
             await init_duplicate_media_merge_task(db)
+
+            # 初始化系统巡检任务（Watchdog）
+            await init_system_watchdog_task(db)
 
             logger.info("系统任务初始化完成")
 

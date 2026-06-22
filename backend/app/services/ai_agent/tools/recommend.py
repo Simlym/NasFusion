@@ -4,9 +4,9 @@
 
 电影和剧集推荐
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Tuple
 
-from sqlalchemy import select, func, desc, String, literal
+from sqlalchemy import select, func, desc, String, literal, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -14,6 +14,61 @@ from app.core.config import settings
 from app.constants.ai_agent import AGENT_TOOL_MOVIE_RECOMMEND, AGENT_TOOL_TV_RECOMMEND
 from app.models import UnifiedMovie, UnifiedTVSeries, MediaServerWatchHistory
 from app.services.ai_agent.tool_registry import BaseTool, register_tool
+
+
+def _genres_match_any(model, genres: List[str]):
+    """构建「类型命中任意一个」的查询条件（兼容 PostgreSQL / SQLite）。"""
+    is_pg = settings.database.DB_TYPE.lower() == "postgresql"
+    conditions = []
+    for g in genres:
+        if is_pg:
+            conditions.append(model.genres.cast(JSONB).contains(literal([g], JSONB)))
+        else:
+            conditions.append(model.genres.cast(String).like(f'%"{g}"%'))
+    return or_(*conditions)
+
+
+async def _build_taste_profile(
+    db: AsyncSession,
+    user_id: int,
+    model,
+    table_name: str,
+    top_n: int = 3,
+) -> Tuple[List[str], Set[int]]:
+    """从观看历史聚合用户口味。
+
+    通过观看历史的 unified_table_name/unified_resource_id 关联到统一资源表，
+    按播放次数加权统计已观看作品的类型分布，返回出现频率最高的若干类型，
+    以及已观看作品的 id 集合（用于从推荐结果中排除）。
+
+    Returns:
+        (top_genres, watched_ids)
+    """
+    query = (
+        select(model.genres, MediaServerWatchHistory.play_count, model.id)
+        .join(
+            MediaServerWatchHistory,
+            and_(
+                MediaServerWatchHistory.unified_table_name == table_name,
+                MediaServerWatchHistory.unified_resource_id == model.id,
+            ),
+        )
+        .where(MediaServerWatchHistory.user_id == user_id)
+    )
+    result = await db.execute(query)
+
+    genre_weight: Dict[str, int] = {}
+    watched_ids: Set[int] = set()
+    for genres, play_count, resource_id in result.all():
+        watched_ids.add(resource_id)
+        weight = play_count or 1
+        for g in (genres or []):
+            genre_weight[g] = genre_weight.get(g, 0) + weight
+
+    top_genres = [
+        g for g, _ in sorted(genre_weight.items(), key=lambda kv: kv[1], reverse=True)[:top_n]
+    ]
+    return top_genres, watched_ids
 
 
 @register_tool
@@ -79,6 +134,21 @@ class MovieRecommendTool(BaseTool):
 
         # 构建查询
         query = select(UnifiedMovie).where(UnifiedMovie.tmdb_id.isnot(None))
+
+        # 基于观看历史的口味推荐
+        profile_genres: List[str] = []
+        history_applied = False
+        if based_on_history:
+            profile_genres, watched_ids = await _build_taste_profile(
+                db, user_id, UnifiedMovie, "unified_movies"
+            )
+            # 排除已看过的影片
+            if watched_ids:
+                query = query.where(UnifiedMovie.id.notin_(watched_ids))
+            # 用户未显式指定类型时，按口味 top 类型收敛
+            if profile_genres and not genre:
+                query = query.where(_genres_match_any(UnifiedMovie, profile_genres))
+                history_applied = True
 
         # 按类型过滤
         if genre:
@@ -156,10 +226,24 @@ class MovieRecommendTool(BaseTool):
                 "poster_url": m.poster_url,
             })
 
+        if history_applied:
+            message = (
+                f"根据您的观影口味（偏好类型：{', '.join(profile_genres)}），"
+                f"为您推荐以下{len(movie_list)}部尚未观看的电影"
+            )
+        elif based_on_history and not profile_genres:
+            message = (
+                f"暂无足够观看历史可供分析口味，已按高分热门为您推荐{len(movie_list)}部电影"
+            )
+        else:
+            message = f"为您推荐以下{len(movie_list)}部电影"
+
         return {
             "success": True,
-            "message": f"为您推荐以下{len(movie_list)}部电影",
+            "message": message,
             "movies": movie_list,
+            "based_on_history": history_applied,
+            "profile_genres": profile_genres if history_applied else [],
         }
 
 
@@ -169,7 +253,8 @@ class TVRecommendTool(BaseTool):
 
     name = AGENT_TOOL_TV_RECOMMEND
     description = """推荐电视剧/剧集。可以根据类型、年代、评分等条件推荐剧集。
-    支持国产剧、美剧、日剧、韩剧等多种类型。"""
+    支持国产剧、美剧、日剧、韩剧等多种类型。
+    也可根据观看历史推荐（based_on_history=true，需要有观看记录）。"""
 
     parameters = {
         "type": "object",
@@ -199,6 +284,11 @@ class TVRecommendTool(BaseTool):
                 "description": "状态：连载中、已完结",
                 "enum": ["连载中", "已完结"],
             },
+            "based_on_history": {
+                "type": "boolean",
+                "description": "是否基于观看历史推荐",
+                "default": False,
+            },
             "limit": {
                 "type": "integer",
                 "description": "推荐数量",
@@ -222,10 +312,26 @@ class TVRecommendTool(BaseTool):
         year_to = arguments.get("year_to")
         min_rating = arguments.get("min_rating", 0)
         status = arguments.get("status")
+        based_on_history = arguments.get("based_on_history", False)
         limit = min(arguments.get("limit", 5), 20)
 
         # 构建查询
         query = select(UnifiedTVSeries).where(UnifiedTVSeries.tmdb_id.isnot(None))
+
+        # 基于观看历史的口味推荐
+        profile_genres: List[str] = []
+        history_applied = False
+        if based_on_history:
+            profile_genres, watched_ids = await _build_taste_profile(
+                db, user_id, UnifiedTVSeries, "unified_tv_series"
+            )
+            # 排除已看过的剧集
+            if watched_ids:
+                query = query.where(UnifiedTVSeries.id.notin_(watched_ids))
+            # 用户未显式指定类型时，按口味 top 类型收敛
+            if profile_genres and not genre:
+                query = query.where(_genres_match_any(UnifiedTVSeries, profile_genres))
+                history_applied = True
 
         # 按类型过滤
         if genre:
@@ -326,8 +432,22 @@ class TVRecommendTool(BaseTool):
                 "poster_url": tv.poster_url,
             })
 
+        if history_applied:
+            message = (
+                f"根据您的追剧口味（偏好类型：{', '.join(profile_genres)}），"
+                f"为您推荐以下{len(tv_list)}部尚未观看的剧集"
+            )
+        elif based_on_history and not profile_genres:
+            message = (
+                f"暂无足够观看历史可供分析口味，已按高分热门为您推荐{len(tv_list)}部剧集"
+            )
+        else:
+            message = f"为您推荐以下{len(tv_list)}部剧集"
+
         return {
             "success": True,
-            "message": f"为您推荐以下{len(tv_list)}部剧集",
+            "message": message,
             "tv_series": tv_list,
+            "based_on_history": history_applied,
+            "profile_genres": profile_genres if history_applied else [],
         }
