@@ -219,6 +219,7 @@ AGENT_TOOL_READ_FILE = "read_file"
 AGENT_TOOL_WRITE_FILE = "write_file"
 AGENT_TOOL_EDIT_FILE = "edit_file"
 AGENT_TOOL_DISK_DIAGNOSE = "disk_diagnose"
+AGENT_TOOL_MEDIA_HEALTH = "media_health"
 
 # 危险操作二次确认：携带此字段并填入有效令牌方可执行危险工具
 AGENT_CONFIRM_FIELD = "__confirm__"
@@ -249,6 +250,7 @@ AGENT_TOOLS = [
     AGENT_TOOL_WRITE_FILE,
     AGENT_TOOL_EDIT_FILE,
     AGENT_TOOL_DISK_DIAGNOSE,
+    AGENT_TOOL_MEDIA_HEALTH,
 ]
 
 AGENT_TOOL_DISPLAY_NAMES = {
@@ -277,6 +279,7 @@ AGENT_TOOL_DISPLAY_NAMES = {
     AGENT_TOOL_WRITE_FILE: "写入文件",
     AGENT_TOOL_EDIT_FILE: "编辑文件",
     AGENT_TOOL_DISK_DIAGNOSE: "磁盘诊断",
+    AGENT_TOOL_MEDIA_HEALTH: "媒体库体检",
 }
 
 # ===== 对话消息角色 =====
