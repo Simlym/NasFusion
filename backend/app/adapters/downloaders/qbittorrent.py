@@ -28,6 +28,10 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         super().__init__(config)
         self._cookies: Optional[Dict[str, str]] = None
         self._client: Optional[httpx.AsyncClient] = None
+        # qBittorrent 5.x 将 pause/resume 重命名为 stop/start，旧路径返回 404。
+        # 首次调用时探测并缓存实际可用的端点名。
+        self._pause_endpoint: Optional[str] = None
+        self._resume_endpoint: Optional[str] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """获取HTTP客户端（复用连接）"""
@@ -80,6 +84,48 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         """确保已登录"""
         if not self._cookies:
             await self._login()
+
+    async def _post_with_endpoint_fallback(
+        self,
+        candidates: List[str],
+        data: Dict[str, str],
+        cached_endpoint: Optional[str],
+    ) -> tuple[bool, Optional[str]]:
+        """
+        依次尝试多个候选端点，兼容 qBittorrent 4.x / 5.x 的接口重命名
+
+        Args:
+            candidates: 候选端点名（如 ["stop", "pause"]），按优先级排列
+            data: POST 表单数据
+            cached_endpoint: 已探测成功的端点名，非空时直接使用
+
+        Returns:
+            tuple: (是否成功, 成功使用的端点名)
+        """
+        client = await self._get_client()
+        endpoints = [cached_endpoint] if cached_endpoint else candidates
+
+        for endpoint in endpoints:
+            response = await client.post(
+                f"{self.base_url}/api/v2/torrents/{endpoint}",
+                data=data,
+                cookies=self._cookies,
+            )
+
+            if response.status_code == 200:
+                return True, endpoint
+
+            # 仅 404 说明该 qB 版本不支持此端点名，继续尝试下一个
+            if response.status_code != 404:
+                logger.error(
+                    f"qBittorrent endpoint {endpoint} failed: {response.status_code}"
+                )
+                return False, None
+
+        logger.error(
+            f"qBittorrent does not support any of endpoints {candidates} (all returned 404)"
+        )
+        return False, None
 
     async def test_connection(self) -> bool:
         """
@@ -149,7 +195,10 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
             if "tags" in options:
                 data["tags"] = options["tags"]
             if "paused" in options:
-                data["paused"] = "true" if options["paused"] else "false"
+                # 4.x 用 paused，5.x 改名为 stopped，同时传递以兼容两个版本
+                paused_value = "true" if options["paused"] else "false"
+                data["paused"] = paused_value
+                data["stopped"] = paused_value
 
             # 设置分享限制
             if "ratio_limit" in options:
@@ -219,7 +268,10 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
             if "tags" in options:
                 data["tags"] = options["tags"]
             if "paused" in options:
-                data["paused"] = "true" if options["paused"] else "false"
+                # 4.x 用 paused，5.x 改名为 stopped，同时传递以兼容两个版本
+                paused_value = "true" if options["paused"] else "false"
+                data["paused"] = paused_value
+                data["stopped"] = paused_value
 
             # 设置分享限制
             if "ratio_limit" in options:
@@ -254,11 +306,11 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
 
         qBittorrent状态：
         - downloading: 下载中
-        - pausedDL: 暂停下载
+        - pausedDL / stoppedDL: 暂停下载（5.x 改名为 stoppedDL）
         - stalledDL: 下载停滞
         - metaDL: 获取元数据中
         - uploading: 做种中
-        - pausedUP: 暂停做种
+        - pausedUP / stoppedUP: 暂停做种（5.x 改名为 stoppedUP）
         - stalledUP: 做种停滞
         - checkingDL: 检查中
         - checkingUP: 检查中
@@ -274,10 +326,12 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         state_map = {
             "downloading": "downloading",
             "pausedDL": "paused",
+            "stoppedDL": "paused",  # qBittorrent 5.x
             "stalledDL": "downloading",
             "metaDL": "downloading",
             "uploading": "seeding",
             "pausedUP": "paused",
+            "stoppedUP": "paused",  # qBittorrent 5.x
             "stalledUP": "seeding",
             "checkingDL": "downloading",
             "checkingUP": "seeding",
@@ -437,21 +491,20 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         try:
             await self._ensure_logged_in()
 
-            client = await self._get_client()
-            url = f"{self.base_url}/api/v2/torrents/pause"
-
-            response = await client.post(
-                url,
-                data={"hashes": task_hash},
-                cookies=self._cookies,
+            # qBittorrent 5.x 为 stop，4.x 为 pause
+            success, endpoint = await self._post_with_endpoint_fallback(
+                ["stop", "pause"],
+                {"hashes": task_hash},
+                self._pause_endpoint,
             )
 
-            if response.status_code == 200:
+            if success:
+                self._pause_endpoint = endpoint
                 logger.info(f"Successfully paused torrent {task_hash}")
                 return True
-            else:
-                logger.error(f"Failed to pause torrent: {response.status_code}")
-                return False
+
+            logger.error(f"Failed to pause torrent {task_hash}")
+            return False
 
         except Exception as e:
             logger.error(f"Error pausing torrent in qBittorrent: {str(e)}")
@@ -470,21 +523,20 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         try:
             await self._ensure_logged_in()
 
-            client = await self._get_client()
-            url = f"{self.base_url}/api/v2/torrents/resume"
-
-            response = await client.post(
-                url,
-                data={"hashes": task_hash},
-                cookies=self._cookies,
+            # qBittorrent 5.x 为 start，4.x 为 resume
+            success, endpoint = await self._post_with_endpoint_fallback(
+                ["start", "resume"],
+                {"hashes": task_hash},
+                self._resume_endpoint,
             )
 
-            if response.status_code == 200:
+            if success:
+                self._resume_endpoint = endpoint
                 logger.info(f"Successfully resumed torrent {task_hash}")
                 return True
-            else:
-                logger.error(f"Failed to resume torrent: {response.status_code}")
-                return False
+
+            logger.error(f"Failed to resume torrent {task_hash}")
+            return False
 
         except Exception as e:
             logger.error(f"Error resuming torrent in qBittorrent: {str(e)}")
