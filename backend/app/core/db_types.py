@@ -96,10 +96,10 @@ class TZDateTime(TypeDecorator):
         return value
 
     def process_result_value(self, value, dialect):
-        """读取后：SQLite 返回的 naive datetime 标记为 UTC"""
+        """读取后：统一确保返回 aware datetime（PostgreSQL/SQLite 都可能返回 naive UTC）"""
         if value is None:
             return value
-        if dialect.name == 'sqlite':
-            if value.tzinfo is None:
-                value = value.replace(tzinfo=timezone.utc)
+        if value.tzinfo is None:
+            # 数据库返回 naive datetime，视为 UTC
+            value = value.replace(tzinfo=timezone.utc)
         return value
