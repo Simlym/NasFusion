@@ -56,6 +56,7 @@ class SchedulerManager:
     def __init__(self):
         if not self._initialized:
             self._scheduler = AsyncIOScheduler()
+            self._recovery_tasks = set()
             self._initialized = True
 
     @property
@@ -76,6 +77,14 @@ class SchedulerManager:
         # 加载所有已启用的任务
         await self._load_scheduled_tasks()
 
+        # 重放事件并消费持久化 pending 队列（包含到期重试）。
+        from app.constants.durable_event import RECOVERY_POLL_SECONDS
+        self._scheduler.add_job(
+            self._recover_pending_work, "interval", seconds=RECOVERY_POLL_SECONDS,
+            id="durable_work_recovery", max_instances=1, coalesce=True,
+            next_run_time=now(), replace_existing=True,
+        )
+
         # 启动调度器
         self._scheduler.start()
         logger.info("任务调度器已启动")
@@ -84,7 +93,43 @@ class SchedulerManager:
         """关闭调度器"""
         if self._scheduler.running:
             self._scheduler.shutdown(wait=False)
+            tasks = list(self._recovery_tasks)
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
             logger.info("任务调度器已关闭")
+
+    async def _recover_pending_work(self):
+        """落库事件重放、历史完成下载补偿和到期任务消费。"""
+        from sqlalchemy import select, or_
+        from app.constants.durable_event import RECOVERY_CONCURRENCY
+        from app.models.task_execution import TaskExecution
+        from app.services.task.workflow_event_service import WorkflowEventService
+
+        async with async_session_local() as db:
+            await WorkflowEventService.backfill_completed(db)
+        await WorkflowEventService.deliver_pending(async_session_local)
+        capacity = RECOVERY_CONCURRENCY - len(self._recovery_tasks)
+        if capacity <= 0:
+            return
+        async with async_session_local() as db:
+            ids = (await db.execute(
+                select(TaskExecution.id).where(
+                    TaskExecution.status == EXECUTION_STATUS_PENDING,
+                    or_(TaskExecution.next_retry_at.is_(None), TaskExecution.next_retry_at <= now()),
+                    or_(TaskExecution.scheduled_at.is_(None), TaskExecution.scheduled_at <= now()),
+                ).order_by(TaskExecution.priority, TaskExecution.id).limit(capacity)
+            )).scalars().all()
+        for execution_id in ids:
+            task = asyncio.create_task(self._execute_task_by_execution(execution_id))
+            self._recovery_tasks.add(task)
+            task.add_done_callback(self._recovery_task_done)
+
+    def _recovery_task_done(self, task):
+        self._recovery_tasks.discard(task)
+        if not task.cancelled() and task.exception():
+            logger.error("恢复任务异常退出", exc_info=task.exception())
 
     async def _load_scheduled_tasks(self):
         """从数据库加载所有已启用的任务"""
@@ -214,22 +259,23 @@ class SchedulerManager:
                     execution_data.related_id = subscription_id
 
             execution = await TaskExecutionService.create(db, execution_data)
-
-            # 更新任务状态为运行中
-            await ScheduledTaskService.update_run_status(
-                db, task_id_val, LAST_RUN_STATUS_RUNNING
-            )
+            execution_id = execution.id
 
             # 执行任务
             start_time = now()
             try:
-                await TaskExecutionService.start_execution(db, execution.id)
+                if not await TaskExecutionService.start_execution(db, execution_id):
+                    return
+
+                await ScheduledTaskService.update_run_status(
+                    db, task_id_val, LAST_RUN_STATUS_RUNNING
+                )
 
                 # 根据任务类型执行对应的处理器
                 result = await self._run_task_handler(db, task, execution)
 
                 # 完成执行
-                await TaskExecutionService.complete_execution(db, execution.id, result)
+                await TaskExecutionService.complete_execution(db, execution_id, result)
 
                 # 更新任务状态
                 duration = int((now() - start_time).total_seconds())
@@ -276,7 +322,7 @@ class SchedulerManager:
                         "duration": duration_str,  # 使用模板期望的字段名
                         "result": result_str,  # 格式化后的结果
                         "related_type": "task_execution",
-                        "related_id": execution.id,
+                        "related_id": execution_id,
                     }
 
                     await event_bus.publish(
@@ -301,7 +347,7 @@ class SchedulerManager:
 
                 # 记录失败
                 await TaskExecutionService.fail_execution(
-                    db, execution.id, error_message, {"exception": type(e).__name__}
+                    db, execution_id, error_message, {"exception": type(e).__name__}
                 )
 
                 # 更新任务状态
@@ -322,7 +368,7 @@ class SchedulerManager:
                         "error_message": error_message,
                         "execution_time": duration,
                         "related_type": "task_execution",
-                        "related_id": execution.id,
+                        "related_id": execution_id,
                     }
 
                     await event_bus.publish(
@@ -357,6 +403,8 @@ class SchedulerManager:
                 logger.error(f"执行记录不存在: {execution_id}")
                 return
 
+            scheduled_task_id = execution.scheduled_task_id
+
             # 创建临时任务对象
             from app.models.scheduled_task import ScheduledTask
             temp_task = ScheduledTask(
@@ -371,29 +419,29 @@ class SchedulerManager:
                 enabled=True,
             )
 
-            # 如果关联了调度任务，更新任务状态为运行中
-            if execution.scheduled_task_id:
-                await ScheduledTaskService.update_run_status(
-                    db, execution.scheduled_task_id, LAST_RUN_STATUS_RUNNING
-                )
-
             # 执行任务
             start_time = now()
             try:
-                await TaskExecutionService.start_execution(db, execution.id)
+                if not await TaskExecutionService.start_execution(db, execution_id):
+                    return
+
+                if scheduled_task_id:
+                    await ScheduledTaskService.update_run_status(
+                        db, scheduled_task_id, LAST_RUN_STATUS_RUNNING
+                    )
 
                 # 根据任务类型执行对应的处理器
                 result = await self._run_task_handler(db, temp_task, execution)
 
                 # 完成执行
-                await TaskExecutionService.complete_execution(db, execution.id, result)
+                await TaskExecutionService.complete_execution(db, execution_id, result)
                 
                 duration = int((now() - start_time).total_seconds())
 
                 # 如果关联了调度任务，更新任务状态为成功
-                if execution.scheduled_task_id:
+                if scheduled_task_id:
                     await ScheduledTaskService.update_run_status(
-                        db, execution.scheduled_task_id, LAST_RUN_STATUS_SUCCESS, duration
+                        db, scheduled_task_id, LAST_RUN_STATUS_SUCCESS, duration
                     )
 
                 logger.info(f"任务执行成功: {temp_task.task_name}")
@@ -466,9 +514,9 @@ class SchedulerManager:
                 )
 
                 # 如果关联了调度任务，更新任务状态为失败
-                if execution.scheduled_task_id:
+                if scheduled_task_id:
                     await ScheduledTaskService.update_run_status(
-                        db, execution.scheduled_task_id, LAST_RUN_STATUS_FAILED, duration
+                        db, scheduled_task_id, LAST_RUN_STATUS_FAILED, duration
                     )
 
                 # 发布任务失败事件

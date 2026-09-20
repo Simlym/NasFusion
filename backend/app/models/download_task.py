@@ -2,6 +2,7 @@
 """
 下载任务模型
 """
+from uuid import uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -20,6 +21,7 @@ from sqlalchemy.sql import func
 
 from app.models.base import Base
 from app.core.db_types import JSON, TZDateTime
+from app.utils.timezone import now
 
 
 class DownloadTask(Base):
@@ -28,6 +30,9 @@ class DownloadTask(Base):
     __tablename__ = "download_tasks"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    # 区分删除后重新添加的下载，SQLite 主键可能被复用。
+    # 旧数据保留 NULL，继续使用原有任务 ID 去重。
+    workflow_token = Column(String(32), nullable=True, default=lambda: uuid4().hex)
 
     # 种子标识
     task_hash = Column(String(100), unique=True, nullable=False, index=True, comment="种子哈希（InfoHash），唯一")
@@ -115,7 +120,7 @@ class DownloadTask(Base):
     retry_count = Column(Integer, default=0, nullable=False, comment="重试次数")
 
     # 创建和更新时间
-    created_at = Column(TZDateTime(), server_default=func.now(), nullable=False, comment="创建时间")
+    created_at = Column(TZDateTime(), default=now, server_default=func.now(), nullable=False, comment="创建时间")
     updated_at = Column(
         TZDateTime(), server_default=func.now(), onupdate=func.now(), nullable=False, comment="更新时间"
     )

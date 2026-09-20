@@ -5,6 +5,7 @@
 import json
 import logging
 import subprocess
+import sys
 from pathlib import Path
 
 from sqlalchemy import or_
@@ -54,8 +55,7 @@ async def run_alembic_migrations():
         alembic_ini_path = backend_path / "alembic.ini"
 
         if not alembic_ini_path.exists():
-            logger.warning(f"alembic.ini 不存在于 {alembic_ini_path}，跳过迁移")
-            return
+            raise RuntimeError(f"alembic.ini 不存在于 {alembic_ini_path}，停止启动")
 
         # 检测是否为全新数据库
         is_fresh = await _is_fresh_database(backend_path)
@@ -66,7 +66,7 @@ async def run_alembic_migrations():
 
             def stamp_head():
                 return subprocess.run(
-                    ["alembic", "stamp", "head"],
+                    [sys.executable, "-m", "alembic", "stamp", "head"],
                     cwd=str(backend_path),
                     capture_output=True,
                     text=True,
@@ -76,14 +76,14 @@ async def run_alembic_migrations():
             result = await loop.run_in_executor(None, stamp_head)
 
             if result.returncode != 0:
-                logger.warning(f"alembic stamp head 失败: {result.stderr}")
+                raise RuntimeError(f"alembic stamp head 失败: {result.stderr}")
             else:
                 logger.info("新数据库已标记为最新迁移版本，将由 create_all 创建所有表")
         else:
             # 老项目：正常执行迁移链
             def run_migration():
                 return subprocess.run(
-                    ["alembic", "upgrade", "head"],
+                    [sys.executable, "-m", "alembic", "upgrade", "head"],
                     cwd=str(backend_path),
                     capture_output=True,
                     text=True,
@@ -93,16 +93,18 @@ async def run_alembic_migrations():
             result = await loop.run_in_executor(None, run_migration)
 
             if result.returncode != 0:
-                logger.warning(f"数据库迁移执行失败: {result.stderr}")
+                raise RuntimeError(f"数据库迁移执行失败，停止启动: {result.stderr}")
             else:
                 logger.info("数据库迁移完成")
                 if result.stdout:
                     logger.debug(f"Alembic 输出: {result.stdout}")
 
     except FileNotFoundError:
-        logger.warning("Alembic 命令未找到，跳过数据库迁移")
+        logger.exception("数据库迁移所需文件未找到，停止启动")
+        raise
     except Exception as e:
-        logger.warning(f"执行数据库迁移时出错: {e}")
+        logger.exception(f"执行数据库迁移时出错，停止启动: {e}")
+        raise
 
 
 async def init_database(engine):
@@ -288,51 +290,46 @@ async def init_identification_priority(db: AsyncSession):
 
 
 async def cleanup_stuck_tasks(db: AsyncSession):
-    """
-    清理卡住的任务（系统启动时）
+    """保留等待队列，恢复可重入任务；不自动重放不确定的外部写操作。
 
-    将所有处于 pending 或 running 状态的任务标记为失败，
-    这些任务可能是因为程序异常退出而没有正常完成。
+    当前部署为单后端进程，必须在调度器启动之前调用。
+    正常停机或断电不占用业务失败的重试次数。
     """
-    logger.debug("正在清理卡住的任务...")
-
-    from app.services.task.task_execution_service import TaskExecutionService
-    from app.constants import (
-        EXECUTION_STATUS_PENDING,
-        EXECUTION_STATUS_RUNNING,
-        EXECUTION_STATUS_FAILED
+    from sqlalchemy import and_, update
+    from app.constants.task import (
+        EXECUTION_STATUS_PENDING, EXECUTION_STATUS_RUNNING, EXECUTION_STATUS_FAILED,
+        TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE, TASK_TYPE_DOWNLOAD_STATUS_SYNC,
     )
-    from sqlalchemy import update
     from app.models.task_execution import TaskExecution
 
-    try:
-        # 查询所有 pending 或 running 状态的任务
-        stmt = (
-            update(TaskExecution)
-            .where(
-                or_(
-                    TaskExecution.status == EXECUTION_STATUS_PENDING,
-                    TaskExecution.status == EXECUTION_STATUS_RUNNING
-                )
-            )
-            .values(
-                status=EXECUTION_STATUS_FAILED,
-                error_message="系统重启，任务被中断",
-                completed_at=None
-            )
+    resumable = [TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE, TASK_TYPE_DOWNLOAD_STATUS_SYNC]
+    recovered = await db.execute(
+        update(TaskExecution).where(
+            TaskExecution.task_type.in_(resumable),
+            or_(
+                TaskExecution.status == EXECUTION_STATUS_RUNNING,
+                and_(TaskExecution.status == EXECUTION_STATUS_FAILED,
+                     TaskExecution.error_message == "系统重启，任务被中断"),
+            ),
+        ).values(
+            status=EXECUTION_STATUS_PENDING, completed_at=None, started_at=None,
+            worker_id=None, next_retry_at=None,
+            error_message="系统启动，等待恢复执行（不消耗重试次数）",
         )
-
-        result = await db.execute(stmt)
-        await db.commit()
-
-        stuck_count = result.rowcount
-        if stuck_count > 0:
-            logger.info(f"已清理 {stuck_count} 个卡住的任务")
-        else:
-            logger.debug("没有发现卡住的任务")
-
-    except Exception as e:
-        logger.error(f"清理卡住的任务失败: {e}")
+    )
+    interrupted = await db.execute(
+        update(TaskExecution).where(
+            TaskExecution.status == EXECUTION_STATUS_RUNNING,
+            TaskExecution.task_type.notin_(resumable),
+        ).values(
+            status=EXECUTION_STATUS_FAILED,
+            error_message="系统重启，任务被中断；请检查外部操作结果后手动重试",
+            completed_at=None,
+        )
+    )
+    await db.commit()
+    logger.info("启动恢复：重新入队 %s 个任务，%s 个任务需要检查；等待队列保留",
+                recovered.rowcount, interrupted.rowcount)
 
 
 async def initialize_system(engine, db: AsyncSession):

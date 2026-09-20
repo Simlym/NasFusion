@@ -53,14 +53,20 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
         if not download_task_id:
             error_msg = "缺少必需参数: download_task_id"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
 
         # 获取下载任务
         download_task = await db.get(DownloadTask, download_task_id)
         if not download_task:
             error_msg = f"下载任务不存在: {download_task_id}"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
+
+        if params.get("workflow_token") and params["workflow_token"] != download_task.workflow_token:
+            raise ValueError("原下载任务已删除，此执行记录不能操作后来添加的下载")
+        execution = await TaskExecutionService.get_by_id(db, execution_id)
+        if execution and execution.created_at < download_task.created_at:
+            raise ValueError("此整理记录早于当前下载，原下载任务可能已删除")
 
         # 检查是否启用自动整理
         if not download_task.auto_organize:
@@ -72,25 +78,25 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
         if not download_task.organize_config_id:
             error_msg = f"下载任务 {download_task_id} 未指定整理配置"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
 
         organize_config = await db.get(OrganizeConfig, download_task.organize_config_id)
         if not organize_config:
             error_msg = f"整理配置不存在: {download_task.organize_config_id}"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
 
         # 检查存储挂载点
         if not download_task.storage_mount_id:
             error_msg = f"下载任务 {download_task_id} 未指定存储挂载点"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
 
         storage_mount = await db.get(StorageMount, download_task.storage_mount_id)
         if not storage_mount:
             error_msg = f"存储挂载点不存在: {download_task.storage_mount_id}"
             await TaskExecutionService.append_log(db, execution_id, error_msg)
-            return {"status": "error", "message": error_msg}
+            raise ValueError(error_msg)
 
         await TaskExecutionService.append_log(
             db, execution_id,
@@ -102,62 +108,33 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
         # 初始化进度
         await TaskExecutionService.update_progress(db, execution_id, 0)
 
-        # 第一步: 扫描下载目录
-        await TaskExecutionService.append_log(db, execution_id, "→ 扫描下载目录...")
-        await TaskExecutionService.update_progress(db, execution_id, 10)
-
-        scan_result = await MediaFileService.scan_directory(
-            db=db,
-            directory=save_path,
-            recursive=True,
-        )
-
-        files_found = scan_result.get("files", 0)
-        await TaskExecutionService.append_log(
-            db, execution_id,
-            f"✓ 扫描完成，发现 {files_found} 个媒体文件"
-        )
-        await TaskExecutionService.update_progress(db, execution_id, 20)
-
-        if files_found == 0:
-            msg = "下载目录中未发现媒体文件"
-            await TaskExecutionService.append_log(db, execution_id, msg)
-            return {"status": "success", "message": msg, "organized_count": 0}
-
-        # 第二步: 查询下载路径下的媒体文件并关联到下载任务
-        from sqlalchemy import select, update
+        # 只发现本次种子对应的文件，不能扫描共享下载目录并认领其他种子。
+        # 重启后源文件可能已移动，必须同时读取之前落库的文件检查点。
+        from sqlalchemy import select
         from app.models.media_file import MediaFile
-        from pathlib import Path
 
-        # 规范化路径用于比较
-        # 统一使用正斜杠，并确保以 / 结尾，防止 /Down 匹配到 /Downloads
-        save_path_normalized = str(Path(save_path).resolve()).replace('\\', '/')
-        if not save_path_normalized.endswith('/'):
-            save_path_normalized += '/'
+        save_path = download_task.save_path or save_path
+        media_files = (await db.execute(
+            select(MediaFile).where(MediaFile.download_task_id == download_task_id)
+        )).scalars().all()
+        source_available = bool(save_path and Path(save_path).exists())
+        if not source_available and (not media_files or any(
+            not f.organized and not (f.sub_status or {}).get("auto_organize_checkpoint")
+            for f in media_files
+        )):
+            raise FileNotFoundError("下载路径不可用，等待存储就绪后重试")
+        if not storage_mount.is_enabled:
+            raise ValueError("目标存储挂载点已禁用")
+        if not Path(storage_mount.container_path).is_dir():
+            raise FileNotFoundError("目标存储路径不可用，等待挂载就绪后重试")
 
-        # 查询该路径下的所有媒体文件（精确匹配目录前缀）
-        result = await db.execute(
-            select(MediaFile).where(
-                MediaFile.file_path.like(f"{save_path_normalized}%")
-            )
-        )
-        media_files = result.scalars().all()
-
-        # 批量更新 download_task_id（仅更新尚未关联的文件，避免覆盖已有关联）
-        if media_files:
-            unlinked_file_ids = [f.id for f in media_files if f.download_task_id is None]
-            if unlinked_file_ids:
-                await db.execute(
-                    update(MediaFile)
-                    .where(MediaFile.id.in_(unlinked_file_ids))
-                    .values(download_task_id=download_task_id)
-                )
-            await db.commit()
-
-            await TaskExecutionService.append_log(
-                db, execution_id,
-                f"✓ 已关联 {len(unlinked_file_ids)}/{len(media_files)} 个文件到下载任务"
-            )
+        if source_available:
+            await MediaFileService.create_from_download_task(db, download_task)
+        media_files = (await db.execute(
+            select(MediaFile).where(MediaFile.download_task_id == download_task_id)
+        )).scalars().all()
+        if not media_files:
+            raise RuntimeError("未发现本次下载的媒体文件，请检查挂载、路径映射或种子文件")
         await TaskExecutionService.update_progress(db, execution_id, 30)
 
         # 第三步: 整理文件
@@ -176,13 +153,24 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
             progress = 30 + int((idx / len(media_files)) * 60)
             await TaskExecutionService.update_progress(db, execution_id, progress)
 
+            # 文件级检查点：即使用户设置了覆盖，自动恢复也不重复整理已完成文件。
+            if media_file.organized:
+                if not media_file.organized_path or not Path(media_file.organized_path).exists():
+                    failed_count += 1
+                    await TaskExecutionService.append_log(
+                        db, execution_id, f"已整理文件的目标不可用: {media_file.file_name}"
+                    )
+                else:
+                    skipped_count += 1
+                continue
+
             # 检查文件是否已识别
             if not media_file.unified_resource_id:
                 await TaskExecutionService.append_log(
                     db, execution_id,
                     f"⚠ 跳过未识别文件: {media_file.file_name}"
                 )
-                skipped_count += 1
+                failed_count += 1
                 continue
 
             # 执行整理
@@ -191,6 +179,8 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
                 media_file=media_file,
                 config=organize_config,
                 dry_run=False,
+                storage_mount_id=download_task.storage_mount_id,
+                resume_safe=True,
             )
 
             organize_results.append({
@@ -206,7 +196,7 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
                     f"✓ 整理成功: {media_file.file_name} → {result.get('organized_path')}"
                 )
             elif result["status"] == "skipped":
-                skipped_count += 1
+                failed_count += 1
                 await TaskExecutionService.append_log(
                     db, execution_id,
                     f"⊘ 跳过: {media_file.file_name} - {result.get('message')}"
@@ -218,16 +208,18 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
                     f"✗ 失败: {media_file.file_name} - {result.get('message')}"
                 )
 
-        # 完成
-        await TaskExecutionService.update_progress(db, execution_id, 100)
-
         summary = (
-            f"自动整理完成:\n"
+            f"本轮自动整理结果:\n"
             f"  成功: {success_count}\n"
             f"  失败: {failed_count}\n"
             f"  跳过: {skipped_count}"
         )
         await TaskExecutionService.append_log(db, execution_id, summary)
+
+        if failed_count:
+            raise RuntimeError(f"自动整理有 {failed_count} 个文件未完成，已完成文件将保留并在重试时跳过")
+
+        await TaskExecutionService.update_progress(db, execution_id, 100)
 
         # 发布事件
         if success_count > 0:

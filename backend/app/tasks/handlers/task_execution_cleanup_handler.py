@@ -6,13 +6,18 @@ import logging
 from typing import Dict, Any
 from datetime import timedelta
 
-from sqlalchemy import delete, and_
+from sqlalchemy import delete, and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tasks.base import BaseTaskHandler
 from app.models.task_execution import TaskExecution
+from app.models.workflow_event import WorkflowEvent
 from app.services.task.task_execution_service import TaskExecutionService
 from app.utils.timezone import now
+from app.constants.task import (
+    EXECUTION_STATUS_COMPLETED, EXECUTION_STATUS_FAILED,
+    EXECUTION_STATUS_CANCELLED, EXECUTION_STATUS_TIMEOUT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +56,27 @@ class TaskExecutionCleanupHandler(BaseTaskHandler):
         # 构建删除条件
         conditions = [
             TaskExecution.completed_at < cutoff_date,
-            TaskExecution.status == 'completed'
+            TaskExecution.status == EXECUTION_STATUS_COMPLETED
         ]
 
         if not keep_failed:
-            conditions = [TaskExecution.completed_at < cutoff_date]
+            conditions = [
+                TaskExecution.completed_at < cutoff_date,
+                TaskExecution.status.in_([
+                    EXECUTION_STATUS_COMPLETED, EXECUTION_STATUS_FAILED,
+                    EXECUTION_STATUS_CANCELLED, EXECUTION_STATUS_TIMEOUT,
+                ]),
+            ]
 
         # 执行删除
+        # SQLite 部署可能未启用外键约束，显式解除引用并保留业务去重凭据。
+        await db.execute(
+            update(WorkflowEvent).where(
+                WorkflowEvent.execution_id.in_(
+                    select(TaskExecution.id).where(and_(*conditions))
+                )
+            ).values(execution_id=None)
+        )
         result = await db.execute(
             delete(TaskExecution).where(and_(*conditions))
         )

@@ -255,6 +255,8 @@ class MediaFileService:
         Returns:
             创建的媒体文件列表
         """
+        from app.utils.file_operations import is_video_file
+
         if not download_task.save_path:
             logger.error(f"下载任务 {download_task.id} 没有保存路径")
             return []
@@ -492,6 +494,9 @@ class MediaFileService:
             if existing:
                 # 如果存在且有下载任务信息，尝试更新关联
                 if download_task:
+                    if existing.download_task_id not in (None, download_task.id):
+                        # 共享下载目录中属于其他任务的记录不能被重新识别或认领。
+                        return None
                     updated = False
 
                     # 安全检查：只有当文件路径在下载任务的 save_path 下时才关联

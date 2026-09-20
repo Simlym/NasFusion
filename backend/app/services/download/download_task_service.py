@@ -672,6 +672,12 @@ class DownloadTaskService:
             task.completed_at = now()
             newly_completed = True
 
+        # 必须先写 outbox：下面的媒体文件服务可能提交事务。
+        # 完成状态与整理请求一起提交，异常退出后可由后台重放。
+        if task.progress == 100:
+            from app.services.task.workflow_event_service import WorkflowEventService
+            await WorkflowEventService.enqueue_download(db, task)
+
         # 修复旧版异步创建路径遗漏的统一资源关联。对已经下载完成的历史任务，
         # 下一次状态同步也会把关联补到 DownloadTask 和已有 MediaFile 上。
         if task.progress == 100:

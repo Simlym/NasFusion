@@ -237,17 +237,13 @@ async def _handle_download_completed(
         logger.warning(f"下载完成事件缺少必需参数: download_task_id={download_task_id}, save_path={save_path}")
         return
 
-    # 创建自动整理任务
-    execution_id = await _create_auto_organize_task(
-        db,
-        download_task_id=download_task_id,
-        save_path=save_path,
-        triggered_by=f"下载完成: {torrent_name}",
-    )
-    logger.info(
-        f"✓ 工作流触发: 下载完成 ({torrent_name})，"
-        f"已创建自动整理任务 (执行ID: {execution_id})"
-    )
+    # 兼容通过事件总线发布的完成事件，统一进入持久化去重入口。
+    from app.models.download_task import DownloadTask
+    from app.services.task.workflow_event_service import WorkflowEventService
+    task = await db.get(DownloadTask, download_task_id)
+    if task and task.completed_at:
+        await WorkflowEventService.enqueue_download(db, task)
+        await db.commit()
 
 
 # ============================================================================
@@ -415,50 +411,6 @@ async def _create_download_status_sync_task(
         task_name=f"[自动] 同步下载状态",
         handler=TASK_TYPE_DOWNLOAD_STATUS_SYNC,
         handler_params={
-            "triggered_by": triggered_by,
-        },
-        priority=config["priority"],
-    )
-
-    execution = await TaskExecutionService.create(db, execution_data)
-
-    # 后台异步执行
-    asyncio.create_task(scheduler_manager._execute_task_by_execution(execution.id))
-
-    return execution.id
-
-
-async def _create_auto_organize_task(
-    db: AsyncSession,
-    download_task_id: int,
-    save_path: str,
-    triggered_by: str = "工作流自动触发",
-) -> int:
-    """
-    创建媒体文件自动整理任务
-
-    Args:
-        db: 数据库会话
-        download_task_id: 下载任务ID
-        save_path: 下载保存路径
-        triggered_by: 触发来源描述
-
-    Returns:
-        任务执行ID
-    """
-    from app.services.task.task_execution_service import TaskExecutionService
-    from app.schemas.task_execution import TaskExecutionCreate
-    from app.services.task.scheduler_manager import scheduler_manager
-
-    config = WORKFLOW_CONFIG["download_completed_auto_organize"]
-
-    execution_data = TaskExecutionCreate(
-        task_type=TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE,
-        task_name=f"[自动] 整理下载文件",
-        handler=TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE,
-        handler_params={
-            "download_task_id": download_task_id,
-            "save_path": save_path,
             "triggered_by": triggered_by,
         },
         priority=config["priority"],

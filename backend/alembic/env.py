@@ -81,6 +81,36 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     """执行迁移的核心函数"""
+    if connection.dialect.name == "sqlite":
+        # SQLite batch 重建父表时临时关闭外键执行，提交前统一校验。
+        # 显式 BEGIN 避免驱动的 legacy transaction mode 将 DDL 提前提交。
+        foreign_keys_enabled = connection.exec_driver_sql("PRAGMA foreign_keys").scalar()
+        connection.commit()
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        connection.commit()
+        try:
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+                compare_server_default=True,
+                transactional_ddl=True,
+                render_as_batch=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
+            violations = connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                raise RuntimeError(f"迁移后发现 {len(violations)} 条外键完整性问题，回滚迁移")
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.exec_driver_sql(f"PRAGMA foreign_keys={int(foreign_keys_enabled)}")
+            connection.commit()
+        return
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
