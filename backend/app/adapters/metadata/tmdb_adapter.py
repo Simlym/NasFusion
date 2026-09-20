@@ -182,15 +182,20 @@ class TMDBAdapter:
                 # 网络错误，重试
                 last_exception = e
                 wait_time = self.retry_delay * (2 ** attempt)
-                logger.warning(
-                    f"TMDB请求失败: {str(e)}, 第{attempt + 1}次重试, "
-                    f"等待{wait_time}秒..."
-                )
+                error_detail = str(e) or type(e).__name__
 
                 if attempt < self.max_retries - 1:
+                    logger.warning(
+                        f"TMDB请求失败: {error_detail}, 第{attempt + 1}次重试, "
+                        f"等待{wait_time}秒..."
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 else:
+                    logger.error(
+                        f"TMDB请求失败: {error_detail}, 已达到最大重试次数 "
+                        f"({self.max_retries})"
+                    )
                     raise
 
             except Exception as e:

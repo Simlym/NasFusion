@@ -192,6 +192,7 @@ class PTResourceResponse(PTResourceBase):
     # 映射状态
     has_mapping: bool = Field(default=False, description="是否已建立映射关系")
     mapping_id: Optional[int] = Field(default=None, description="映射关系ID")
+    unified_table_name: Optional[str] = Field(default=None, description="统一资源表名")
     unified_resource_id: Optional[int] = Field(default=None, description="统一资源ID")
     media_type: Optional[str] = Field(default=None, description="媒体类型")
 

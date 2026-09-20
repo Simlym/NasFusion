@@ -19,6 +19,8 @@ from app.constants import (
     AUTH_TYPE_PASSKEY,
     AUTH_TYPE_USER_PASS,
     HR_STRATEGY_AUTO_LIMIT,
+    MATCH_METHOD_FROM_DOWNLOAD,
+    MEDIA_FILE_STATUS_IDENTIFIED,
     TASK_STATUS_DOWNLOADING,
     TASK_STATUS_ERROR,
     TASK_STATUS_PENDING,
@@ -28,6 +30,7 @@ from app.models.download_task import DownloadTask
 from app.models.downloader_config import DownloaderConfig
 from app.models.pt_resource import PTResource
 from app.models.pt_site import PTSite
+from app.models.resource_mapping import ResourceMapping
 from app.schemas.downloader import DownloadTaskCreate
 from app.services.download.downloader_config_service import DownloaderConfigService
 from app.services.pt.pt_site_service import PTSiteService
@@ -669,6 +672,11 @@ class DownloadTaskService:
             task.completed_at = now()
             newly_completed = True
 
+        # 修复旧版异步创建路径遗漏的统一资源关联。对已经下载完成的历史任务，
+        # 下一次状态同步也会把关联补到 DownloadTask 和已有 MediaFile 上。
+        if task.progress == 100:
+            await DownloadTaskService._backfill_unified_mapping(db, task)
+
         if newly_completed:
             # 自动发现并关联媒体文件
             try:
@@ -681,6 +689,52 @@ class DownloadTaskService:
 
             # 发送下载完成通知
             await DownloadTaskService._send_completion_notification(db, task)
+
+    @staticmethod
+    async def _backfill_unified_mapping(
+        db: AsyncSession,
+        task: DownloadTask,
+    ) -> bool:
+        """从 PT 资源映射修复下载任务及其媒体文件的识别关联。"""
+        if task.unified_table_name and task.unified_resource_id:
+            return False
+
+        mapping_result = await db.execute(
+            select(ResourceMapping).where(
+                ResourceMapping.pt_resource_id == task.pt_resource_id
+            )
+        )
+        mapping = mapping_result.scalar_one_or_none()
+        if not mapping:
+            return False
+
+        task.unified_table_name = mapping.unified_table_name
+        task.unified_resource_id = mapping.unified_resource_id
+
+        from app.models.media_file import MediaFile
+
+        files_result = await db.execute(
+            select(MediaFile).where(
+                MediaFile.download_task_id == task.id,
+                MediaFile.unified_resource_id.is_(None),
+            )
+        )
+        media_files = files_result.scalars().all()
+        for media_file in media_files:
+            media_file.unified_table_name = mapping.unified_table_name
+            media_file.unified_resource_id = mapping.unified_resource_id
+            media_file.match_method = MATCH_METHOD_FROM_DOWNLOAD
+            media_file.match_confidence = 95
+            media_file.status = MEDIA_FILE_STATUS_IDENTIFIED
+
+        logger.info(
+            "已修复下载任务 %s 的统一资源关联，并更新 %s 个媒体文件: %s:%s",
+            task.id,
+            len(media_files),
+            mapping.unified_table_name,
+            mapping.unified_resource_id,
+        )
+        return True
 
     @staticmethod
     async def _handle_sync_error(db: AsyncSession, task: DownloadTask, e: Exception) -> None:

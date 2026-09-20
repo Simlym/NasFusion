@@ -126,6 +126,7 @@ async def get_resources(
 
         # 获取统一资源ID（多态关联）
         if mapping:
+            response_item.unified_table_name = mapping.unified_table_name
             response_item.unified_resource_id = mapping.unified_resource_id
 
         items.append(response_item)

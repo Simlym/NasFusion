@@ -15,6 +15,7 @@ from app.tasks.base import BaseTaskHandler
 from app.models.pt_resource import PTResource
 from app.models.pt_site import PTSite
 from app.models.download_task import DownloadTask
+from app.models.resource_mapping import ResourceMapping
 from app.services.pt.pt_site_service import PTSiteService
 from app.services.download.downloader_config_service import DownloaderConfigService
 from app.services.task.task_execution_service import TaskExecutionService
@@ -36,6 +37,38 @@ logger = logging.getLogger(__name__)
 
 class DownloadCreateHandler(BaseTaskHandler):
     """创建下载任务（带步骤进度）"""
+
+    @staticmethod
+    async def _resolve_unified_mapping(
+        db: AsyncSession,
+        pt_resource_id: int,
+        unified_table_name: str | None,
+        unified_resource_id: int | None,
+    ) -> tuple[str | None, int | None]:
+        """补全下载任务的统一资源关联。
+
+        资源列表页创建下载时可能只传 PT 资源 ID。此时应复用已经存在的
+        ResourceMapping，确保下载完成后创建的 MediaFile 能直接继承识别结果。
+        """
+        if unified_table_name and unified_resource_id:
+            return unified_table_name, unified_resource_id
+
+        result = await db.execute(
+            select(ResourceMapping).where(
+                ResourceMapping.pt_resource_id == pt_resource_id
+            )
+        )
+        mapping = result.scalar_one_or_none()
+        if not mapping:
+            return unified_table_name, unified_resource_id
+
+        logger.info(
+            "从PT资源映射补全下载任务关联: pt_resource_id=%s, %s:%s",
+            pt_resource_id,
+            mapping.unified_table_name,
+            mapping.unified_resource_id,
+        )
+        return mapping.unified_table_name, mapping.unified_resource_id
 
     @staticmethod
     async def execute(
@@ -134,6 +167,17 @@ class DownloadCreateHandler(BaseTaskHandler):
                 progress_detail={"steps": steps, "current_step": 1, "total_steps": len(steps)}
             )
             await TaskExecutionService.append_log(db, execution_id, f"资源验证成功: {pt_resource.title}")
+
+            # API 异步创建路径不能绕过 DownloadTaskService 中的映射推导逻辑。
+            # 在推送种子前补全关联，后续 DownloadTask/MediaFile 都可直接继承。
+            unified_table_name, unified_resource_id = (
+                await DownloadCreateHandler._resolve_unified_mapping(
+                    db,
+                    pt_resource.id,
+                    unified_table_name,
+                    unified_resource_id,
+                )
+            )
 
             # 步骤 2: 验证下载器连接
             steps[1]["status"] = "running"

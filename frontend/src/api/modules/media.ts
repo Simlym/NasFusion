@@ -97,17 +97,23 @@ export function deleteMediaFile(id: number, delete_physical_file = false) {
 export function identifyMediaFile(id: number, force_search = false) {
   return request.post<MediaFileIdentifyResponse>(`/media-files/${id}/identify`, {
     force_search
+  }, {
+    timeout: 60000
   })
 }
 
 // 关联到统一资源
 export function linkMediaFileToResource(id: number, data: MediaFileLinkRequest) {
-  return request.post<MediaFileLinkResponse>(`/media-files/${id}/link`, data)
+  return request.post<MediaFileLinkResponse>(`/media-files/${id}/link`, data, {
+    timeout: 60000
+  })
 }
 
 // 手动搜索 TMDB
 export function searchTMDB(data: TMDBSearchRequest) {
-  return request.post<TMDBSearchResponse>('/media-files/search-tmdb', data)
+  return request.post<TMDBSearchResponse>('/media-files/search-tmdb', data, {
+    timeout: 60000
+  })
 }
 
 // 手动搜索豆瓣

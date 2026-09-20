@@ -10,13 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.media_file import MediaFile
+from app.models.download_task import DownloadTask
 from app.models.unified_movie import UnifiedMovie
 from app.models.unified_tv_series import UnifiedTVSeries
 from app.models.unified_adult import UnifiedAdult
 from app.adapters.metadata.tmdb_adapter import TMDBAdapter
 from app.services.common.filename_parser_service import FilenameParserService
 from app.services.common.system_setting_service import SystemSettingService
-from app.constants import MEDIA_TYPE_MOVIE, MEDIA_TYPE_TV, MEDIA_TYPE_ADULT, UNIFIED_TABLE_ADULT
+from app.constants import (
+    MATCH_METHOD_FROM_DOWNLOAD,
+    MEDIA_FILE_STATUS_IDENTIFIED,
+    MEDIA_TYPE_MOVIE,
+    MEDIA_TYPE_TV,
+    MEDIA_TYPE_ADULT,
+    UNIFIED_TABLE_ADULT,
+)
 from app.services.identification.adult_identify_service import AdultIdentifyService
 
 logger = logging.getLogger(__name__)
@@ -26,9 +34,8 @@ class MediaIdentifyService:
     """媒体识别服务"""
 
     def __init__(self):
-        # TMDB适配器将在首次使用时从数据库配置初始化
+        # TMDB适配器在每次识别时从数据库配置初始化，确保代理修改立即生效。
         self._tmdb_adapter: Optional[TMDBAdapter] = None
-        self._adapter_initialized = False
 
     async def _get_tmdb_adapter(self, db: AsyncSession) -> TMDBAdapter:
         """
@@ -38,26 +45,37 @@ class MediaIdentifyService:
         - category: "metadata_scraping"
         - keys: "tmdb_api_key", "tmdb_language"
         """
-        if self._tmdb_adapter is not None and self._adapter_initialized:
-            return self._tmdb_adapter
-
         # 从数据库读取配置
         api_key_setting = await SystemSettingService.get_by_key(db, "metadata_scraping", "tmdb_api_key")
         language_setting = await SystemSettingService.get_by_key(db, "metadata_scraping", "tmdb_language")
+        proxy_setting = await SystemSettingService.get_by_key(db, "metadata_scraping", "tmdb_proxy")
 
         if not api_key_setting or not api_key_setting.value:
             raise ValueError("TMDB API Key未配置，请在系统设置中配置 metadata_scraping.tmdb_api_key")
 
         api_key = api_key_setting.value
         language = language_setting.value if language_setting else "zh-CN"
+        proxy_config = {}
+        if proxy_setting and proxy_setting.value:
+            proxy_config = {
+                "enabled": True,
+                "url": proxy_setting.value,
+            }
 
-        logger.info(f"从数据库加载TMDB配置: language={language}")
+        logger.info(
+            "从数据库加载TMDB配置: language=%s, proxy_enabled=%s",
+            language,
+            bool(proxy_config),
+        )
 
         self._tmdb_adapter = TMDBAdapter({
             "api_key": api_key,
             "language": language,
+            "proxy_config": proxy_config,
+            # 手动识别是交互式请求，限制最坏等待时间，并让前端能收到明确错误。
+            "timeout": 20,
+            "max_retries": 2,
         })
-        self._adapter_initialized = True
 
         return self._tmdb_adapter
 
@@ -164,8 +182,9 @@ class MediaIdentifyService:
                     result["match_source"] = "filename_auto"
 
         except Exception as e:
-            logger.error(f"TMDB搜索失败: {e}")
-            result["error"] = f"TMDB搜索失败: {str(e)}"
+            error_detail = str(e) or type(e).__name__
+            logger.error(f"TMDB搜索失败: {error_detail}")
+            result["error"] = f"TMDB搜索失败: {error_detail}"
 
         return result
 
@@ -187,17 +206,22 @@ class MediaIdentifyService:
             "error": None,
         }
 
-        # 加载下载任务
-        if not media_file.download_task:
-            await db.refresh(media_file, ["download_task"])
-
-        task = media_file.download_task
+        # 显式异步查询，禁止访问 relationship 触发 SQLAlchemy 懒加载；
+        # 后者在 AsyncSession 中会抛出 MissingGreenlet。
+        task = await db.get(DownloadTask, media_file.download_task_id)
         if not task:
             return result
 
         # 检查下载任务是否关联了统一资源
         if task.unified_table_name and task.unified_resource_id:
-            # 已有关联，直接使用
+            # 已有关联，直接修复媒体文件，避免前端还要再次确认或调用TMDB。
+            media_file.unified_table_name = task.unified_table_name
+            media_file.unified_resource_id = task.unified_resource_id
+            media_file.match_method = MATCH_METHOD_FROM_DOWNLOAD
+            media_file.match_confidence = 95
+            media_file.status = MEDIA_FILE_STATUS_IDENTIFIED
+            await db.commit()
+
             result["success"] = True
             result["auto_matched"] = True
             result["matched_id"] = task.unified_resource_id

@@ -58,6 +58,7 @@ export interface PTResource {
   isPromotional: boolean
   hasMapping: boolean
   mappingId?: number
+  unifiedTableName?: UnifiedTableName
   unifiedResourceId?: number
   mediaType?: string
   description?: string

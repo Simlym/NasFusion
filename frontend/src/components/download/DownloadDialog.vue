@@ -279,9 +279,12 @@ async function initForm() {
   form.media_type = props.resource.category || 'other'
   form.torrent_name = props.resource.title || ''
 
-  // 设置统一资源信息（如果从媒体详情页传入）
+  // 媒体详情页通过独立 props 传入；PT 资源列表页则把映射放在 resource 中。
+  // 两种入口都必须把统一资源关联带到下载任务，否则下载完成后的文件会显示未识别。
+  const mappedResourceId = props.unifiedResourceId ?? props.resource.unifiedResourceId
+  form.unified_resource_id = mappedResourceId
   form.unified_table_name = props.unifiedTableName
-  form.unified_resource_id = props.unifiedResourceId
+    ?? props.resource.unifiedTableName
 
   // 加载下载器列表
   await loadDownloaders()
