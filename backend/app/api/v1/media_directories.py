@@ -3,7 +3,7 @@
 媒体目录API路由
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,51 +98,70 @@ def check_episode_metadata(file_path: Optional[str], tech_info: Optional[dict] =
     return result
 
 
-def convert_file_path_to_url(file_path: Optional[str]) -> Optional[str]:
-    """
-    将文件系统路径转换为代理访问URL
-    
-    不再依赖于路径字符串本身的结构，而是通过后端的 image 代理接口进行访问。
-    """
-    if not file_path:
-        return None
-
-    # 规范化路径
-    normalized = file_path.replace("\\", "/")
-    
-    from urllib.parse import quote
-    # 将路径进行URL编码，以便作为查询参数传递
-    # 注意：这里我们编码整个路径
-    encoded_path = quote(normalized, safe="")
-    
-    return f"/api/v1/media-directories/image?path={encoded_path}"
+def media_image_url(directory_id: int, image_type: str) -> str:
+    """生成不暴露文件系统路径的媒体图片地址。"""
+    return f"/api/v1/media-directories/{directory_id}/images/{image_type}"
 
 
-@router.get("/image")
-async def get_media_image(
-    path: str = Query(..., description="图片的绝对路径"),
-    # 此接口不需要严格权限校验以便前端直接使用 img 标签，但建议根据需求开启
-    # db: AsyncSession = Depends(get_db)
-):
-    """
-    获取媒体图片代理
-    
-    通过绝对路径直接返回图片文件流，解决 Docker 环境下挂载路径不确定导致的静态挂载失效问题。
-    """
-    from urllib.parse import unquote
-    import os
-    
-    decoded_path = unquote(path)
-    
-    if not os.path.exists(decoded_path):
+def _validated_image_path(directory: MediaDirectory, image_type: str) -> Path:
+    raw_path = directory.poster_path if image_type == "poster" else directory.backdrop_path
+    if not raw_path:
         raise HTTPException(status_code=404, detail="图片不存在")
-        
-    if not os.path.isfile(decoded_path):
-        raise HTTPException(status_code=400, detail="请求的路径不是一个文件")
-        
-    # TODO: 可以在此处增加路径白名单校验，确保只访问媒体库内的文件
-    
-    return FileResponse(decoded_path)
+
+    image_path = Path(raw_path).resolve()
+    directory_path = Path(directory.directory_path).resolve()
+    try:
+        image_path.relative_to(directory_path)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="图片不在媒体目录内")
+
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
+    if image_path.suffix.lower() not in allowed_extensions:
+        raise HTTPException(status_code=415, detail="不支持的图片类型")
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    signatures = (
+        b"\xff\xd8\xff",  # JPEG
+        b"\x89PNG\r\n\x1a\n",
+        b"GIF87a",
+        b"GIF89a",
+        b"BM",
+    )
+    with image_path.open("rb") as image_file:
+        header = image_file.read(16)
+    is_webp = header.startswith(b"RIFF") and header[8:12] == b"WEBP"
+    if not is_webp and not any(header.startswith(signature) for signature in signatures):
+        raise HTTPException(status_code=415, detail="文件内容不是受支持的图片")
+    return image_path
+
+
+@router.get("/{directory_id}/images/{image_type}")
+async def get_media_image(
+    directory_id: int,
+    image_type: Literal["poster", "backdrop"],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """按媒体目录记录读取图片，并限制文件必须位于该目录中。"""
+    directory = await MediaDirectoryService.get_by_id(db, directory_id)
+    if not directory:
+        raise HTTPException(status_code=404, detail="目录不存在")
+    if not (directory.poster_path if image_type == "poster" else directory.backdrop_path):
+        metadata = MediaDirectoryService.check_metadata_realtime(
+            directory.directory_path,
+            directory.season_number,
+        )
+        discovered_path = metadata.get(f"{image_type}_path")
+        if discovered_path:
+            from types import SimpleNamespace
+            directory = SimpleNamespace(
+                directory_path=directory.directory_path,
+                poster_path=discovered_path if image_type == "poster" else None,
+                backdrop_path=discovered_path if image_type == "backdrop" else None,
+            )
+    image_path = _validated_image_path(directory, image_type)
+    return FileResponse(image_path)
 
 
 @router.get("/tree", response_model=List[DirectoryTreeNode])
@@ -217,9 +236,9 @@ async def get_directory_tree(
             "has_nfo": directory.has_nfo,
             "nfo_path": directory.nfo_path,
             "has_poster": directory.has_poster,
-            "poster_path": convert_file_path_to_url(directory.poster_path), # 确保这里也转换
+            "poster_path": media_image_url(directory.id, "poster") if directory.poster_path else None,
             "has_backdrop": directory.has_backdrop,
-            "backdrop_path": convert_file_path_to_url(directory.backdrop_path), # 确保这里也转换
+            "backdrop_path": media_image_url(directory.id, "backdrop") if directory.backdrop_path else None,
             "issue_flags": directory.issue_flags or {},
             "total_files": directory.total_files,
             "total_size": directory.total_size,
@@ -293,9 +312,7 @@ async def get_directory_detail(
         directory.has_nfo = metadata["has_nfo"]
         directory.nfo_path = metadata["nfo_path"]
         directory.has_poster = metadata["has_poster"]
-        directory.poster_path = convert_file_path_to_url(metadata["poster_path"]) if metadata["poster_path"] else None
         directory.has_backdrop = metadata["has_backdrop"]
-        directory.backdrop_path = convert_file_path_to_url(metadata["backdrop_path"]) if metadata["backdrop_path"] else None
 
         # 转换文件列表，处理可能的验证错误，并实时检查每个文件的 NFO/图片状态
         import re as _re
@@ -362,8 +379,14 @@ async def get_directory_detail(
             except Exception as e:
                 logger.warning(f"获取统一资源信息失败: {e}")
 
+        directory_response = MediaDirectoryResponse.model_validate(directory).model_copy(
+            update={
+                "poster_path": media_image_url(directory.id, "poster") if metadata["poster_path"] else None,
+                "backdrop_path": media_image_url(directory.id, "backdrop") if metadata["backdrop_path"] else None,
+            }
+        )
         return DirectoryDetailResponse(
-            directory=MediaDirectoryResponse.model_validate(directory),
+            directory=directory_response,
             statistics=detail["statistics"],
             files=files_response,
             nfo_data=nfo_data,

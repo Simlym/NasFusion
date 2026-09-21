@@ -7,11 +7,11 @@
         <!-- 缩略图区域 -->
         <div class="thumb-wrapper">
           <el-image
-            v-if="metadata?.poster_url"
-            :src="metadata.poster_url"
+            v-if="posterObjectUrl"
+            :src="posterObjectUrl"
             fit="cover"
             class="thumb-image"
-            :preview-src-list="[metadata.poster_url]"
+            :preview-src-list="[posterObjectUrl]"
           >
             <template #error>
               <div class="thumb-placeholder">
@@ -277,10 +277,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue'
+import { ref, computed, watch, reactive, onBeforeUnmount } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document, Calendar, Timer, Folder, Tickets, EditPen, ArrowDown, MagicStick } from '@element-plus/icons-vue'
-import { scrapeMediaFile, generateNFO, getEpisodeMetadata, updateEpisodeInfo, parseFilename, type EpisodeMetadata } from '@/api/modules/media'
+import { scrapeMediaFile, generateNFO, getEpisodeMetadata, getEpisodeImage, updateEpisodeInfo, parseFilename, type EpisodeMetadata } from '@/api/modules/media'
 import type { EpisodeTreeNode } from './DirectoryTree.vue'
 
 interface Props {
@@ -296,6 +296,7 @@ const generating = ref(false)
 
 const fileData = ref<EpisodeTreeNode | null>(null)
 const metadata = ref<EpisodeMetadata | null>(null)
+const posterObjectUrl = ref('')
 
 // 编辑集数信息
 const editingEpisodeInfo = ref(false)
@@ -330,6 +331,11 @@ const loadMetadata = async () => {
   try {
     const res = await getEpisodeMetadata(props.episode.id)
     metadata.value = res.data
+    if (posterObjectUrl.value) URL.revokeObjectURL(posterObjectUrl.value)
+    posterObjectUrl.value = ''
+    if (res.data.poster_url) {
+      posterObjectUrl.value = await getEpisodeImage(props.episode.id)
+    }
     // 同步状态到 fileData 以保持一致
     fileData.value = {
       ...fileData.value,
@@ -494,6 +500,9 @@ const mediaTypeLabel = (type?: string | null): string => {
 }
 
 watch(() => props.episode, loadMetadata, { immediate: true })
+onBeforeUnmount(() => {
+  if (posterObjectUrl.value) URL.revokeObjectURL(posterObjectUrl.value)
+})
 </script>
 
 <style scoped lang="scss">

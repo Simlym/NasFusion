@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.dependencies import get_current_admin_user
 from app.schemas.downloader import (
     DownloaderConfigCreate,
     DownloaderConfigListResponse,
@@ -20,7 +21,11 @@ from app.services.download.downloader_config_service import DownloaderConfigServ
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/downloaders", tags=["下载器配置"])
+router = APIRouter(
+    prefix="/downloaders",
+    tags=["下载器配置"],
+    dependencies=[Depends(get_current_admin_user)],
+)
 
 
 @router.post("", response_model=DownloaderConfigResponse, status_code=201)

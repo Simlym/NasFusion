@@ -4,6 +4,7 @@ logs/
 
 # Claude Code settings
 .claude/
+.agents/
 
 # IDE & Editor
 .VSCodeCounter

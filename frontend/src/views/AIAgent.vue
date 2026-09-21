@@ -312,7 +312,7 @@ import {
   CircleClose,
 } from '@element-plus/icons-vue'
 import AppIcon from '@/components/common/AppIcon.vue'
-import { marked } from 'marked'
+import { renderSafeMarkdown } from '@/utils/safeHtml'
 import api from '@/api'
 import type {
   AIAgentConfig,
@@ -461,7 +461,7 @@ const renderMarkdown = (text: string) => {
   if (!text) return ''
   // 过滤掉伪工具调用文本（流式模式下LLM可能生成此类文本）
   const filteredText = text.replace(/\[Call Tool:\s*\w+\([^)]*\)\]/g, '')
-  return marked(filteredText)
+  return renderSafeMarkdown(filteredText)
 }
 
 const getToolDisplayName = (name: string) => {

@@ -6,6 +6,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db
@@ -152,7 +153,6 @@ async def get_episode_metadata(
     """
     import os
     from pathlib import Path as _Path
-    from urllib.parse import quote
     from app.services.mediafile.nfo_parser_service import NFOParserService
 
     media_file = await MediaFileService.get_by_id(db, file_id)
@@ -205,11 +205,41 @@ async def get_episode_metadata(
         if thumb.exists():
             result["has_poster"] = True
             result["poster_file_path"] = str(thumb)
-            encoded = quote(str(thumb).replace("\\", "/"), safe="")
-            result["poster_url"] = f"/api/v1/media-directories/image?path={encoded}"
+            result["poster_url"] = f"/api/v1/media-files/{file_id}/episode-image"
             break
 
     return result
+
+
+@router.get("/{file_id}/episode-image")
+async def get_episode_image(
+    file_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """按媒体文件记录返回同目录缩略图，不接受客户端文件路径。"""
+    from pathlib import Path
+    from types import SimpleNamespace
+    from app.api.v1.media_directories import _validated_image_path
+
+    media_file = await MediaFileService.get_by_id(db, file_id)
+    if not media_file:
+        raise HTTPException(status_code=404, detail="媒体文件不存在")
+    raw_path = media_file.organized_path or media_file.file_path
+    if not raw_path:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    video_path = Path(raw_path)
+    for suffix in ("-thumb.jpg", "-thumb.jpeg", "-thumb.png", "-thumb.webp", ".jpg", ".jpeg", ".png"):
+        candidate = video_path.parent / f"{video_path.stem}{suffix}"
+        if candidate.is_file():
+            record = SimpleNamespace(
+                directory_path=str(video_path.parent),
+                poster_path=str(candidate),
+                backdrop_path=None,
+            )
+            return FileResponse(_validated_image_path(record, "poster"))
+    raise HTTPException(status_code=404, detail="图片不存在")
 
 
 @router.post("/scan")

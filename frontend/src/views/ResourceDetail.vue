@@ -303,6 +303,7 @@ import { View, Download, CopyDocument } from '@element-plus/icons-vue'
 import api from '@/api'
 import type { PTResource } from '@/types'
 import DownloadDialog from '@/components/download/DownloadDialog.vue'
+import { renderSafeBbCode } from '@/utils/safeHtml'
 
 const route = useRoute()
 const router = useRouter()
@@ -443,17 +444,7 @@ const formatPublishedTime = (dateString: string | undefined) => {
 }
 
 // 格式化描述（处理BB代码）
-const formatDescription = (description: string) => {
-  if (!description) return ''
-  // 简单的BB代码转换
-  return description
-    .replace(/\[b\](.*?)\[\/b\]/g, '<strong>$1</strong>')
-    .replace(/\[i\](.*?)\[\/i\]/g, '<em>$1</em>')
-    .replace(/\[u\](.*?)\[\/u\]/g, '<u>$1</u>')
-    .replace(/\[url=(.*?)\](.*?)\[\/url\]/g, '<a href="$1" target="_blank">$2</a>')
-    .replace(/\[img\](.*?)\[\/img\]/g, '<img src="$1" style="max-width: 100%;" />')
-    .replace(/\n/g, '<br/>')
-}
+const formatDescription = renderSafeBbCode
 
 // 获取分类类型
 const getCategoryType = (category: string) => {
