@@ -15,6 +15,8 @@ from app.constants.task import (
     EXECUTION_STATUS_CANCELLED, EXECUTION_STATUS_COMPLETED, EXECUTION_STATUS_FAILED,
     EXECUTION_STATUS_PENDING, EXECUTION_STATUS_RUNNING,
     TASK_TYPE_DOWNLOAD_CREATE, TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE,
+    TASK_TYPE_MEDIA_SERVER_LIBRARY_REFRESH, TASK_TYPE_PT_RESOURCE_IDENTIFY,
+    TASK_TYPE_SUBSCRIPTION_CHECK,
 )
 from app.core.init import cleanup_stuck_tasks
 from app.models import Base, DownloadTask, TaskExecution, WorkflowEvent
@@ -210,6 +212,73 @@ async def test_outbox_failure_is_recorded_and_retried(sessions, monkeypatch):
     await WorkflowEventService.deliver_pending(sessions)
     async with sessions() as db:
         assert (await db.get(WorkflowEvent, 1)).status == EVENT_DELIVERED
+
+
+@pytest.mark.asyncio
+async def test_site_sync_without_new_resources_queues_subscription_check(sessions):
+    async with sessions() as db:
+        await WorkflowEventService.enqueue_site_sync(db, {
+            "site_id": 7, "site_name": "M-Team", "sync_log_id": 11,
+            "resources_new": 0,
+        })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        item = await db.scalar(select(TaskExecution))
+        assert item.task_type == TASK_TYPE_SUBSCRIPTION_CHECK
+        assert item.task_metadata["workflow_step"] == "subscription_check"
+        assert item.handler_params["workflow_run_ids"] == ["site_sync:workflow:11"]
+
+
+@pytest.mark.asyncio
+async def test_site_sync_identifies_before_subscription_check(sessions, monkeypatch):
+    from app.services.pt.pt_resource_service import PTResourceService
+
+    monkeypatch.setattr(
+        PTResourceService, "get_unidentified_resources",
+        AsyncMock(return_value=[SimpleNamespace(id=101), SimpleNamespace(id=102)]),
+    )
+    async with sessions() as db:
+        await WorkflowEventService.enqueue_site_sync(db, {
+            "site_id": 7, "site_name": "M-Team", "sync_log_id": 12,
+            "resources_new": 2,
+        })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        identify = await db.scalar(select(TaskExecution))
+        assert identify.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY
+        assert identify.handler_params["pt_resource_ids"] == [101, 102]
+        assert await db.scalar(
+            select(func.count()).select_from(TaskExecution).where(
+                TaskExecution.task_type == TASK_TYPE_SUBSCRIPTION_CHECK
+            )
+        ) == 0
+        await WorkflowEventService.enqueue_resource_identified(db, {
+            "source_execution_id": identify.id,
+            "workflow_run_ids": identify.handler_params["workflow_run_ids"],
+        })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        types = (await db.execute(select(TaskExecution.task_type).order_by(TaskExecution.id))).scalars().all()
+        assert types == [TASK_TYPE_PT_RESOURCE_IDENTIFY, TASK_TYPE_SUBSCRIPTION_CHECK]
+
+
+@pytest.mark.asyncio
+async def test_media_refresh_events_are_debounced_and_retryable(sessions):
+    async with sessions() as db:
+        payload = {"user_id": 1, "organized_count": 2}
+        await WorkflowEventService.enqueue_media_organized(db, payload)
+        await WorkflowEventService.enqueue_media_organized(db, payload)
+        await db.commit()
+        assert await db.scalar(select(func.count()).select_from(WorkflowEvent)) == 1
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        item = await db.scalar(select(TaskExecution))
+        assert item.task_type == TASK_TYPE_MEDIA_SERVER_LIBRARY_REFRESH
+        assert item.scheduled_at > now()
+        assert item.max_retries == 3
 
 
 @pytest.mark.asyncio

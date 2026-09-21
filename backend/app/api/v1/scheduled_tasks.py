@@ -39,6 +39,11 @@ async def get_scheduled_tasks(
         db, skip=skip, limit=limit, enabled_only=enabled_only, task_type=task_type, keyword=keyword
     )
 
+    # 展示 APScheduler 的实时计划，而不是可能跨停机保留的数据库派生值。
+    for task in tasks:
+        if task.enabled and task.schedule_type != "manual":
+            task.next_run_at = scheduler_manager.get_next_run_time(task.id)
+
     return ScheduledTaskListResponse(total=total, items=tasks)
 
 

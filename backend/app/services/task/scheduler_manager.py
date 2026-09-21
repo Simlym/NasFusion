@@ -119,7 +119,7 @@ class SchedulerManager:
                     TaskExecution.status == EXECUTION_STATUS_PENDING,
                     or_(TaskExecution.next_retry_at.is_(None), TaskExecution.next_retry_at <= now()),
                     or_(TaskExecution.scheduled_at.is_(None), TaskExecution.scheduled_at <= now()),
-                ).order_by(TaskExecution.priority, TaskExecution.id).limit(capacity)
+                ).order_by(TaskExecution.priority.desc(), TaskExecution.id).limit(capacity)
             )).scalars().all()
         for execution_id in ids:
             task = asyncio.create_task(self._execute_task_by_execution(execution_id))
@@ -168,9 +168,17 @@ class SchedulerManager:
             id=job_id,
             name=task.task_name,
             replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=300,
         )
 
         logger.debug(f"已添加调度任务: {task.task_name} (ID: {task.id})")
+
+    def get_next_run_time(self, task_id: int):
+        """返回调度器中的真实下次运行时间，避免展示数据库派生值。"""
+        job = self._scheduler.get_job(f"task_{task_id}")
+        return job.next_run_time if job else None
 
     def _create_trigger(self, task: ScheduledTask):
         """创建APScheduler触发器"""

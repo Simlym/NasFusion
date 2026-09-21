@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 WORKFLOW_CONFIG = {
     "site_sync_auto_identify": {
-        "enabled": False,  # 暂时禁用自动批量识别
+        "enabled": True,
         "max_resources": 100,  # 单次识别资源上限
         "priority": 3,  # 中等优先级
         "skip_errors": True,

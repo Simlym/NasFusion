@@ -15,6 +15,7 @@ export enum TaskType {
   DOWNLOAD_STATUS_SYNC = 'download_status_sync',
   MEDIA_SERVER_WATCH_HISTORY_SYNC = 'media_server_watch_history_sync',
   MEDIA_SERVER_LIBRARY_STATS_UPDATE = 'media_server_library_stats_update',
+  MEDIA_SERVER_LIBRARY_REFRESH = 'media_server_library_refresh',
   CREDITS_BACKFILL = 'credits_backfill',
   PERSON_MERGE = 'person_merge'
 }
@@ -51,6 +52,7 @@ export const TaskTypeNames: Record<string, string> = {
   [TaskType.DOWNLOAD_STATUS_SYNC]: '同步下载状态',
   [TaskType.MEDIA_SERVER_WATCH_HISTORY_SYNC]: '[媒体服务器] 观看历史同步',
   [TaskType.MEDIA_SERVER_LIBRARY_STATS_UPDATE]: '[媒体服务器] 库统计更新',
+  [TaskType.MEDIA_SERVER_LIBRARY_REFRESH]: '[媒体服务器] 刷新媒体库',
   // 媒体服务器同步类型
   'media_server_library_sync': '[媒体服务器] 媒体库同步',
   'trending_sync': '流行趋势同步',
@@ -185,8 +187,14 @@ export interface TaskExecutionSummary {
   task_type: string
   status: string
   progress: number
+  progress_detail?: Record<string, any>
   started_at?: string
+  created_at?: string
+  completed_at?: string
+  updated_at?: string
+  duration?: number
   error_message?: string
+  task_metadata?: Record<string, any>
 }
 
 // 任务队列状态

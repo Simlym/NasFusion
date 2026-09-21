@@ -301,6 +301,8 @@ async def cleanup_stuck_tasks(db: AsyncSession):
         TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE, TASK_TYPE_DOWNLOAD_STATUS_SYNC,
     )
     from app.models.task_execution import TaskExecution
+    from app.models.scheduled_task import ScheduledTask
+    from app.constants.task import LAST_RUN_STATUS_RUNNING
 
     resumable = [TASK_TYPE_MEDIA_FILE_AUTO_ORGANIZE, TASK_TYPE_DOWNLOAD_STATUS_SYNC]
     recovered = await db.execute(
@@ -327,9 +329,17 @@ async def cleanup_stuck_tasks(db: AsyncSession):
             completed_at=None,
         )
     )
+    # 调度模板的运行状态是派生信息，进程重启后不应继续显示“执行中”。
+    stale_schedules = await db.execute(
+        update(ScheduledTask).where(
+            ScheduledTask.last_run_status == LAST_RUN_STATUS_RUNNING,
+        ).values(last_run_status=None)
+    )
     await db.commit()
-    logger.info("启动恢复：重新入队 %s 个任务，%s 个任务需要检查；等待队列保留",
-                recovered.rowcount, interrupted.rowcount)
+    logger.info(
+        "启动恢复：重新入队 %s 个任务，%s 个任务需要检查，修复 %s 个调度状态；等待队列保留",
+        recovered.rowcount, interrupted.rowcount, stale_schedules.rowcount,
+    )
 
 
 async def initialize_system(engine, db: AsyncSession):

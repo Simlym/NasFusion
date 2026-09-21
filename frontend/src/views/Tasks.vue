@@ -1,7 +1,120 @@
 <template>
   <div class="page-container">
+    <div v-if="activeTab === 'automation'" v-loading="tasksLoading || queueLoading" class="tab-content automation-layout">
+      <section class="automation-hero" aria-labelledby="automation-title">
+        <div>
+          <div class="automation-eyebrow">MEDIA AUTOMATION</div>
+          <h2 id="automation-title">资源自动化闭环</h2>
+          <p>只需安排资源同步，新增资源会依次完成识别、订阅匹配、下载、整理和媒体库刷新。</p>
+        </div>
+        <div class="automation-hero-actions">
+          <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">刷新状态</el-button>
+          <el-button type="primary" :icon="Plus" @click="handleCreate">创建资源同步</el-button>
+        </div>
+      </section>
+
+      <section class="automation-summary" aria-label="自动化状态摘要">
+        <div class="automation-stat">
+          <span class="automation-stat-value">{{ automationTasks.length }}</span>
+          <span class="automation-stat-label">资源同步入口</span>
+        </div>
+        <div class="automation-stat">
+          <span class="automation-stat-value automation-stat-value--running">{{ activeAutomationCount }}</span>
+          <span class="automation-stat-label">流程执行中</span>
+        </div>
+        <div class="automation-stat">
+          <span class="automation-stat-value" :class="{ 'automation-stat-value--danger': attentionCount > 0 }">{{ attentionCount }}</span>
+          <span class="automation-stat-label">需要关注</span>
+        </div>
+      </section>
+
+      <section class="workflow-panel" aria-labelledby="workflow-title">
+        <div class="section-heading-row">
+          <div>
+            <h3 id="workflow-title">默认处理流程</h3>
+            <p>步骤按事件顺序执行；无新增、无匹配或未开启自动下载时会自然结束。</p>
+          </div>
+          <el-tag type="success" effect="plain">自动识别已开启</el-tag>
+        </div>
+        <div class="workflow-track">
+          <template v-for="(step, index) in automationSteps" :key="step.key">
+            <div class="workflow-step">
+              <span class="workflow-step-index">{{ index + 1 }}</span>
+              <div>
+                <strong>{{ step.label }}</strong>
+                <span>{{ step.description }}</span>
+              </div>
+            </div>
+            <span v-if="index < automationSteps.length - 1" class="workflow-connector" aria-hidden="true">→</span>
+          </template>
+        </div>
+      </section>
+
+      <div class="automation-main-grid">
+        <section class="automation-section" aria-labelledby="sync-entry-title">
+          <div class="section-heading-row">
+            <div>
+              <h3 id="sync-entry-title">资源同步入口</h3>
+              <p>只维护同步计划，后续步骤由工作流接管。</p>
+            </div>
+            <span class="section-count">{{ automationTasks.length }} 个入口</span>
+          </div>
+          <div v-if="automationTasks.length" class="automation-card-grid">
+            <article v-for="task in automationTasks" :key="task.id" class="automation-card">
+              <div class="automation-card-head">
+                <div>
+                  <span class="automation-card-kicker">资源同步</span>
+                  <h4>{{ task.task_name }}</h4>
+                </div>
+                <el-tag :type="task.enabled ? 'success' : 'info'" effect="plain">
+                  {{ task.enabled ? '自动运行' : '已停用' }}
+                </el-tag>
+              </div>
+              <dl class="automation-card-meta">
+                <div><dt>调度</dt><dd>{{ getScheduleDescription(task) }}</dd></div>
+                <div><dt>上次运行</dt><dd>{{ task.last_run_at ? formatDate(task.last_run_at) : '尚未运行' }}</dd></div>
+                <div><dt>下次运行</dt><dd>{{ task.next_run_at ? formatDate(task.next_run_at) : '手动触发' }}</dd></div>
+              </dl>
+              <div class="automation-card-primary-actions">
+                <el-button type="primary" :icon="VideoPlay" :loading="runningId === task.id" @click="handleRunNow(task)">立即同步</el-button>
+                <el-button :icon="Clock" @click="handleViewHistory(task)">查看流程</el-button>
+              </div>
+              <div class="automation-card-manage-actions" aria-label="任务管理操作">
+                <el-button link :icon="Edit" @click="handleEdit(task)">设置</el-button>
+                <el-button class="automation-card-delete" link type="danger" :icon="Delete" @click="handleDelete(task)">删除</el-button>
+              </div>
+            </article>
+          </div>
+          <el-empty v-else description="尚未配置资源同步计划" :image-size="72">
+            <el-button type="primary" :icon="Plus" @click="handleCreate">创建资源同步</el-button>
+          </el-empty>
+        </section>
+
+        <section class="automation-section automation-section--activity" aria-labelledby="recent-flow-title">
+          <div class="section-heading-row">
+            <div><h3 id="recent-flow-title">最近自动化活动</h3><p>已过滤无业务变化的轮询记录。</p></div>
+            <el-button link type="primary" @click="activeTab = 'history'">查看全部</el-button>
+          </div>
+          <div v-if="meaningfulRecentExecutions.length" class="automation-activity-list">
+            <button v-for="item in meaningfulRecentExecutions" :key="item.id" type="button" class="automation-activity" @click="handleViewDetail(item.id)">
+              <span class="lq-status-dot" :class="`lq-status-dot--${item.status}`">
+                <el-icon v-if="item.status === 'completed'"><CircleCheck /></el-icon>
+                <el-icon v-else><CircleClose /></el-icon>
+              </span>
+              <span class="automation-activity-main"><strong>{{ item.task_name }}</strong><small>{{ formatDate(item.completed_at || item.updated_at) }}</small></span>
+              <el-tag :type="getStatusTagType(item.status)" size="small" effect="plain">{{ getStatusName(item.status) }}</el-tag>
+            </button>
+          </div>
+          <div v-else class="automation-activity-empty">
+            <el-icon><CircleCheck /></el-icon>
+            <span>暂无自动化活动</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
     <!-- Tab 内容显示区域 -->
-    <div v-if="activeTab === 'live-queue'" v-loading="queueLoading" class="tab-content lq-layout">
+    <div v-else-if="activeTab === 'live-queue'" v-loading="queueLoading" class="tab-content lq-layout">
 
       <!-- ── 顶部工具栏 ── -->
       <div class="lq-header">
@@ -176,6 +289,49 @@
         </div>
       </div>
 
+    </div>
+
+    <div v-else-if="activeTab === 'attention'" v-loading="tasksLoading || queueLoading" class="tab-content attention-layout">
+      <section class="attention-header">
+        <div>
+          <h2>需要关注</h2>
+          <p>这里只保留失败或异常的执行；正常后台维护不会打扰你。</p>
+        </div>
+        <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">重新检查</el-button>
+      </section>
+
+      <div v-if="attentionCount" class="attention-list">
+        <article v-for="item in attentionExecutions" :key="`execution-${item.id}`" class="attention-card attention-card--danger">
+          <div class="attention-icon"><el-icon><Warning /></el-icon></div>
+          <div class="attention-content">
+            <div class="attention-title-row">
+              <strong>{{ item.task_name }}</strong>
+              <el-tag type="danger" size="small">{{ getStatusName(item.status) }}</el-tag>
+            </div>
+            <p>{{ item.error_message || '执行失败，请查看任务日志了解原因。' }}</p>
+            <span>{{ formatDate(item.completed_at || item.updated_at || item.created_at) }}</span>
+          </div>
+          <el-button type="primary" link @click="handleViewDetail(item.id)">查看详情</el-button>
+        </article>
+
+        <article v-for="task in attentionScheduledTasks" :key="`scheduled-${task.id}`" class="attention-card">
+          <div class="attention-icon"><el-icon><Clock /></el-icon></div>
+          <div class="attention-content">
+            <div class="attention-title-row"><strong>{{ task.task_name }}</strong><el-tag type="warning" size="small">上次失败</el-tag></div>
+            <p>调度任务上次执行未成功，可查看历史记录后决定是否重试。</p>
+            <span>{{ task.last_run_at ? formatDate(task.last_run_at) : '暂无执行时间' }}</span>
+          </div>
+          <div class="attention-actions">
+            <el-button type="primary" link @click="handleViewHistory(task)">查看历史</el-button>
+            <el-button type="primary" link :loading="runningId === task.id" @click="handleRunNow(task)">重新执行</el-button>
+          </div>
+        </article>
+      </div>
+      <div v-else class="attention-empty">
+        <el-icon><CircleCheck /></el-icon>
+        <h3>当前没有需要处理的问题</h3>
+        <p>自动化流程和后台任务均未报告失败。</p>
+      </div>
     </div>
 
     <div v-else-if="activeTab === 'history'" v-loading="historyLoading" class="tab-content">
@@ -407,6 +563,13 @@
     </div>
 
     <div v-else-if="activeTab === 'scheduled'" v-loading="tasksLoading" class="tab-content">
+      <div class="advanced-task-notice">
+        <el-icon><Warning /></el-icon>
+        <div>
+          <strong>高级任务</strong>
+          <span>这里包含系统维护、数据同步和手动工具。日常使用只需在“自动化概览”维护资源同步计划。</span>
+        </div>
+      </div>
       <!-- 控制栏：胶囊筛选 + 搜索 + 操作 -->
       <div class="scheduled-control-bar">
         <!-- 左：分组胶囊（桌面端） -->
@@ -1205,7 +1368,7 @@ interface ProgressDetail {
   [key: string]: unknown
 }
 
-interface TaskExecutionWithProgress extends TaskExecution {
+interface ProgressAwareExecution {
   progress_detail?: ProgressDetail
 }
 
@@ -1265,7 +1428,7 @@ interface TaskUpdateData {
   schedule_config?: Record<string, unknown>
   description?: string
   enabled: boolean
-  handler_params?: SubscriptionCheckHandlerParams | PTSyncHandlerParams | PTResourceIdentifyHandlerParams | MediaServerLibrarySyncHandlerParams
+  handler_params?: SubscriptionCheckHandlerParams | PTSyncHandlerParams | PTResourceIdentifyHandlerParams | MediaServerLibrarySyncHandlerParams | Record<string, any>
 }
 
 // ==================== 辅助函数 ====================
@@ -1280,8 +1443,8 @@ const getErrorMessage = (error: unknown): string => {
 }
 
 // ==================== 状态管理 ====================
-// 从路由查询参数初始化标签页，默认为 live-queue
-const activeTab = ref((route.query.tab as string) || 'live-queue')
+// 从路由查询参数初始化标签页，默认突出用户真正需要维护的自动化入口。
+const activeTab = ref((route.query.tab as string) || 'automation')
 
 // 监听路由参数变化，同步 activeTab
 watch(
@@ -1325,6 +1488,44 @@ const scheduledTasksFilters = reactive({
   task_type: '',
   keyword: ''
 })
+
+const automationSteps = [
+  { key: 'sync', label: '资源同步', description: '发现新增资源' },
+  { key: 'identify', label: '自动识别', description: '补全媒体身份' },
+  { key: 'subscription', label: '订阅匹配', description: '只检查有效订阅' },
+  { key: 'download', label: '自动下载', description: '遵循订阅策略' },
+  { key: 'organize', label: '文件整理', description: '落入媒体目录' },
+  { key: 'refresh', label: '媒体库刷新', description: '合并后统一刷新' },
+]
+
+const AUTOMATION_TASK_TYPES = new Set([
+  'pt_resource_sync', 'pt_resource_identify', 'subscription_check', 'download_create',
+  'media_file_auto_organize', 'media_server_library_refresh',
+])
+const NOISE_TASK_NAMES = new Set(['监听下载完成', '订阅自动检查（全局）'])
+
+const automationTasks = computed(() =>
+  scheduledTasks.value.filter(task => task.task_type === 'pt_resource_sync')
+)
+const activeAutomationCount = computed(() =>
+  [...queueStatus.running, ...queueStatus.pending].filter(item => AUTOMATION_TASK_TYPES.has(item.task_type)).length
+)
+const attentionExecutions = computed(() =>
+  queueStatus.recent_completed.filter(item => item.status === 'failed' || item.status === 'timeout')
+)
+const attentionScheduledTasks = computed(() =>
+  scheduledTasks.value.filter(task =>
+    task.last_run_status === 'failed'
+    && !attentionExecutions.value.some(item => item.task_name.startsWith(task.task_name))
+  )
+)
+const attentionCount = computed(() => attentionExecutions.value.length + attentionScheduledTasks.value.length)
+const meaningfulRecentExecutions = computed(() =>
+  queueStatus.recent_completed
+    .filter(item => !NOISE_TASK_NAMES.has(item.task_name))
+    .filter(item => AUTOMATION_TASK_TYPES.has(item.task_type) || item.status === 'failed')
+    .slice(0, 8)
+)
 
 // 历史记录
 const historyList = ref<TaskExecution[]>([])
@@ -1557,7 +1758,7 @@ const getStepStatus = (step: ProgressStep) => {
 }
 
 // 获取当前执行的步骤名称
-const getCurrentStepName = (row: TaskExecutionWithProgress) => {
+const getCurrentStepName = (row: ProgressAwareExecution) => {
   if (!row.progress_detail?.steps) return ''
 
   const steps = row.progress_detail.steps
@@ -1578,7 +1779,7 @@ const getCurrentStepName = (row: TaskExecutionWithProgress) => {
 }
 
 // 获取当前步骤的状态
-const getCurrentStepStatus = (row: TaskExecutionWithProgress) => {
+const getCurrentStepStatus = (row: ProgressAwareExecution) => {
   if (!row.progress_detail?.steps) return 'pending'
 
   const steps = row.progress_detail.steps
@@ -1920,6 +2121,10 @@ const loadScheduledTasks = async () => {
   }
 }
 
+const loadAutomationOverview = async () => {
+  await Promise.all([loadScheduledTasks(), loadQueueStatus()])
+}
+
 const loadSites = async () => {
   try {
     const { data } = await api.site.getSiteList({ page: 1, page_size: 100, sync_enabled: true })
@@ -1932,7 +2137,8 @@ const loadSites = async () => {
 const loadSubscriptions = async () => {
   try {
     const res = await api.subscription.getSubscriptionList({ page: 1, pageSize: 100, is_active: true })
-    subscriptions.value = res.data.items || []
+    const payload = res.data as unknown as { items?: Subscription[] }
+    subscriptions.value = payload.items || []
   } catch (error: unknown) {
     console.error('加载订阅列表失败:', error)
   }
@@ -2180,16 +2386,16 @@ const handleDelete = async (task: ScheduledTask) => {
       type: 'warning',
       message: h('div', null, [
         h('p', { style: 'margin-bottom: 8px; font-weight: 500;' }, `确定要删除任务 "${task.task_name}" 吗？`),
-        h('p', { style: 'font-size: 13px; color: #909399;' }, `任务名称: ${task.task_name}`),
+        h('p', { style: 'font-size: 13px; color: var(--nf-text-secondary);' }, `任务名称: ${task.task_name}`),
         h(
           'p',
-          { style: 'font-size: 13px; color: #909399;' },
+          { style: 'font-size: 13px; color: var(--nf-text-secondary);' },
           `任务类型: ${getTaskTypeName(task.task_type)}`
         ),
         h(
           'p',
-          { style: 'color: #f56c6c; margin-top: 12px; font-size: 13px;' },
-          '⚠️ 删除后无法恢复，但执行历史会保留'
+          { style: 'color: var(--nf-danger); margin-top: 12px; font-size: 13px;' },
+          '删除后无法恢复，但执行历史会保留。'
         )
       ])
     })
@@ -2628,7 +2834,9 @@ watch(
     if (newTab && typeof newTab === 'string' && newTab !== activeTab.value) {
       activeTab.value = newTab
       // 根据标签页加载对应数据
-      if (newTab === 'live-queue') {
+      if (newTab === 'automation' || newTab === 'attention') {
+        loadAutomationOverview()
+      } else if (newTab === 'live-queue') {
         loadQueueStatus()
       } else if (newTab === 'history') {
         loadHistory()
@@ -2644,7 +2852,9 @@ watch(
 watch(activeTab, (newTab) => {
   // 这个watcher现在主要处理程序内部触发的tab变化
   // URL变化已经由上面的route watcher处理
-  if (newTab === 'live-queue') {
+  if (newTab === 'automation' || newTab === 'attention') {
+    loadAutomationOverview()
+  } else if (newTab === 'live-queue') {
     loadQueueStatus()
   } else if (newTab === 'history') {
     loadHistory()
@@ -2659,11 +2869,13 @@ const handleMobileResize = () => {
 
 onMounted(() => {
   // 设置页面标题
-  document.title = '任务管理 - NasFusion'
+  document.title = '自动化中心 - NasFusion'
   window.addEventListener('resize', handleMobileResize)
 
   // 初始加载当前标签页的数据
-  if (activeTab.value === 'live-queue') {
+  if (activeTab.value === 'automation' || activeTab.value === 'attention') {
+    loadAutomationOverview()
+  } else if (activeTab.value === 'live-queue') {
     loadQueueStatus()
   } else if (activeTab.value === 'history') {
     loadHistory()
@@ -2676,9 +2888,11 @@ onMounted(() => {
   // 加载订阅列表（用于创建任务）
   loadSubscriptions()
 
-  // 每30秒自动刷新队列状态（仅当在实时队列标签页时）
+  // 自动化概览、关注页和实时队列都需要轻量刷新运行状态。
   refreshInterval = window.setInterval(() => {
-    if (activeTab.value === 'live-queue') {
+    if (activeTab.value === 'automation' || activeTab.value === 'attention') {
+      loadAutomationOverview()
+    } else if (activeTab.value === 'live-queue') {
       loadQueueStatus()
     }
   }, 30000)
@@ -2698,6 +2912,359 @@ onUnmounted(() => {
 .page-container {
   width: 100%;
 }
+
+/* ==================== 自动化概览 ==================== */
+.automation-layout,
+.attention-layout {
+  display: flex;
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.automation-hero,
+.attention-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  overflow: hidden;
+  border: 1px solid var(--nf-glass-border);
+  border-radius: var(--nf-radius-lg);
+  background:
+    radial-gradient(circle at 92% 20%, color-mix(in srgb, var(--nf-primary) 18%, transparent), transparent 32%),
+    var(--nf-glass-primary-tint);
+  box-shadow: var(--nf-shadow-xs);
+}
+
+.automation-eyebrow {
+  margin-bottom: 6px;
+  color: var(--nf-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.automation-hero h2,
+.attention-header h2 {
+  margin: 0 0 6px;
+  color: var(--nf-text-primary);
+  font-size: 22px;
+}
+
+.automation-hero p,
+.attention-header p,
+.section-heading-row p {
+  margin: 0;
+  color: var(--nf-text-secondary);
+  line-height: var(--nf-line-height-base);
+}
+
+.automation-hero-actions,
+.attention-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.automation-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.automation-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 68px;
+  padding: 14px 18px;
+  border: 1px solid var(--nf-border-base);
+  border-radius: var(--nf-radius-lg);
+  background: var(--nf-bg-elevated);
+  box-shadow: var(--nf-shadow-xs);
+}
+
+.automation-stat-value {
+  color: var(--nf-text-primary);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.automation-stat-value--running { color: var(--nf-primary); }
+.automation-stat-value--danger { color: var(--nf-danger); }
+.automation-stat-label { color: var(--nf-text-secondary); font-size: 13px; }
+
+.workflow-panel,
+.automation-section {
+  padding: 20px;
+  border: 1px solid var(--nf-border-base);
+  border-radius: var(--nf-radius-lg);
+  background: var(--nf-bg-elevated);
+  box-shadow: var(--nf-shadow-xs);
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-heading-row h3 {
+  margin: 0 0 4px;
+  color: var(--nf-text-primary);
+  font-size: 16px;
+}
+
+.section-count {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: var(--nf-radius-full);
+  background: var(--nf-glass-primary-tint);
+  color: var(--nf-primary);
+  font-size: 12px;
+  font-weight: var(--nf-font-weight-medium);
+}
+
+.workflow-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.workflow-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 0 132px;
+  min-width: 132px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--nf-primary) 16%, var(--nf-border-base));
+  border-radius: var(--nf-radius-md);
+  background: var(--nf-glass-primary-tint);
+}
+
+.workflow-step-index {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--nf-primary) 48%, var(--nf-border-base));
+  border-radius: var(--nf-radius-full);
+  background: var(--nf-bg-elevated);
+  color: var(--nf-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.workflow-step > div > strong,
+.workflow-step > div > span { display: block; }
+.workflow-step strong { color: var(--nf-text-primary); font-size: 13px; }
+.workflow-step div span { margin-top: 3px; color: var(--nf-text-secondary); font-size: 11px; }
+.workflow-connector { align-self: center; padding: 0 7px; color: var(--nf-primary); opacity: 0.65; }
+
+.automation-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.75fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.automation-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.automation-card {
+  flex: 1 1 360px;
+  width: 100%;
+  max-width: 340px;
+  padding: 16px;
+  border: 1px solid var(--nf-border-light);
+  border-radius: var(--nf-radius-md);
+  background: var(--nf-bg-container);
+  transition: border-color var(--nf-transition-base), box-shadow var(--nf-transition-base);
+}
+
+.automation-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.automation-card-kicker { color: var(--nf-primary); font-size: 11px; font-weight: 700; }
+.automation-card h4 { margin: 4px 0 0; color: var(--nf-text-primary); font-size: 17px; }
+
+.automation-card-meta { display: grid; gap: 0; margin: 14px 0; }
+.automation-card-meta div { display: flex; justify-content: space-between; gap: 16px; }
+.automation-card-meta div + div { margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--nf-border-base); }
+.automation-card-meta dt { color: var(--nf-text-secondary); font-size: 12px; }
+.automation-card-meta dd { margin: 0; color: var(--nf-text-primary); font-size: 12px; text-align: right; }
+
+.automation-card-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.automation-card-primary-actions :deep(.el-button) {
+  width: 100%;
+  margin-left: 0;
+}
+
+.automation-card-manage-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--nf-border-base);
+}
+
+.automation-card-manage-actions :deep(.el-button) {
+  min-height: 32px;
+  margin-left: 0;
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transition: color var(--nf-transition-fast);
+}
+
+.automation-card-manage-actions :deep(.el-button:hover) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--nf-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.automation-card-manage-actions :deep(.el-button:focus-visible) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--nf-primary);
+  outline: 2px solid var(--nf-primary);
+  outline-offset: 1px;
+}
+
+.automation-card-manage-actions :deep(.automation-card-delete.el-button) {
+  color: var(--nf-danger);
+}
+
+.automation-card-manage-actions :deep(.automation-card-delete.el-button:hover) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--nf-danger);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.automation-card-manage-actions :deep(.automation-card-delete.el-button:focus-visible) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--nf-danger);
+  outline-color: var(--nf-danger);
+}
+
+.automation-activity-list,
+.attention-list { display: grid; gap: 10px; }
+
+.automation-section--activity { min-width: 0; }
+
+.automation-activity {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--nf-transition-base), border-color var(--nf-transition-base);
+}
+
+.automation-activity:hover {
+  border-color: color-mix(in srgb, var(--nf-primary) 28%, var(--nf-border-base));
+  background: var(--nf-glass-primary-tint);
+}
+
+.automation-activity:focus-visible {
+  border-color: var(--nf-primary);
+  background: var(--nf-glass-primary-tint);
+  outline: 2px solid var(--nf-primary);
+  outline-offset: 2px;
+}
+
+.automation-activity-main { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.automation-activity-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.automation-activity-main small { color: var(--nf-text-secondary); }
+
+.automation-activity-empty {
+  display: grid;
+  min-height: 132px;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: var(--nf-text-secondary);
+  font-size: 13px;
+}
+
+.automation-activity-empty .el-icon { color: var(--nf-success); font-size: 28px; }
+
+.attention-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--nf-border-base);
+  border-radius: var(--nf-radius-lg);
+  background: var(--nf-bg-elevated);
+}
+
+.attention-card--danger { border-color: color-mix(in srgb, var(--nf-danger) 40%, var(--nf-border-base)); }
+.attention-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--nf-warning) 14%, transparent); color: var(--nf-warning); font-size: 20px; }
+.attention-card--danger .attention-icon { background: color-mix(in srgb, var(--nf-danger) 14%, transparent); color: var(--nf-danger); }
+.attention-content { flex: 1; min-width: 0; }
+.attention-title-row { display: flex; align-items: center; gap: 8px; }
+.attention-content p { margin: 5px 0; color: var(--nf-text-secondary); }
+.attention-content > span { color: var(--nf-text-placeholder); font-size: 12px; }
+.attention-empty { padding: 64px 20px; text-align: center; color: var(--nf-success); }
+.attention-empty .el-icon { font-size: 44px; }
+.attention-empty h3 { margin: 14px 0 6px; color: var(--nf-text-primary); }
+.attention-empty p { margin: 0; color: var(--nf-text-secondary); }
+
+.advanced-task-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--nf-primary) 26%, var(--nf-border-base));
+  border-radius: 10px;
+  background: var(--nf-glass-primary-tint);
+  color: var(--nf-primary);
+}
+
+.advanced-task-notice div { display: flex; flex-direction: column; gap: 2px; }
+.advanced-task-notice span { color: var(--nf-text-secondary); font-size: 12px; }
 
 /* ==================== 页面头部 ==================== */
 .page-header {
@@ -4151,7 +4718,32 @@ onUnmounted(() => {
 }
 
 /* ==================== 响应式设计 ==================== */
+@media (max-width: 1100px) {
+  .automation-main-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
+
+  .automation-hero,
+  .attention-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .automation-hero-actions .el-button,
+  .automation-card-primary-actions .el-button,
+  .automation-card-manage-actions .el-button { min-height: 44px; }
+
+  .automation-summary { grid-template-columns: 1fr; }
+  .workflow-panel,
+  .automation-section { padding: 16px; }
+  .automation-card { max-width: none; }
+  .workflow-track { margin-right: -16px; padding-right: 16px; }
+  .attention-card { align-items: flex-start; flex-wrap: wrap; }
+  .attention-card > .el-button,
+  .attention-actions { margin-left: 54px; }
+  .advanced-task-notice { align-items: flex-start; }
 
   /* 控制栏移动端 */
   .scheduled-control-bar {
@@ -4342,6 +4934,11 @@ onUnmounted(() => {
   .status-filter-bar {
     padding: 0 12px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .automation-card,
+  .automation-activity { transition: none; }
 }
 
 @media (max-width: 576px) {

@@ -223,7 +223,7 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
 
         # 发布事件
         if success_count > 0:
-            await event_bus.publish(EVENT_MEDIA_ORGANIZED, {
+            event_data = {
                 "user_id": download_task.user_id,  # 下载任务的创建者
                 "download_task_id": download_task_id,
                 "torrent_name": download_task.torrent_name,
@@ -231,7 +231,11 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
                 "storage_mount": storage_mount.name,
                 "related_type": "download_task",
                 "related_id": download_task_id,
-            })
+            }
+            from app.services.task.workflow_event_service import WorkflowEventService
+            await WorkflowEventService.enqueue_media_organized(db, event_data)
+            await db.commit()
+            await event_bus.publish(EVENT_MEDIA_ORGANIZED, event_data)
 
         return {
             "status": "success",
