@@ -516,6 +516,59 @@ async def test_organizer_recovers_file_side_effect_and_commits_checkpoint_once(s
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("expired_columns", [["updated_at"], None])
+async def test_auto_organize_reloads_expired_config_between_files(
+    sessions, tmp_path, monkeypatch, expired_columns,
+):
+    import os
+    from app.models import MediaFile, OrganizeConfig
+
+    async def handler(db, media, config, dry_run, storage_mount_id):
+        target = tmp_path / f"organized-{media.id}.mkv"
+        assert config.skip_existed is True
+        if not dry_run:
+            os.link(media.file_path, target)
+        return {"status": "success", "organized_path": str(target)}
+
+    monkeypatch.setattr(MediaOrganizerService, "_organize_movie", handler)
+    async with sessions() as db:
+        config = OrganizeConfig(
+            name="expired-config", media_type="movie", library_root=str(tmp_path),
+            dir_template="{title}", filename_template="{title}", organize_mode="hardlink",
+            skip_existed=False, generate_nfo=False, download_poster=False, download_backdrop=False,
+        )
+        files = []
+        for index in range(2):
+            source = tmp_path / f"source-{index}.mkv"
+            source.write_bytes(b"media contents")
+            files.append(MediaFile(
+                file_path=str(source), file_name=source.name, directory=str(tmp_path),
+                file_size=14, file_type="video", extension=".mkv", modified_at=now(),
+                media_type="movie", unified_table_name="unified_movies", unified_resource_id=1,
+            ))
+        db.add_all([config, *files])
+        await db.commit()
+        first = await MediaOrganizerService.organize_media_file(
+            db, files[0], config, resume_safe=True,
+        )
+        assert first["status"] == "success"
+        # 模拟数据库生成列过期，以及配置全部过期，两种情况下都不能隐式加载。
+        db.expire(config, expired_columns)
+        second = await MediaOrganizerService.organize_media_file(
+            db, files[1], config, resume_safe=True,
+        )
+        assert second["status"] == "success"
+        await db.refresh(config)
+        assert config.skip_existed is False
+        assert config.total_organized_count == 2
+    async with sessions() as db:
+        files = (await db.execute(select(MediaFile))).scalars().all()
+        assert len(files) == 2 and all(file.organized for file in files)
+        for file in files:
+            assert (tmp_path / f"organized-{file.id}.mkv").read_bytes() == b"media contents"
+
+
+@pytest.mark.asyncio
 async def test_uncommitted_completion_event_is_invisible_to_consumer(sessions):
     async with sessions() as producer:
         task = await download(producer, progress=50, completed_at=None)

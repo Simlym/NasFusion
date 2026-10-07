@@ -89,6 +89,9 @@ class MediaOrganizerService:
             # 自动恢复绝不覆盖目标。用只读配置快照，避免修改数据库中的用户设置。
             if resume_safe:
                 from types import SimpleNamespace
+                # 更新整理统计后，数据库生成的 updated_at 等列可能过期。
+                # 即使 expire_on_commit=False，也必须显式异步加载后再读取属性。
+                await db.refresh(config)
                 config = SimpleNamespace(**{
                     column.key: getattr(config, column.key)
                     for column in OrganizeConfig.__table__.columns

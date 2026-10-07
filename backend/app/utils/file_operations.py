@@ -597,6 +597,9 @@ def organize_with_associated_files(
             "samples": ["预览路径1", ...],
             "errors": ["错误信息", ...]
         }
+
+    Raises:
+        FileOperationError: 主视频整理失败；附属文件失败仍通过 errors 返回
     """
     video = Path(video_path)
     dest = Path(dest_dir)
@@ -617,8 +620,8 @@ def organize_with_associated_files(
         organize_file(video, video_dest, mode, overwrite)
         result["video"] = str(video_dest)
     except FileOperationError as e:
-        result["errors"].append(f"视频整理失败: {e}")
-        return result  # 视频失败则中止
+        # 主视频失败必须让上层返回失败，不能作为附属文件警告继续标记已整理。
+        raise FileOperationError(f"视频整理失败: {e}") from e
 
     # 2. 查找并整理附属文件
     associated = find_associated_files(

@@ -158,7 +158,11 @@ class MediaFileAutoOrganizeHandler(BaseTaskHandler):
                 if not media_file.organized_path or not Path(media_file.organized_path).exists():
                     failed_count += 1
                     await TaskExecutionService.append_log(
-                        db, execution_id, f"已整理文件的目标不可用: {media_file.file_name}"
+                        db, execution_id,
+                        f"已整理文件的目标不可用: {media_file.file_name}\n"
+                        f"  目标路径: {media_file.organized_path or '未记录'}\n"
+                        f"  源路径: {media_file.file_path}\n"
+                        f"  整理模式: {media_file.organize_mode or organize_config.organize_mode}"
                     )
                 else:
                     skipped_count += 1
