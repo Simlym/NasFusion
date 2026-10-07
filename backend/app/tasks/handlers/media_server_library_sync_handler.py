@@ -420,7 +420,7 @@ class MediaServerLibrarySyncHandler(BaseTaskHandler):
 
                         response = await client.get(
                             f"{base_url}/Users/{user_id}/Items",
-                            headers={"X-Emby-Token": adapter.api_key},
+                            headers=adapter.auth_headers,
                             params=params,
                         )
                         response.raise_for_status()

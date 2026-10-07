@@ -30,6 +30,11 @@ class JellyfinAdapter(BaseMediaServerAdapter):
             "follow_redirects": True,
         }
 
+    @property
+    def auth_headers(self) -> Dict[str, str]:
+        """使用 Jellyfin 标准认证头，兼容禁用旧认证方式的服务器。"""
+        return {"Authorization": f'MediaBrowser Token="{self.api_key}"'}
+
     async def _get_user_id(self) -> str:
         """
         获取用户 ID（类级别缓存，跨请求复用）
@@ -58,7 +63,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/System/Info", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/System/Info", headers=self.auth_headers
                 )
                 return response.status_code == 200
         except Exception as e:
@@ -75,7 +80,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/Library/VirtualFolders", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/Library/VirtualFolders", headers=self.auth_headers
                 )
                 response.raise_for_status()
                 libraries = response.json()
@@ -105,7 +110,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
                             }
                             count_res = await client.get(
                                 f"{self.base_url}/Users/{user_id}/Items",
-                                headers={"X-Emby-Token": self.api_key},
+                                headers=self.auth_headers,
                                 params=count_params
                             )
                             if count_res.status_code == 200:
@@ -154,7 +159,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
                     # 全局刷新
                     endpoint = "/Library/Refresh"
 
-                response = await client.post(f"{self.base_url}{endpoint}", headers={"X-Emby-Token": self.api_key})
+                response = await client.post(f"{self.base_url}{endpoint}", headers=self.auth_headers)
                 return response.status_code in [200, 204]
         except Exception as e:
             logger.error(f"Failed to refresh Jellyfin library: {str(e)}")
@@ -170,7 +175,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/Users", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/Users", headers=self.auth_headers
                 )
                 response.raise_for_status()
                 users = response.json()
@@ -204,7 +209,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
                     f"{self.base_url}/Users/{user_id}/Items",
-                    headers={"X-Emby-Token": self.api_key},
+                    headers=self.auth_headers,
                     params={
                         "Recursive": "true",
                         "Fields": "PlayCount,UserData,Overview,Path,ProviderIds,ProductionYear,SeriesName,ParentIndexNumber,IndexNumber,ParentId,AncestorIds",
@@ -231,7 +236,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/Items/Counts", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/Items/Counts", headers=self.auth_headers
                 )
                 response.raise_for_status()
                 stats = response.json()
@@ -239,7 +244,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
                 # 获取用户数量
                 try:
                     users_response = await client.get(
-                        f"{self.base_url}/Users", headers={"X-Emby-Token": self.api_key}
+                        f"{self.base_url}/Users", headers=self.auth_headers
                     )
                     if users_response.status_code == 200:
                         stats["UserCount"] = len(users_response.json())
@@ -263,7 +268,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/System/Info", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/System/Info", headers=self.auth_headers
                 )
                 response.raise_for_status()
                 return response.json()
@@ -281,7 +286,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
         try:
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
-                    f"{self.base_url}/Sessions", headers={"X-Emby-Token": self.api_key}
+                    f"{self.base_url}/Sessions", headers=self.auth_headers
                 )
                 response.raise_for_status()
                 return response.json()
@@ -305,7 +310,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
                     f"{self.base_url}/Users/{user_id}/Items/Latest",
-                    headers={"X-Emby-Token": self.api_key},
+                    headers=self.auth_headers,
                     params={
                         "Limit": limit,
                         "IncludeItemTypes": "Movie,Episode",
@@ -335,7 +340,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
             async with httpx.AsyncClient(**self.client_config) as client:
                 url = f"{self.base_url}/Users/{user_id}/Items/{item_id}"
                 response = await client.get(
-                    url, headers={"X-Emby-Token": self.api_key}
+                    url, headers=self.auth_headers
                 )
                 response.raise_for_status()
                 return response.json()
@@ -359,7 +364,7 @@ class JellyfinAdapter(BaseMediaServerAdapter):
             async with httpx.AsyncClient(**self.client_config) as client:
                 response = await client.get(
                     f"{self.base_url}/Users/{user_id}/Items",
-                    headers={"X-Emby-Token": self.api_key},
+                    headers=self.auth_headers,
                     params={
                         "SearchTerm": query,
                         "Recursive": "true",

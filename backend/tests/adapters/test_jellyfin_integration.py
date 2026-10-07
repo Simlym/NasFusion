@@ -2,6 +2,32 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from app.adapters.media_servers.jellyfin import JellyfinAdapter
 import httpx
+from app.adapters.media_servers.emby import EmbyAdapter
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "adapter_class,expected_headers",
+    [
+        (JellyfinAdapter, {"Authorization": 'MediaBrowser Token="test_key"'}),
+        (EmbyAdapter, {"X-Emby-Token": "test_key"}),
+    ],
+)
+async def test_connection_authentication(adapter_class, expected_headers):
+    """模拟拒绝错误认证头的服务，验证两种适配器的实际请求。"""
+    server = adapter_class({"host": "localhost", "api_key": "test_key"})
+
+    def handle_request(request):
+        assert request.url.path == "/System/Info"
+        authorized = all(request.headers.get(k) == v for k, v in expected_headers.items())
+        if adapter_class is JellyfinAdapter:
+            assert "X-Emby-Token" not in request.headers
+        else:
+            assert "Authorization" not in request.headers
+        return httpx.Response(200 if authorized else 401, json={})
+
+    server.client_config["transport"] = httpx.MockTransport(handle_request)
+    assert await server.test_connection() is True
 
 @pytest.fixture
 def adapter():
@@ -44,7 +70,7 @@ async def test_get_system_info(adapter):
         # Verify get was called correctly
         args, kwargs = mock_client_instance.get.call_args
         assert str(args[0]).endswith("/System/Info")
-        assert kwargs["headers"]["X-Emby-Token"] == "test_key"
+        assert kwargs["headers"] == {"Authorization": 'MediaBrowser Token="test_key"'}
 
 @pytest.mark.asyncio
 async def test_get_sessions(adapter):

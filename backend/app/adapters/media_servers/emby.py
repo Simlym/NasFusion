@@ -16,3 +16,8 @@ class EmbyAdapter(JellyfinAdapter):
         super().__init__(config)
         # Emby 可能需要不同的默认端口或其他微调，但通常 8096 是通用的
         self.port = config.get("port", 8096)
+
+    @property
+    def auth_headers(self) -> Dict[str, str]:
+        """Emby 保留原有的认证方式。"""
+        return {"X-Emby-Token": self.api_key}
