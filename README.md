@@ -94,7 +94,7 @@ npm run dev
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `HTTP_PORT` | Web 访问端口 | `8080` |
-| `PUID` / `PGID` | 容器用户权限（NAS 用户需配置） | `1024` / `100` |
+| `PUID` / `PGID` | 容器运行时用户权限（启动时动态应用） | `1024` / `100` |
 | `VOLUME_1_PATH` | NAS 存储卷路径（支持硬链接） | `/volume1` |
 | `TMDB_API_KEY` | TMDB API Key（元数据刮削） | - |
 | `OPENAI_API_KEY` | OpenAI API Key（AI 助手） | - |

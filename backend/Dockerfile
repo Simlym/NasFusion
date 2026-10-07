@@ -87,6 +87,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # 网络工具（健康检查）
     curl \
     netcat-traditional \
+    # 入口脚本完成权限初始化后，用 gosu 降权运行应用
+    gosu \
     # 清理
     && rm -rf /var/lib/apt/lists/*
 
@@ -96,33 +98,18 @@ COPY --from=builder /app/.venv /app/.venv
 # 让 venv 的可执行文件（uvicorn、alembic 等）直接可用
 ENV PATH="/app/.venv/bin:$PATH"
 
-# 创建非 root 用户（支持 PUID/PGID）
-ARG PUID=1024
-ARG PGID=100
-
-RUN set -ex && \
-    echo "Creating user with PUID=${PUID}, PGID=${PGID}" && \
-    if getent group ${PGID} > /dev/null 2>&1; then \
-        GROUP_NAME=$(getent group ${PGID} | cut -d: -f1); \
-        echo "Using existing group: ${GROUP_NAME} (GID ${PGID})"; \
-    else \
-        groupadd -g ${PGID} nasfusion; \
-        echo "Created new group: nasfusion (GID ${PGID})"; \
-    fi && \
-    useradd -u ${PUID} -g ${PGID} -m -s /bin/bash nasfusion && \
-    echo "Created user: nasfusion (UID ${PUID}, GID ${PGID})"
-
-# 复制应用代码（使用 --chown 直接设置所有者，避免权限继承问题）
-COPY --chown=${PUID}:${PGID} . /app/
+# 复制应用代码
+COPY . /app/
 
 # 复制并设置 entrypoint.sh 权限
-COPY --chown=${PUID}:${PGID} entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# 一次性设置所有权限（确保没有权限问题）
-RUN chmod 755 /usr/local/bin/entrypoint.sh && \
+# 预创建运行时目录；实际属主在容器启动时按 PUID/PGID 设置
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && \
+    chmod 755 /usr/local/bin/entrypoint.sh && \
     chmod -R 755 /app && \
-    mkdir -p /app/data/torrents /app/data/logs /app/data/cache && \
-    chown -R ${PUID}:${PGID} /app
+    mkdir -p /app/data/torrents /app/data/logs /app/data/cache/images \
+             /app/data/media /app/data/agent /app/data/home /app/uploads
 
 # 应用版本号（由 CI 构建时通过 --build-arg APP_VERSION=<git-tag> 注入）
 ARG APP_VERSION=dev
@@ -131,8 +118,9 @@ ENV APP_VERSION=${APP_VERSION}
 # 设置 Python 路径
 ENV PYTHONPATH=/app
 
-# 切换到非 root 用户
-USER ${PUID}:${PGID}
+# 必须由 root 执行入口脚本，以便为宿主机挂载目录应用运行时 PUID/PGID。
+# 入口脚本会在迁移及应用启动前通过 gosu 降权，不会以 root 运行服务。
+USER root
 
 # 暴露端口
 EXPOSE 8000
