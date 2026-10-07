@@ -9,6 +9,8 @@ import {
   ScheduledTaskListResponse,
   PTSyncTaskCreate,
   TaskExecutionListResponse,
+  TaskExecution,
+  TaskAttentionStatus,
   TaskQueueStatus
 } from '@/types'
 
@@ -100,4 +102,17 @@ export function getTaskExecutionsList(params?: TaskExecutionListParams) {
 // 取消任务执行
 export function cancelTaskExecution(executionId: number) {
   return request.post(`/task-executions/${executionId}/cancel`)
+}
+
+export function setTaskExecutionAttention(executionId: number, attentionStatus: TaskAttentionStatus) {
+  return request.post<TaskExecution>(`/task-executions/${executionId}/attention`, {
+    attention_status: attentionStatus
+  })
+}
+
+export function setScheduledTaskAttention(taskId: number, attentionStatus: TaskAttentionStatus, lastRunAt: string | null) {
+  return request.post<ScheduledTask>(`/scheduled-tasks/${taskId}/attention`, {
+    attention_status: attentionStatus,
+    last_run_at: lastRunAt
+  })
 }

@@ -206,6 +206,9 @@ class TaskExecutionService:
                 completed_at=None,
                 error_message=None,
                 error_detail=None,
+                attention_status=None,
+                attention_handled_at=None,
+                attention_handled_by=None,
             )
         )
         result = await db.execute(stmt)
@@ -407,6 +410,7 @@ class TaskExecutionService:
                     [
                         EXECUTION_STATUS_COMPLETED,
                         EXECUTION_STATUS_FAILED,
+                        EXECUTION_STATUS_TIMEOUT,
                         EXECUTION_STATUS_CANCELLED,
                     ]
                 ),

@@ -12,13 +12,37 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_admin_user
 from app.models.user import User
 from app.schemas.task_execution import (
+    TaskAttentionRequest,
     TaskExecutionResponse,
     TaskExecutionSummary,
     TaskQueueResponse,
 )
 from app.services.task.task_execution_service import TaskExecutionService
+from app.services.task.task_attention_service import AttentionConflict, TaskAttentionService
 
 router = APIRouter(prefix="/task-executions", tags=["任务执行"])
+
+
+@router.post("/{execution_id}/attention", response_model=TaskExecutionResponse, summary="处理或恢复失败提醒")
+async def handle_execution_attention(
+    execution_id: int,
+    request: TaskAttentionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user),
+):
+    try:
+        execution = await TaskAttentionService.set_execution(
+            db, execution_id, request.attention_status, current_user.id
+        )
+        if execution is None:
+            raise HTTPException(status_code=404, detail="任务执行记录不存在")
+        return execution
+    except AttentionConflict as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("/queue/status", response_model=TaskQueueResponse, summary="获取任务队列状态")

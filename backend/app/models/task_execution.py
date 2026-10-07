@@ -77,6 +77,11 @@ class TaskExecution(BaseModel):
     error_message = Column(Text, nullable=True, comment="错误信息")
     error_detail = Column(JSON, nullable=True, comment="详细错误信息，JSON格式")
 
+    # 人工处理状态独立于执行结果，NULL 表示尚未处理。
+    attention_status = Column(String(20), nullable=True, comment="resolved/ignored")
+    attention_handled_at = Column(TZDateTime(), nullable=True)
+    attention_handled_by = Column(Integer, nullable=True, comment="处理人用户ID")
+
     # 进度信息
     progress = Column(Integer, default=0, nullable=False, comment="任务进度 0-100")
     progress_detail = Column(JSON, nullable=True, comment="进度详情，JSON格式")

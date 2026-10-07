@@ -52,6 +52,12 @@ class ScheduledTask(BaseModel):
     last_run_status = Column(String(20), nullable=True, comment="最后执行状态：success/failed/running")
     last_run_duration = Column(Integer, nullable=True, comment="最后执行耗时，秒")
 
+    # 只确认某一次运行，新运行不会继承旧的处理状态。
+    attention_status = Column(String(20), nullable=True, comment="resolved/ignored")
+    attention_handled_at = Column(TZDateTime(), nullable=True)
+    attention_handled_by = Column(Integer, nullable=True, comment="处理人用户ID")
+    attention_run_at = Column(TZDateTime(), nullable=True, comment="已确认的last_run_at")
+
     # 统计信息
     total_runs = Column(Integer, default=0, nullable=False, comment="总执行次数")
     success_runs = Column(Integer, default=0, nullable=False, comment="成功执行次数")

@@ -87,7 +87,15 @@ export const ExecutionStatusNames: Record<ExecutionStatus, string> = {
 }
 
 // 调度任务
-export interface ScheduledTask {
+export type TaskAttentionStatus = 'resolved' | 'ignored' | 'pending'
+
+export interface TaskAttentionFields {
+  attention_status?: 'resolved' | 'ignored' | null
+  attention_handled_at?: string | null
+  attention_handled_by?: number | null
+}
+
+export interface ScheduledTask extends TaskAttentionFields {
   id: number
   task_name: string
   task_type: string
@@ -105,6 +113,7 @@ export interface ScheduledTask {
   last_run_at?: string
   last_run_status?: string
   last_run_duration?: number
+  attention_run_at?: string | null
   total_runs: number
   success_runs: number
   failed_runs: number
@@ -150,7 +159,7 @@ export interface PTSyncTaskCreate {
 }
 
 // 任务执行记录
-export interface TaskExecution {
+export interface TaskExecution extends TaskAttentionFields {
   id: number
   scheduled_task_id?: number
   task_type: string
@@ -181,8 +190,9 @@ export interface TaskExecution {
 }
 
 // 任务执行摘要
-export interface TaskExecutionSummary {
+export interface TaskExecutionSummary extends TaskAttentionFields {
   id: number
+  scheduled_task_id?: number | null
   task_name: string
   task_type: string
   status: string

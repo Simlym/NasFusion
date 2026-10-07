@@ -295,42 +295,62 @@
       <section class="attention-header">
         <div>
           <h2>需要关注</h2>
-          <p>这里只保留失败或异常的执行；正常后台维护不会打扰你。</p>
+          <p>处理或忽略后不再提醒，历史报错仍保留；同一任务再次失败会重新提醒。</p>
         </div>
-        <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">重新检查</el-button>
+        <div class="attention-actions">
+          <el-checkbox v-model="showHandledAttention">显示已处理 / 已忽略</el-checkbox>
+          <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">重新检查</el-button>
+        </div>
       </section>
 
-      <div v-if="attentionCount" class="attention-list">
-        <article v-for="item in attentionExecutions" :key="`execution-${item.id}`" class="attention-card attention-card--danger">
+      <div v-if="visibleAttentionExecutions.length || visibleAttentionScheduledTasks.length" class="attention-list">
+        <article v-for="item in visibleAttentionExecutions" :key="`execution-${item.id}`" class="attention-card" :class="{ 'attention-card--danger': !item.attention_status }">
           <div class="attention-icon"><el-icon><Warning /></el-icon></div>
           <div class="attention-content">
             <div class="attention-title-row">
               <strong>{{ item.task_name }}</strong>
               <el-tag type="danger" size="small">{{ getStatusName(item.status) }}</el-tag>
+              <el-tag v-if="item.attention_status" type="info" size="small">{{ getAttentionStatusName(item.attention_status) }}</el-tag>
             </div>
             <p>{{ item.error_message || '执行失败，请查看任务日志了解原因。' }}</p>
             <span>{{ formatDate(item.completed_at || item.updated_at || item.created_at) }}</span>
+            <span v-if="item.attention_handled_at"> · {{ getAttentionStatusName(item.attention_status) }}于 {{ formatDate(item.attention_handled_at) }}</span>
           </div>
-          <el-button type="primary" link @click="handleViewDetail(item.id)">查看详情</el-button>
+          <div class="attention-actions">
+            <el-button type="primary" link @click="handleViewDetail(item.id)">查看详情</el-button>
+            <template v-if="!item.attention_status">
+              <el-button type="success" link :disabled="!!handlingAttention" :loading="handlingAttention === `execution-${item.id}-resolved`" @click="handleAttention('execution', item.id, 'resolved')">标记已处理</el-button>
+              <el-button link :disabled="!!handlingAttention" :loading="handlingAttention === `execution-${item.id}-ignored`" @click="handleAttention('execution', item.id, 'ignored')">忽略本次</el-button>
+            </template>
+            <el-button v-else type="warning" link :disabled="!!handlingAttention" :loading="handlingAttention === `execution-${item.id}-pending`" @click="handleAttention('execution', item.id, 'pending')">恢复提醒</el-button>
+          </div>
         </article>
 
-        <article v-for="task in attentionScheduledTasks" :key="`scheduled-${task.id}`" class="attention-card">
+        <article v-for="task in visibleAttentionScheduledTasks" :key="`scheduled-${task.id}`" class="attention-card">
           <div class="attention-icon"><el-icon><Clock /></el-icon></div>
           <div class="attention-content">
-            <div class="attention-title-row"><strong>{{ task.task_name }}</strong><el-tag type="warning" size="small">上次失败</el-tag></div>
+            <div class="attention-title-row">
+              <strong>{{ task.task_name }}</strong><el-tag type="warning" size="small">上次失败</el-tag>
+              <el-tag v-if="getScheduledAttentionStatus(task)" type="info" size="small">{{ getAttentionStatusName(getScheduledAttentionStatus(task)) }}</el-tag>
+            </div>
             <p>调度任务上次执行未成功，可查看历史记录后决定是否重试。</p>
             <span>{{ task.last_run_at ? formatDate(task.last_run_at) : '暂无执行时间' }}</span>
           </div>
           <div class="attention-actions">
             <el-button type="primary" link @click="handleViewHistory(task)">查看历史</el-button>
             <el-button type="primary" link :loading="runningId === task.id" @click="handleRunNow(task)">重新执行</el-button>
+            <template v-if="!getScheduledAttentionStatus(task)">
+              <el-button type="success" link :disabled="!!handlingAttention" :loading="handlingAttention === `scheduled-${task.id}-resolved`" @click="handleAttention('scheduled', task.id, 'resolved', task.last_run_at)">标记已处理</el-button>
+              <el-button link :disabled="!!handlingAttention" :loading="handlingAttention === `scheduled-${task.id}-ignored`" @click="handleAttention('scheduled', task.id, 'ignored', task.last_run_at)">忽略本次</el-button>
+            </template>
+            <el-button v-else type="warning" link :disabled="!!handlingAttention" :loading="handlingAttention === `scheduled-${task.id}-pending`" @click="handleAttention('scheduled', task.id, 'pending', task.last_run_at)">恢复提醒</el-button>
           </div>
         </article>
       </div>
       <div v-else class="attention-empty">
         <el-icon><CircleCheck /></el-icon>
         <h3>当前没有需要处理的问题</h3>
-        <p>自动化流程和后台任务均未报告失败。</p>
+        <p>当前没有待处理的失败提醒；已处理或忽略的记录仍可在执行历史中查看。</p>
       </div>
     </div>
 
@@ -1198,6 +1218,17 @@
                 {{ getStatusName(currentDetail.status) }}
               </el-tag>
             </el-descriptions-item>
+            <el-descriptions-item v-if="currentDetail.status === 'failed' || currentDetail.status === 'timeout'" label="提醒处理">
+              <div class="attention-detail-actions">
+                <el-tag :type="currentDetail.attention_status ? 'info' : 'warning'">{{ getAttentionStatusName(currentDetail.attention_status) }}</el-tag>
+                <span v-if="currentDetail.attention_handled_at">{{ formatDate(currentDetail.attention_handled_at) }}</span>
+                <template v-if="!currentDetail.attention_status">
+                  <el-button type="success" link :disabled="!!handlingAttention" @click="handleAttention('execution', currentDetail.id, 'resolved')">标记已处理</el-button>
+                  <el-button link :disabled="!!handlingAttention" @click="handleAttention('execution', currentDetail.id, 'ignored')">忽略本次</el-button>
+                </template>
+                <el-button v-else type="warning" link :disabled="!!handlingAttention" @click="handleAttention('execution', currentDetail.id, 'pending')">恢复提醒</el-button>
+              </div>
+            </el-descriptions-item>
             <el-descriptions-item label="进度">
               <el-progress :percentage="currentDetail.progress" />
             </el-descriptions-item>
@@ -1346,7 +1377,8 @@ import {
   ExecutionStatus,
   PTSite,
   Subscription,
-  TaskExecution
+  TaskExecution,
+  TaskAttentionStatus
 } from '@/types'
 
 const route = useRoute()
@@ -1510,16 +1542,41 @@ const automationTasks = computed(() =>
 const activeAutomationCount = computed(() =>
   [...queueStatus.running, ...queueStatus.pending].filter(item => AUTOMATION_TASK_TYPES.has(item.task_type)).length
 )
-const attentionExecutions = computed(() =>
+const showHandledAttention = ref(false)
+const handlingAttention = ref('')
+const getAttentionStatusName = (status?: string | null) =>
+  status === 'resolved' ? '已处理' : status === 'ignored' ? '已忽略' : '待处理'
+const getScheduledAttentionStatus = (task: ScheduledTask) => {
+  if (!task.attention_status) return null
+  if (!task.attention_run_at && !task.last_run_at) return task.attention_status
+  return task.attention_run_at && task.last_run_at
+    && new Date(task.attention_run_at).getTime() === new Date(task.last_run_at).getTime()
+    ? task.attention_status : null
+}
+const failedRecentExecutions = computed(() =>
   queueStatus.recent_completed.filter(item => item.status === 'failed' || item.status === 'timeout')
+)
+const attentionExecutions = computed(() =>
+  failedRecentExecutions.value.filter(item => !item.attention_status)
 )
 const attentionScheduledTasks = computed(() =>
   scheduledTasks.value.filter(task =>
     task.last_run_status === 'failed'
-    && !attentionExecutions.value.some(item => item.task_name.startsWith(task.task_name))
+    && !getScheduledAttentionStatus(task)
+    && !attentionExecutions.value.some(item => item.scheduled_task_id === task.id)
   )
 )
 const attentionCount = computed(() => attentionExecutions.value.length + attentionScheduledTasks.value.length)
+const visibleAttentionExecutions = computed(() =>
+  showHandledAttention.value ? failedRecentExecutions.value : attentionExecutions.value
+)
+const visibleAttentionScheduledTasks = computed(() =>
+  showHandledAttention.value
+    ? scheduledTasks.value.filter(task => task.last_run_status === 'failed'
+      && !visibleAttentionExecutions.value.some(item => item.scheduled_task_id === task.id
+        && (item.attention_status || null) === (getScheduledAttentionStatus(task) || null)))
+    : attentionScheduledTasks.value
+)
 const meaningfulRecentExecutions = computed(() =>
   queueStatus.recent_completed
     .filter(item => !NOISE_TASK_NAMES.has(item.task_name))
@@ -2468,6 +2525,27 @@ const handleViewHistory = (task: ScheduledTask) => {
   loadHistory()
 }
 
+const handleAttention = async (kind: 'execution' | 'scheduled', id: number, status: TaskAttentionStatus, lastRunAt?: string) => {
+  if (handlingAttention.value) return
+  handlingAttention.value = `${kind}-${id}-${status}`
+  try {
+    if (kind === 'execution') {
+      const { data } = await api.task.setTaskExecutionAttention(id, status)
+      if (currentDetail.value?.id === id) currentDetail.value = data
+    } else {
+      await api.task.setScheduledTaskAttention(id, status, lastRunAt || null)
+    }
+    ElMessage.success(status === 'pending' ? '已恢复提醒' : status === 'resolved' ? '已标记处理完成' : '已忽略本次失败，新失败仍会提醒')
+    await loadAutomationOverview()
+    if (activeTab.value === 'history') await loadHistory()
+  } catch (error: unknown) {
+    ElMessage.error('更新提醒失败: ' + getErrorMessage(error))
+    await loadAutomationOverview()
+  } finally {
+    handlingAttention.value = ''
+  }
+}
+
 const handleViewDetail = async (executionId: number) => {
   detailDrawerVisible.value = true
   detailLoading.value = true
@@ -2966,9 +3044,15 @@ onUnmounted(() => {
 .automation-hero-actions,
 .attention-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
+
+.attention-actions .el-button + .el-button,
+.attention-detail-actions .el-button + .el-button { margin-left: 0; }
+.attention-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.attention-detail-actions > span { color: var(--nf-text-secondary); font-size: 12px; }
 
 .automation-summary {
   display: grid;
@@ -3243,7 +3327,7 @@ onUnmounted(() => {
 .attention-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--nf-warning) 14%, transparent); color: var(--nf-warning); font-size: 20px; }
 .attention-card--danger .attention-icon { background: color-mix(in srgb, var(--nf-danger) 14%, transparent); color: var(--nf-danger); }
 .attention-content { flex: 1; min-width: 0; }
-.attention-title-row { display: flex; align-items: center; gap: 8px; }
+.attention-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .attention-content p { margin: 5px 0; color: var(--nf-text-secondary); }
 .attention-content > span { color: var(--nf-text-placeholder); font-size: 12px; }
 .attention-empty { padding: 64px 20px; text-align: center; color: var(--nf-success); }
@@ -4742,7 +4826,7 @@ onUnmounted(() => {
   .workflow-track { margin-right: -16px; padding-right: 16px; }
   .attention-card { align-items: flex-start; flex-wrap: wrap; }
   .attention-card > .el-button,
-  .attention-actions { margin-left: 54px; }
+  .attention-card > .attention-actions { margin-left: 54px; }
   .advanced-task-notice { align-items: flex-start; }
 
   /* 控制栏移动端 */

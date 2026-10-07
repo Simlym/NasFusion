@@ -16,12 +16,35 @@ from app.schemas.scheduled_task import (
     ScheduledTaskRunRequest,
     ScheduledTaskUpdate,
 )
-from app.schemas.task_execution import TaskExecutionListResponse
+from app.schemas.task_execution import ScheduledTaskAttentionRequest, TaskExecutionListResponse
+from app.services.task.task_attention_service import AttentionConflict, TaskAttentionService
 from app.services.task.scheduled_task_service import ScheduledTaskService
 from app.services.task.task_execution_service import TaskExecutionService
 from app.services.task.scheduler_manager import scheduler_manager
 
 router = APIRouter(prefix="/scheduled-tasks", tags=["调度任务管理"])
+
+
+@router.post("/{task_id}/attention", response_model=ScheduledTaskResponse, summary="处理或恢复上次失败提醒")
+async def handle_scheduled_attention(
+    task_id: int,
+    request: ScheduledTaskAttentionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user),
+):
+    try:
+        task = await TaskAttentionService.set_scheduled(
+            db, task_id, request.attention_status, current_user.id, request.last_run_at
+        )
+        if task is None:
+            raise HTTPException(status_code=404, detail="调度任务不存在")
+        return task
+    except AttentionConflict as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ValueError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.get("", response_model=ScheduledTaskListResponse, summary="获取调度任务列表")

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.constants import SCHEDULE_TYPES, TASK_TYPES, LAST_RUN_STATUSES
 from app.schemas.base import BaseResponseSchema
+from app.schemas.task_execution import TaskAttentionFields
 
 
 class ScheduledTaskBase(BaseModel):
@@ -82,7 +83,7 @@ class ScheduledTaskUpdate(BaseModel):
         return v
 
 
-class ScheduledTaskResponse(BaseResponseSchema, ScheduledTaskBase):
+class ScheduledTaskResponse(BaseResponseSchema, ScheduledTaskBase, TaskAttentionFields):
     """调度任务响应"""
 
     id: int
@@ -99,6 +100,7 @@ class ScheduledTaskResponse(BaseResponseSchema, ScheduledTaskBase):
     last_run_at: Optional[datetime] = None
     last_run_status: Optional[str] = None
     last_run_duration: Optional[int] = None
+    attention_run_at: Optional[datetime] = None
     total_runs: int
     success_runs: int
     failed_runs: int

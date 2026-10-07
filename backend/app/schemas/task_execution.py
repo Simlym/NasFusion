@@ -3,7 +3,7 @@
 任务执行记录相关Schemas
 """
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,6 +16,22 @@ class TaskExecutionBase(BaseModel):
 
     task_type: str = Field(..., description="任务类型")
     task_name: str = Field(..., description="任务名称")
+
+
+class TaskAttentionRequest(BaseModel):
+    """处理一次失败提醒，pending 用于撤销。"""
+
+    attention_status: Literal["resolved", "ignored", "pending"]
+
+
+class ScheduledTaskAttentionRequest(TaskAttentionRequest):
+    last_run_at: Optional[datetime] = Field(..., description="页面所展示的运行时间，防止处理新失败")
+
+
+class TaskAttentionFields(BaseModel):
+    attention_status: Optional[Literal["resolved", "ignored"]] = None
+    attention_handled_at: Optional[datetime] = None
+    attention_handled_by: Optional[int] = None
 
 
 class TaskExecutionCreate(TaskExecutionBase):
@@ -74,7 +90,7 @@ class TaskExecutionUpdate(BaseModel):
         return v
 
 
-class TaskExecutionResponse(BaseResponseSchema, TaskExecutionBase):
+class TaskExecutionResponse(BaseResponseSchema, TaskExecutionBase, TaskAttentionFields):
     """任务执行记录响应"""
 
     id: int
@@ -111,10 +127,11 @@ class TaskExecutionListResponse(BaseModel):
     items: List[TaskExecutionResponse] = Field(..., description="执行记录列表")
 
 
-class TaskExecutionSummary(BaseResponseSchema):
+class TaskExecutionSummary(BaseResponseSchema, TaskAttentionFields):
     """任务执行摘要（用于前端任务队列展示）"""
 
     id: int
+    scheduled_task_id: Optional[int] = None
     task_name: str
     task_type: str
     status: str
