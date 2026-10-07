@@ -97,6 +97,36 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
         if not self._cookies:
             await self._login()
 
+    @staticmethod
+    def _is_add_torrent_success(response: httpx.Response) -> bool:
+        """兼容不同 qBittorrent WebAPI 版本的添加任务响应。"""
+        # qBittorrent 5.1 及更早版本返回 200 和纯文本 "Ok."。
+        if response.status_code == 200 and response.text.strip() == "Ok.":
+            return True
+
+        # WebAPI 2.14+ 返回统计 JSON；磁力链接等待元数据时可能返回 202。
+        if response.status_code not in (200, 202):
+            return False
+
+        try:
+            result = response.json()
+        except ValueError:
+            return False
+
+        if not isinstance(result, dict):
+            return False
+
+        success_count = result.get("success_count", 0)
+        pending_count = result.get("pending_count", 0)
+        failure_count = result.get("failure_count", 0)
+        return (
+            isinstance(success_count, int)
+            and isinstance(pending_count, int)
+            and isinstance(failure_count, int)
+            and failure_count == 0
+            and (success_count > 0 or pending_count > 0)
+        )
+
     async def _post_with_endpoint_fallback(
         self,
         candidates: List[str],
@@ -228,7 +258,7 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
                 cookies=self._cookies,
             )
 
-            if response.status_code == 200 and response.text == "Ok.":
+            if self._is_add_torrent_success(response):
                 logger.info(f"Successfully added torrent to qBittorrent")
                 # qBittorrent 不会立即返回hash，需要从种子数据解析
                 # 这里返回成功标识，实际hash会在后续同步中获取
@@ -238,7 +268,11 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
                 }
             else:
                 error_msg = response.text
-                logger.error(f"Failed to add torrent: {error_msg}")
+                logger.error(
+                    "Failed to add torrent: status=%s, body=%r",
+                    response.status_code,
+                    error_msg[:500],
+                )
                 raise Exception(f"Failed to add torrent: {error_msg}")
 
         except Exception as e:
@@ -297,7 +331,7 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
                 cookies=self._cookies,
             )
 
-            if response.status_code == 200 and response.text == "Ok.":
+            if self._is_add_torrent_success(response):
                 logger.info(f"Successfully added magnet link to qBittorrent")
                 return {
                     "success": True,
@@ -305,7 +339,11 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
                 }
             else:
                 error_msg = response.text
-                logger.error(f"Failed to add magnet link: {error_msg}")
+                logger.error(
+                    "Failed to add magnet link: status=%s, body=%r",
+                    response.status_code,
+                    error_msg[:500],
+                )
                 raise Exception(f"Failed to add magnet link: {error_msg}")
 
         except Exception as e:
