@@ -67,13 +67,25 @@ class QBittorrentAdapter(BaseDownloaderAdapter):
                 },
             )
 
-            if response.status_code == 200 and response.text == "Ok.":
+            # qBittorrent 5.2+ 成功登录时返回 204 No Content，并将会话
+            # Cookie 命名为 QBT_SID_<port>；旧版本返回 200 和正文 "Ok."。
+            # 同时兼容两种响应，并要求服务端确实下发了会话 Cookie，避免
+            # 将其他服务的空 204 响应误判为 qBittorrent 登录成功。
+            login_succeeded = response.status_code == 204 or (
+                response.status_code == 200 and response.text.strip() == "Ok."
+            )
+
+            if login_succeeded and response.cookies:
                 # 保存cookie
                 self._cookies = dict(response.cookies)
                 logger.info(f"Successfully logged in to qBittorrent at {self.base_url}")
                 return True
             else:
-                logger.error(f"Failed to login to qBittorrent: {response.text}")
+                logger.error(
+                    "Failed to login to qBittorrent: status=%s, body=%r",
+                    response.status_code,
+                    response.text[:200],
+                )
                 return False
 
         except Exception as e:
