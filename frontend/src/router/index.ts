@@ -180,11 +180,12 @@ const routes: RouteRecordRaw[] = [
           pageTabs: {
             enabled: true,
             style: 'card',
-            defaultTab: 'live-queue',
+            defaultTab: 'automation',
             tabs: [
-              { name: 'live-queue', label: '实时队列', icon: 'lucide:activity' },
-              { name: 'history', label: '历史记录', icon: 'lucide:history' },
-              { name: 'scheduled', label: '定时任务', icon: 'lucide:alarm-clock-check' }
+              { name: 'automation', label: '自动化概览', icon: 'lucide:workflow' },
+              { name: 'attention', label: '需要关注', icon: 'lucide:circle-alert' },
+              { name: 'history', label: '执行记录', icon: 'lucide:history' },
+              { name: 'scheduled', label: '高级任务', icon: 'lucide:settings-2' }
             ]
           }
         }

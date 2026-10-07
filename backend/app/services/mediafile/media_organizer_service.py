@@ -50,6 +50,7 @@ class MediaOrganizerService:
         dry_run: bool = False,
         force: bool = False,
         storage_mount_id: Optional[int] = None,
+        resume_safe: bool = False,
     ) -> Dict:
         """
         整理媒体文件
@@ -60,13 +61,16 @@ class MediaOrganizerService:
             config: 整理配置（可选，默认使用该媒体类型的默认配置）
             dry_run: 是否仅模拟运行（不实际移动文件）
             force: 强制重新整理（忽略已整理状态）
+            resume_safe: 自动恢复模式，保存文件检查点并禁止覆盖已有目标
 
         Returns:
             包含status和message的字典
         """
         try:
             # 检查文件是否已整理（force=True 时忽略）
-            if not force and media_file.organized and config and config.skip_existed:
+            if not force and media_file.organized and (resume_safe or (config and config.skip_existed)):
+                if resume_safe and (not media_file.organized_path or not Path(media_file.organized_path).exists()):
+                    raise FileNotFoundError("已整理的目标文件不可用，请检查存储挂载")
                 return {
                     "status": "skipped",
                     "message": "文件已整理，跳过",
@@ -81,6 +85,15 @@ class MediaOrganizerService:
                         "status": "error",
                         "message": f"未找到媒体类型 {media_file.media_type} 的默认配置",
                     }
+
+            # 自动恢复绝不覆盖目标。用只读配置快照，避免修改数据库中的用户设置。
+            if resume_safe:
+                from types import SimpleNamespace
+                config = SimpleNamespace(**{
+                    column.key: getattr(config, column.key)
+                    for column in OrganizeConfig.__table__.columns
+                })
+                config.skip_existed = True
 
             # 检查配置是否启用
             if not config.is_enabled:
@@ -100,25 +113,21 @@ class MediaOrganizerService:
                 media_file.status = MEDIA_FILE_STATUS_ORGANIZING
                 await db.commit()
 
-            # 根据统一资源表名调用不同的整理方法
-            # 这样 anime 等媒体类型可以复用 movie/tv 的整理逻辑
-            if media_file.unified_table_name == UNIFIED_TABLE_MOVIES:
-                result = await MediaOrganizerService._organize_movie(
-                    db, media_file, config, dry_run, storage_mount_id
+            handlers = {
+                UNIFIED_TABLE_MOVIES: MediaOrganizerService._organize_movie,
+                UNIFIED_TABLE_TV: MediaOrganizerService._organize_tv,
+                UNIFIED_TABLE_ADULT: MediaOrganizerService._organize_adult,
+            }
+            handler = handlers.get(media_file.unified_table_name)
+            if handler is None:
+                raise ValueError(f"不支持的统一资源表: {media_file.unified_table_name}")
+            result = None
+            if resume_safe and not dry_run:
+                result = await MediaOrganizerService._resume_checkpoint(
+                    db, media_file, config, handler, storage_mount_id,
                 )
-            elif media_file.unified_table_name == UNIFIED_TABLE_TV:
-                result = await MediaOrganizerService._organize_tv(
-                    db, media_file, config, dry_run, storage_mount_id
-                )
-            elif media_file.unified_table_name == UNIFIED_TABLE_ADULT:
-                result = await MediaOrganizerService._organize_adult(
-                    db, media_file, config, dry_run, storage_mount_id
-                )
-            else:
-                return {
-                    "status": "error",
-                    "message": f"不支持的统一资源表: {media_file.unified_table_name}，当前仅支持 {UNIFIED_TABLE_MOVIES}、{UNIFIED_TABLE_TV} 和 {UNIFIED_TABLE_ADULT}"
-                }
+            if result is None:
+                result = await handler(db, media_file, config, dry_run, storage_mount_id)
 
             # 如果成功且不是模拟运行，更新数据库
             if result["status"] == "success" and not dry_run:
@@ -129,8 +138,9 @@ class MediaOrganizerService:
                 media_file.status = MEDIA_FILE_STATUS_COMPLETED
 
                 # 更新配置统计
-                config.total_organized_count += 1
-                config.last_organized_at = now()
+                stats_config = await db.get(OrganizeConfig, config.id) if resume_safe else config
+                stats_config.total_organized_count += 1
+                stats_config.last_organized_at = now()
 
                 await db.commit()
 
@@ -158,6 +168,66 @@ class MediaOrganizerService:
                 media_file.error_step = "organizing"
                 await db.commit()
             return {"status": "error", "message": str(e)}
+
+    @staticmethod
+    async def _resume_checkpoint(db, media_file, config, handler, storage_mount_id):
+        """文件操作前落库目标；重启后校验结果，绝不盲目覆盖。
+
+        硬链接通过 samefile 校验，复制通过摘要校验；移动在操作前保存摘要。
+        部分复制及目录冲突保留现场并报错，不能仅凭目标存在就当作成功。
+        """
+        import asyncio
+        import hashlib
+        from app.constants import ORGANIZE_MODE_MOVE
+
+        def digest(path):
+            with Path(path).open("rb") as stream:
+                value = hashlib.sha256()
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    value.update(chunk)
+                return value.hexdigest()
+
+        source = Path(media_file.file_path)
+        checkpoint = (media_file.sub_status or {}).get("auto_organize_checkpoint")
+        if not checkpoint:
+            planned = await handler(db, media_file, config, True, storage_mount_id)
+            if planned["status"] != "success":
+                raise ValueError(planned.get("message", "无法生成整理计划"))
+            checkpoint = {
+                "source": str(source), "target": planned["organized_path"],
+                "mode": config.organize_mode, "size": source.stat().st_size,
+                "is_bluray": planned.get("is_bluray", False),
+            }
+            if config.organize_mode == ORGANIZE_MODE_MOVE and not checkpoint["is_bluray"]:
+                checkpoint["sha256"] = await asyncio.to_thread(digest, source)
+            media_file.sub_status = {
+                **(media_file.sub_status or {}), "auto_organize_checkpoint": checkpoint,
+            }
+            await db.commit()
+            return None
+
+        if checkpoint["source"] != str(source) or checkpoint["mode"] != config.organize_mode:
+            raise ValueError("整理配置或源路径已变更，请检查上次整理检查点")
+        target = Path(checkpoint["target"])
+        if not target.exists():
+            planned = await handler(db, media_file, config, True, storage_mount_id)
+            if planned.get("organized_path") != str(target):
+                raise ValueError("整理目标已变更，请检查上次整理检查点")
+            return None
+        verified = False
+        if target.is_file() and not checkpoint.get("is_bluray"):
+            if target.stat().st_size == checkpoint["size"]:
+                if source.exists():
+                    verified = source.samefile(target)
+                    if not verified:
+                        verified = (await asyncio.to_thread(digest, source)
+                                    == await asyncio.to_thread(digest, target))
+                elif checkpoint.get("sha256"):
+                    verified = await asyncio.to_thread(digest, target) == checkpoint["sha256"]
+        if not verified:
+            raise ValueError(f"中断后的目标文件无法确认完整性，已保留现场，请检查: {target}")
+        return {"status": "success", "message": "已校验并恢复中断的整理结果",
+                "organized_path": str(target), "organize_mode": config.organize_mode}
 
     @staticmethod
     async def _organize_movie(

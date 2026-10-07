@@ -134,6 +134,9 @@ class PTResourceIdentifyHandler(BaseTaskHandler):
             "media_type": media_type,
             "related_type": "task_execution",
             "related_id": execution_id,
+            "source_execution_id": execution_id,
+            "site_id": params.get("site_id"),
+            "workflow_run_ids": params.get("workflow_run_ids", []),
         }
 
         # 如果有 user_id，则添加到事件数据中
@@ -143,6 +146,9 @@ class PTResourceIdentifyHandler(BaseTaskHandler):
             # 系统任务，作为广播消息
             event_data["broadcast"] = True
 
+        from app.services.task.workflow_event_service import WorkflowEventService
+        await WorkflowEventService.enqueue_resource_identified(db, event_data)
+        await db.commit()
         await event_bus.publish(EVENT_RESOURCE_IDENTIFIED, event_data)
 
         logger.info(

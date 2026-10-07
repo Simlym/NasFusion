@@ -848,6 +848,7 @@ import {
 import { getSettings, upsertSetting } from '@/api/modules/settings'
 import { formatDateTime } from '@/utils'
 import { useUserStore } from '@/stores/user'
+import { renderSafeMarkdown, renderSafeText, sanitizeHtml } from '@/utils/safeHtml'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -1685,15 +1686,11 @@ const renderPreview = async () => {
 // 格式化预览内容
 const formatPreviewContent = (content: string) => {
   if (currentPreviewTemplate.value?.format === 'markdown') {
-    // 简单的 Markdown 渲染（实际项目中应使用专业的 Markdown 渲染库）
-    return content
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    return renderSafeMarkdown(content)
   } else if (currentPreviewTemplate.value?.format === 'html') {
-    return content
+    return sanitizeHtml(content)
   } else {
-    return content.replace(/\n/g, '<br>')
+    return renderSafeText(content)
   }
 }
 

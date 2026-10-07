@@ -119,12 +119,14 @@ class TaskExecutionSummary(BaseResponseSchema):
     task_type: str
     status: str
     progress: int
+    progress_detail: Optional[Dict[str, Any]] = None
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     duration: Optional[int] = None
     handler_params: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    task_metadata: Optional[Dict[str, Any]] = None
 
 
 class TaskQueueResponse(BaseModel):

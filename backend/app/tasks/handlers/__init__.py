@@ -12,6 +12,7 @@ from app.tasks.handlers.unified_resource_refresh_handler import UnifiedResourceR
 from app.tasks.handlers.media_server_watch_history_sync_handler import MediaServerWatchHistorySyncHandler
 from app.tasks.handlers.media_server_library_stats_handler import MediaServerLibraryStatsHandler
 from app.tasks.handlers.media_server_library_sync_handler import MediaServerLibrarySyncHandler
+from app.tasks.handlers.media_server_library_refresh_handler import MediaServerLibraryRefreshHandler
 from app.tasks.handlers.media_server_batch_rematch_handler import MediaServerBatchRematchHandler
 from app.tasks.handlers.trending_sync_handler import TrendingSyncHandler
 from app.tasks.handlers.trending_detail_sync_handler import TrendingDetailSyncHandler
@@ -34,6 +35,7 @@ __all__ = [
     "MediaServerWatchHistorySyncHandler",
     "MediaServerLibraryStatsHandler",
     "MediaServerLibrarySyncHandler",
+    "MediaServerLibraryRefreshHandler",
     "MediaServerBatchRematchHandler",
     "TrendingSyncHandler",
     "TrendingDetailSyncHandler",

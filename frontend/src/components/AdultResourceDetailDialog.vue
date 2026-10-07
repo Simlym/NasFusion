@@ -146,7 +146,7 @@ import { View, Download } from '@element-plus/icons-vue'
 import api from '@/api'
 import type { AdultResourceDetail } from '@/api/modules/adult'
 import { getProxiedImageUrl, formatSize } from '@/utils'
-import { marked } from 'marked'
+import { renderSafeMarkdown } from '@/utils/safeHtml'
 import DownloadDialog from '@/components/download/DownloadDialog.vue'
 
 interface Props {
@@ -222,37 +222,7 @@ const handleFetchDetail = async () => {
 
 // 渲染 Markdown
 const renderMarkdown = (content: string) => {
-  if (!content) return ''
-  try {
-    // 先渲染 Markdown 为 HTML
-    let html: string
-    const result = marked.parse(content)
-
-    // marked.parse 可能返回 string 或 Promise<string>
-    if (typeof result === 'string') {
-      html = result
-    } else {
-      console.error('marked.parse returned unexpected type:', typeof result)
-      return content
-    }
-
-    // 替换所有 img 标签的 src 为代理 URL，并添加加载类和 loading 属性
-    html = html.replace(
-      /<img([^>]*?)src="([^"]+)"([^>]*?)>/gi,
-      (match, before, src, after) => {
-        // 确保 src 是字符串
-        const srcStr = String(src)
-        const proxiedSrc = getProxiedImageUrl(srcStr)
-        // 添加 markdown-img 类用于样式，添加 loading="lazy" 懒加载
-        return `<img class="markdown-img" loading="lazy"${before}src="${proxiedSrc}"${after}>`
-      }
-    )
-
-    return html
-  } catch (error) {
-    console.error('Markdown render error:', error)
-    return content
-  }
+  return renderSafeMarkdown(content)
 }
 
 // 打开原站点页面

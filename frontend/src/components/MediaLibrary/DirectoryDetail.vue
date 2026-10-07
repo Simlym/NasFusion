@@ -8,10 +8,10 @@
           <!-- 左侧海报 -->
           <div class="poster-wrapper">
             <el-image
-              :src="getProxiedImageUrl(detail.directory.poster_path) || defaultPoster"
+              :src="posterObjectUrl || defaultPoster"
               fit="cover"
               class="poster-image"
-              :preview-src-list="detail.directory.poster_path ? [getProxiedImageUrl(detail.directory.poster_path)] : []"
+              :preview-src-list="posterObjectUrl ? [posterObjectUrl] : []"
             >
               <template #error>
                 <div class="poster-placeholder">
@@ -570,7 +570,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue'
+import { ref, computed, watch, reactive, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture,
@@ -580,7 +580,7 @@ import {
   ArrowDown,
   ArrowUp
 } from '@element-plus/icons-vue'
-import { getDirectoryDetail, linkDirectoryToResource, searchTMDBForDirectory, searchDoubanForDirectory, type DirectoryDetailResponse } from '@/api/mediaDirectory'
+import { getDirectoryDetail, getDirectoryImage, linkDirectoryToResource, searchTMDBForDirectory, searchDoubanForDirectory, type DirectoryDetailResponse } from '@/api/mediaDirectory'
 import type { TMDBCandidate } from '@/types/media'
 import { getMovieList } from '@/api/modules/movie'
 import { getTVList } from '@/api/modules/tv'
@@ -594,6 +594,8 @@ interface Props {
 const props = defineProps<Props>()
 const loading = ref(false)
 const detail = ref<DirectoryDetailResponse | null>(null)
+const posterObjectUrl = ref('')
+const backdropObjectUrl = ref('')
 const activeTab = ref('files')
 
 // 刮削状态
@@ -686,9 +688,8 @@ const missingPosterCount = computed(() =>
 
 // Hero 背景样式
 const heroStyle = computed(() => {
-  if (detail.value?.directory.backdrop_path) {
-    const proxiedUrl = getProxiedImageUrl(detail.value.directory.backdrop_path)
-    return { '--backdrop-url': `url("${proxiedUrl}")` }
+  if (backdropObjectUrl.value) {
+    return { '--backdrop-url': `url("${backdropObjectUrl.value}")` }
   }
   return { backgroundColor: 'var(--nf-bg-container, #221e30)' }
 })
@@ -703,6 +704,18 @@ const loadDetail = async () => {
     const res = await getDirectoryDetail(props.directoryId)
     if (res.data) {
       detail.value = res.data
+      if (posterObjectUrl.value) URL.revokeObjectURL(posterObjectUrl.value)
+      if (backdropObjectUrl.value) URL.revokeObjectURL(backdropObjectUrl.value)
+      posterObjectUrl.value = ''
+      backdropObjectUrl.value = ''
+      const imageRequests: Promise<void>[] = []
+      if (res.data.directory.poster_path) {
+        imageRequests.push(getDirectoryImage(res.data.directory.id, 'poster').then((url) => { posterObjectUrl.value = url }))
+      }
+      if (res.data.directory.backdrop_path) {
+        imageRequests.push(getDirectoryImage(res.data.directory.id, 'backdrop').then((url) => { backdropObjectUrl.value = url }))
+      }
+      await Promise.allSettled(imageRequests)
 
       // 默认显示文件列表
       activeTab.value = 'files'
@@ -713,6 +726,11 @@ const loadDetail = async () => {
     loading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  if (posterObjectUrl.value) URL.revokeObjectURL(posterObjectUrl.value)
+  if (backdropObjectUrl.value) URL.revokeObjectURL(backdropObjectUrl.value)
+})
 
 const refresh = () => loadDetail()
 

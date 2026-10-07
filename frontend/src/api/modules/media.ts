@@ -155,6 +155,11 @@ export function getEpisodeMetadata(id: number) {
   return request.get<EpisodeMetadata>(`/media-files/${id}/episode-metadata`)
 }
 
+export async function getEpisodeImage(id: number) {
+  const response = await request.get<Blob>(`/media-files/${id}/episode-image`, { responseType: 'blob' })
+  return URL.createObjectURL(response.data)
+}
+
 // ==================== 刮削相关 API ====================
 
 // 刮削单个媒体文件（下载海报、背景图、生成NFO）

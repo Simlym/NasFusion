@@ -16,8 +16,10 @@ if settings.database.DB_TYPE == "sqlite":
     engine = create_async_engine(
         settings.database.DATABASE_URL,
         echo=False,  # 关闭SQL日志输出
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,  # SQLite使用静态连接池
+        connect_args={"check_same_thread": False, "timeout": 30},
+        # 文件数据库的并发会话必须使用不同连接，不能共享同一事务。
+        # 仅内存测试库保留 StaticPool，否则每个连接会得到独立的空数据库。
+        poolclass=StaticPool if settings.database.SQLITE_PATH == ":memory:" else NullPool,
     )
 else:
     # PostgreSQL配置

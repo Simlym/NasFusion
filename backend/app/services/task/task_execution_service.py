@@ -191,16 +191,27 @@ class TaskExecutionService:
         start_time = now()
         stmt = (
             update(TaskExecution)
-            .where(TaskExecution.id == execution_id)
+            .where(
+                TaskExecution.id == execution_id,
+                TaskExecution.status == EXECUTION_STATUS_PENDING,
+                or_(TaskExecution.next_retry_at.is_(None), TaskExecution.next_retry_at <= start_time),
+                or_(TaskExecution.scheduled_at.is_(None), TaskExecution.scheduled_at <= start_time),
+            )
             .values(
                 status=EXECUTION_STATUS_RUNNING,
                 started_at=start_time,
                 worker_id=worker_id,
-                progress=0
+                progress=0,
+                next_retry_at=None,
+                completed_at=None,
+                error_message=None,
+                error_detail=None,
             )
         )
-        await db.execute(stmt)
+        result = await db.execute(stmt)
         await db.commit()
+        if not result.rowcount:
+            return None
 
         # 重新加载对象（用于返回和日志）
         execution = await TaskExecutionService.get_by_id(db, execution_id)

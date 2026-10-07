@@ -47,6 +47,7 @@ def register_all_handlers():
         TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC,
         TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE,
         TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC,
+        TASK_TYPE_MEDIA_SERVER_LIBRARY_REFRESH,
         TASK_TYPE_TRENDING_SYNC,
         TASK_TYPE_TRENDING_DETAIL_SYNC,
         TASK_TYPE_PERSON_DETAIL_SYNC,
@@ -68,6 +69,7 @@ def register_all_handlers():
         MediaServerWatchHistorySyncHandler,
         MediaServerLibraryStatsHandler,
         MediaServerLibrarySyncHandler,
+        MediaServerLibraryRefreshHandler,
         TrendingSyncHandler,
         TrendingDetailSyncHandler,
         PersonDetailSyncHandler,
@@ -89,6 +91,7 @@ def register_all_handlers():
     TaskHandlerRegistry.register(TASK_TYPE_MEDIA_SERVER_WATCH_HISTORY_SYNC, MediaServerWatchHistorySyncHandler)
     TaskHandlerRegistry.register(TASK_TYPE_MEDIA_SERVER_LIBRARY_STATS_UPDATE, MediaServerLibraryStatsHandler)
     TaskHandlerRegistry.register(TASK_TYPE_MEDIA_SERVER_LIBRARY_SYNC, MediaServerLibrarySyncHandler)
+    TaskHandlerRegistry.register(TASK_TYPE_MEDIA_SERVER_LIBRARY_REFRESH, MediaServerLibraryRefreshHandler)
     TaskHandlerRegistry.register(TASK_TYPE_TRENDING_SYNC, TrendingSyncHandler)
     TaskHandlerRegistry.register(TASK_TYPE_TRENDING_DETAIL_SYNC, TrendingDetailSyncHandler)
     TaskHandlerRegistry.register(TASK_TYPE_PERSON_DETAIL_SYNC, PersonDetailSyncHandler)

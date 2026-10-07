@@ -112,8 +112,7 @@ class EventBusManager:
         # 注册工作流监听器
         await self._register_workflow_listener()
 
-        # 注册媒体服务器监听器
-        await self._register_media_server_listener()
+        # 媒体整理后的刷新已改为持久化工作流，不再直接执行外部刷新。
 
         logger.debug("✅ 所有监听器注册完成")
 
@@ -140,7 +139,6 @@ class EventBusManager:
         订阅需要触发自动化任务的事件类型
         """
         from app.constants.event import (
-            EVENT_SITE_SYNC_COMPLETED,
             EVENT_DOWNLOAD_STARTED,
             EVENT_DOWNLOAD_COMPLETED,
         )
@@ -148,7 +146,6 @@ class EventBusManager:
 
         # 订阅需要触发工作流的事件
         workflow_events = [
-            EVENT_SITE_SYNC_COMPLETED,    # 站点同步完成 → 识别 + 订阅检查
             EVENT_DOWNLOAD_STARTED,       # 下载创建 → 状态同步
             EVENT_DOWNLOAD_COMPLETED,     # 下载完成 → 资源整理（预留）
         ]

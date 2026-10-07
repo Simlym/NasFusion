@@ -147,6 +147,11 @@ class PTResourceSyncHandler(BaseTaskHandler):
                 # 系统任务，作为广播消息
                 event_data["broadcast"] = True
 
+            # 工作流事件先持久化，再发布进程内通知；下游不会因进程退出而丢失。
+            from app.services.task.workflow_event_service import WorkflowEventService
+            await WorkflowEventService.enqueue_site_sync(db, event_data)
+            await db.commit()
+
             await event_bus.publish(EVENT_SITE_SYNC_COMPLETED, event_data)
             logger.info(
                 f"已发布同步完成事件: 站点 {site.name}, 新增 {sync_log.resources_new} 个资源, "

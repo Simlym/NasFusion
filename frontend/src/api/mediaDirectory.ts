@@ -136,6 +136,13 @@ export function getDirectoryDetail(id: number) {
   return request.get<DirectoryDetailResponse>(`/media-directories/${id}/detail`)
 }
 
+export async function getDirectoryImage(id: number, type: 'poster' | 'backdrop') {
+  const response = await request.get<Blob>(`/media-directories/${id}/images/${type}`, {
+    responseType: 'blob'
+  })
+  return URL.createObjectURL(response.data)
+}
+
 /**
  * 同步目录树（从文件构建）
  */

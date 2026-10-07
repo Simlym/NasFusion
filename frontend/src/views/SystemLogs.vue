@@ -193,6 +193,7 @@ import { getSystemLogs, getLogFileInfo, cleanSystemLogs, type LogEntry, type Log
 import hljs from 'highlight.js/lib/core'
 import json from 'highlight.js/lib/languages/json'
 import 'highlight.js/styles/github-dark.css' // 引入样式，需要确认项目是否安装了 highlight.js
+import { renderSafeText, sanitizeHtml } from '@/utils/safeHtml'
 
 hljs.registerLanguage('json', json)
 
@@ -345,12 +346,12 @@ const highlightedLog = computed(() => {
     if (currentRawLog.value.trim().startsWith('{')) {
       const obj = JSON.parse(currentRawLog.value)
       const formatted = JSON.stringify(obj, null, 2)
-      return hljs.highlight(formatted, { language: 'json' }).value
+      return sanitizeHtml(hljs.highlight(formatted, { language: 'json' }).value)
     }
   } catch (e) {
     // ignore
   }
-  return currentRawLog.value
+  return renderSafeText(currentRawLog.value)
 })
 
 const handleAutoRefreshChange = (val: boolean) => {

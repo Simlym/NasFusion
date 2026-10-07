@@ -33,6 +33,7 @@ from app.models.media_directory import MediaDirectory
 from app.models.organize_config import OrganizeConfig
 from app.models.scheduled_task import ScheduledTask
 from app.models.task_execution import TaskExecution
+from app.models.workflow_event import WorkflowEvent
 from app.models.image_cache import ImageCache
 from app.models.subscription import Subscription
 from app.models.subscription_check_log import SubscriptionCheckLog
@@ -53,6 +54,7 @@ from app.models.llm_config import LLMConfig
 from app.models.mcp_server import MCPExternalServer
 
 __all__ = [
+    "WorkflowEvent",
     "Base",
     "BaseModel",
     "IDMixin",
