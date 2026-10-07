@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 WORKFLOW_CONFIG = {
     "site_sync_auto_identify": {
         "enabled": True,
-        "max_resources": 100,  # 单次识别资源上限
+        "query_batch_size": 100,  # 分块筛选本次同步资源，不限制识别总量
         "priority": 3,  # 中等优先级
         "skip_errors": True,
     },
@@ -96,83 +96,11 @@ async def _handle_site_sync_completed(
     db: AsyncSession,
     event_data: Dict[str, Any]
 ) -> None:
-    """
-    处理站点同步完成事件
+    """兼容进程内同步事件，统一进入持久化工作流去重入口。"""
+    from app.services.task.workflow_event_service import WorkflowEventService
 
-    工作流：
-        1. 查询该站点新增的未识别资源
-        2. 如果有未识别资源，创建批量识别任务
-        3. 创建订阅检查任务
-
-    Args:
-        db: 数据库会话
-        event_data: 事件数据
-            - site_id: 站点ID
-            - site_name: 站点名称
-            - resources_new: 新增资源数量
-    """
-    site_id = event_data.get("site_id")
-    site_name = event_data.get("site_name", f"站点{site_id}")
-    resources_new = event_data.get("resources_new", 0)
-
-    if not site_id:
-        logger.warning("站点同步完成事件缺少 site_id，跳过工作流")
-        return
-
-    # 场景1：自动识别新资源
-    if WORKFLOW_CONFIG["site_sync_auto_identify"]["enabled"]:
-        if resources_new > 0:
-            # 查询未识别资源
-            from app.services.pt.pt_resource_service import PTResourceService
-
-            max_resources = WORKFLOW_CONFIG["site_sync_auto_identify"]["max_resources"]
-            unidentified_resources = await PTResourceService.get_unidentified_resources(
-                db, site_id=site_id, limit=max_resources
-            )
-
-            if unidentified_resources:
-                # 检查是否已有运行中的识别任务（防止重复创建）
-                has_running_task = await _has_running_identify_task(db)
-
-                if has_running_task:
-                    logger.debug(
-                        f"站点 {site_name} 同步完成，但已有运行中的识别任务，跳过创建"
-                    )
-                else:
-                    # 创建批量识别任务
-                    execution_id = await _create_identify_task(
-                        db,
-                        pt_resource_ids=[r.id for r in unidentified_resources],
-                        triggered_by=f"站点同步完成: {site_name}",
-                    )
-                    logger.info(
-                        f"✓ 工作流触发: 站点 {site_name} 同步完成，"
-                        f"已创建识别任务 (执行ID: {execution_id}, 资源数: {len(unidentified_resources)})"
-                    )
-            else:
-                logger.debug(f"站点 {site_name} 无未识别资源，跳过识别任务")
-        else:
-            logger.debug(f"站点 {site_name} 无新增资源，跳过识别任务")
-
-    # 场景2：自动检查订阅
-    if WORKFLOW_CONFIG["site_sync_auto_check_subscription"]["enabled"]:
-        # 检查是否已有运行中的订阅检查任务（防止重复创建）
-        has_running_task = await _has_running_subscription_check_task(db)
-
-        if has_running_task:
-            logger.debug(
-                f"站点 {site_name} 同步完成，但已有运行中的订阅检查任务，跳过创建"
-            )
-        else:
-            execution_id = await _create_subscription_check_task(
-                db,
-                check_all=True,
-                triggered_by=f"站点同步完成: {site_name}",
-            )
-            logger.info(
-                f"✓ 工作流触发: 站点 {site_name} 同步完成，"
-                f"已创建订阅检查任务 (执行ID: {execution_id})"
-            )
+    await WorkflowEventService.enqueue_site_sync(db, event_data)
+    await db.commit()
 
 
 async def _handle_download_started(

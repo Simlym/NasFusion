@@ -129,3 +129,53 @@ async def test_successful_sync_still_commits_resources_and_statistics(sync_db, m
         assert sync_log.resources_updated == 1
         assert sync_log.pages_processed == 1
         assert (await db.get(PTSite, site_id)).total_synced == 2
+        stored_ids = (await db.execute(select(PTResource.id))).scalars().all()
+        assert set(sync_log.debug_info["synced_resource_ids"]) == set(stored_ids)
+
+
+@pytest.mark.asyncio
+async def test_sync_handler_persists_all_page_ids_and_scopes_workflow(sync_db, monkeypatch):
+    from app.models import TaskExecution, WorkflowEvent
+    from app.constants.task import TASK_TYPE_PT_RESOURCE_IDENTIFY
+    from app.events.handlers.workflow_handler import _handle_site_sync_completed
+    from app.services.task.workflow_event_service import WorkflowEventService
+
+    _, sessions, site_id = sync_db
+    async with sessions() as db:
+        db.add(PTResource(site_id=site_id, **resource("unrelated-history", category="movie")))
+        await db.commit()
+    page_resources = [resource("existing", seeders=2)] + [
+        resource(f"new-{index}", category="tv") for index in range(204)
+    ]
+    adapter = AsyncMock()
+    adapter.fetch_resources.side_effect = [
+        {"resources": page_resources[offset:offset + 100], "total_pages": 3}
+        for offset in range(0, 205, 100)
+    ]
+    monkeypatch.setattr(PTResourceService, "_get_site_adapter", AsyncMock(return_value=adapter))
+    monkeypatch.setattr(TaskExecutionService, "update_progress", AsyncMock())
+    monkeypatch.setattr(TaskExecutionService, "append_log", AsyncMock())
+    publish = AsyncMock()
+    monkeypatch.setattr(event_bus, "publish", publish)
+    async with sessions() as db:
+        result = await PTResourceSyncHandler.execute(
+            db, {"site_id": site_id, "mode": "tvshow", "max_pages": 3}, execution_id=123,
+        )
+        assert result["resources_new"] == 204
+        assert result["resources_updated"] == 1
+        event = await db.scalar(select(WorkflowEvent))
+        sync_log = await db.scalar(select(SyncLog))
+        synced_ids = event.payload["pt_resource_ids"]
+        assert len(synced_ids) == 205
+        assert synced_ids == sync_log.debug_info["synced_resource_ids"]
+        assert sync_log.sync_params == {"filters": {"mode": "tvshow"}}
+        assert publish.call_args.args[1]["pt_resource_ids"] == synced_ids
+        # 兼容入口重复收到同步事件时仍只保留一个持久化事件。
+        await _handle_site_sync_completed(db, event.payload)
+        assert await db.scalar(select(func.count()).select_from(WorkflowEvent)) == 1
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        identify = await db.scalar(select(TaskExecution))
+        assert identify.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY
+        assert set(identify.handler_params["pt_resource_ids"]) == set(synced_ids)
+        assert len(identify.handler_params["pt_resource_ids"]) == 205

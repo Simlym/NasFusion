@@ -219,7 +219,7 @@ async def test_site_sync_without_new_resources_queues_subscription_check(session
     async with sessions() as db:
         await WorkflowEventService.enqueue_site_sync(db, {
             "site_id": 7, "site_name": "M-Team", "sync_log_id": 11,
-            "resources_new": 0,
+            "resources_new": 0, "pt_resource_ids": [],
         })
         await db.commit()
     await WorkflowEventService.deliver_pending(sessions)
@@ -241,7 +241,7 @@ async def test_site_sync_identifies_before_subscription_check(sessions, monkeypa
     async with sessions() as db:
         await WorkflowEventService.enqueue_site_sync(db, {
             "site_id": 7, "site_name": "M-Team", "sync_log_id": 12,
-            "resources_new": 2,
+            "resources_new": 2, "pt_resource_ids": [101, 102],
         })
         await db.commit()
     await WorkflowEventService.deliver_pending(sessions)
@@ -263,6 +263,143 @@ async def test_site_sync_identifies_before_subscription_check(sessions, monkeypa
     async with sessions() as db:
         types = (await db.execute(select(TaskExecution.task_type).order_by(TaskExecution.id))).scalars().all()
         assert types == [TASK_TYPE_PT_RESOURCE_IDENTIFY, TASK_TYPE_SUBSCRIPTION_CHECK]
+
+
+async def pt_resource(db, torrent_id, **overrides):
+    from app.models.pt_resource import PTResource
+    values = dict(
+        site_id=7, torrent_id=str(torrent_id), title=str(torrent_id), category="tv",
+        size_bytes=1, download_url=f"https://test.invalid/{torrent_id}",
+        published_at=now(), identification_status="unidentified",
+    )
+    values.update(overrides)
+    resource = PTResource(**values)
+    db.add(resource)
+    await db.flush()
+    return resource
+
+
+@pytest.mark.asyncio
+async def test_site_sync_identifies_all_235_scoped_resources_then_checks_subscriptions(sessions, monkeypatch):
+    from app.models.resource_mapping import ResourceMapping
+    from app.services.identification.resource_identify_service import ResourceIdentificationService
+    from app.tasks.handlers.pt_resource_identify_handler import PTResourceIdentifyHandler
+    from app.events.bus import event_bus
+
+    async with sessions() as db:
+        resources = [await pt_resource(db, index) for index in range(235)]
+        # 历史资源即使发布时间更近也不能混入；更新但未识别的资源仍应处理。
+        await pt_resource(db, "history", published_at=now() + timedelta(days=1))
+        await pt_resource(db, "history-movie", category="movie")
+        mapped = await pt_resource(db, "mapped")
+        db.add(ResourceMapping(
+            pt_resource_id=mapped.id, media_type="tv",
+            unified_table_name="unified_tv_series", unified_resource_id=1,
+        ))
+        inactive = await pt_resource(db, "inactive", is_active=False)
+        failed = await pt_resource(db, "failed", identification_status="failed")
+        identified = await pt_resource(db, "identified", identification_status="identified")
+        other_site = await pt_resource(db, "other-site", site_id=8)
+        ids = [resource.id for resource in resources]
+        synced_ids = ids + [mapped.id, inactive.id, failed.id, identified.id, other_site.id, ids[0]]
+        await WorkflowEventService.enqueue_site_sync(db, {
+            "site_id": 7, "site_name": "M-Team", "sync_log_id": 20,
+            "resources_new": 230, "resources_updated": 10,
+            "filters": {"mode": "tvshow"}, "pt_resource_ids": synced_ids,
+        })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    await WorkflowEventService.deliver_pending(sessions)  # 已投递事件不会重复创建任务
+    async with sessions() as db:
+        identify = await db.scalar(select(TaskExecution))
+        assert identify.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY
+        assert set(identify.handler_params["pt_resource_ids"]) == set(ids)
+        assert len(identify.handler_params["pt_resource_ids"]) == 235
+        assert await db.scalar(select(func.count()).select_from(TaskExecution)) == 1
+
+    async def identify_one(db, resource_id):
+        if resource_id == ids[100]:
+            raise ValueError("cannot identify")
+
+    identify_one_mock = AsyncMock(side_effect=identify_one)
+    monkeypatch.setattr(ResourceIdentificationService, "identify_auto", identify_one_mock)
+    monkeypatch.setattr(event_bus, "publish", AsyncMock())
+    async with sessions() as db:
+        result = await PTResourceIdentifyHandler.execute(db, identify.handler_params, identify.id)
+        assert result == {"total": 235, "success": 234, "failed": 1, "skipped": 0, "error_count": 1}
+        identify = await db.get(TaskExecution, identify.id)
+        await db.refresh(identify)
+        assert identify.progress_detail["total"] == 235
+        assert identify.progress_detail["processed"] == 235
+        assert await db.scalar(select(func.count()).select_from(TaskExecution)) == 1
+    assert identify_one_mock.await_count == 235
+    assert {call.args[1] for call in identify_one_mock.await_args_list} == set(ids)
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        types = (await db.execute(select(TaskExecution.task_type).order_by(TaskExecution.id))).scalars().all()
+        assert types == [TASK_TYPE_PT_RESOURCE_IDENTIFY, TASK_TYPE_SUBSCRIPTION_CHECK]
+
+
+@pytest.mark.asyncio
+async def test_updated_only_sync_merges_all_candidates_into_pending_identification(sessions):
+    async with sessions() as db:
+        resources = [await pt_resource(db, index) for index in range(205)]
+        ids = [resource.id for resource in resources]
+        for log_id, scoped_ids in [(30, ids[:110]), (31, ids[100:])]:
+            await WorkflowEventService.enqueue_site_sync(db, {
+                "site_id": 7, "sync_log_id": log_id, "resources_new": 0,
+                "resources_updated": len(scoped_ids), "pt_resource_ids": scoped_ids,
+            })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        identify = await db.scalar(select(TaskExecution))
+        assert await db.scalar(select(func.count()).select_from(TaskExecution)) == 1
+        assert identify.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY
+        assert identify.handler_params["pt_resource_ids"] == ids
+        assert identify.handler_params["workflow_run_ids"] == [
+            "site_sync:workflow:30", "site_sync:workflow:31",
+        ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("explicit_ids", [None, []])
+async def test_sync_scope_can_recover_from_log_but_explicit_empty_stays_empty(sessions, explicit_ids):
+    from app.models.sync_log import SyncLog
+    async with sessions() as db:
+        resource = await pt_resource(db, "updated")
+        db.add(SyncLog(
+            id=40, site_id=7, sync_type="incremental", status="success", started_at=now(),
+            debug_info={"synced_resource_ids": [resource.id]},
+        ))
+        payload = {"site_id": 7, "sync_log_id": 40, "resources_new": 0}
+        if explicit_ids is not None:
+            payload["pt_resource_ids"] = explicit_ids
+        await WorkflowEventService.enqueue_site_sync(db, payload)
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        item = await db.scalar(select(TaskExecution))
+        if explicit_ids is None:
+            assert item.task_type == TASK_TYPE_PT_RESOURCE_IDENTIFY
+            assert item.handler_params["pt_resource_ids"] == [resource.id]
+        else:
+            assert item.task_type == TASK_TYPE_SUBSCRIPTION_CHECK
+
+
+@pytest.mark.asyncio
+async def test_legacy_sync_without_scope_does_not_identify_site_history(sessions, caplog):
+    async with sessions() as db:
+        await pt_resource(db, "unrelated-history")
+        await WorkflowEventService.enqueue_site_sync(db, {
+            "site_id": 7, "sync_log_id": 50, "resources_new": 235,
+        })
+        await db.commit()
+    await WorkflowEventService.deliver_pending(sessions)
+    async with sessions() as db:
+        item = await db.scalar(select(TaskExecution))
+        assert item.task_type == TASK_TYPE_SUBSCRIPTION_CHECK
+    assert "缺少本次资源ID" in caplog.text
 
 
 @pytest.mark.asyncio

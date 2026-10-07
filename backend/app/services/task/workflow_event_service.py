@@ -171,26 +171,51 @@ class WorkflowEventService:
         return execution
 
     @staticmethod
+    async def _get_site_sync_unidentified_resource_ids(
+        db: AsyncSession, payload: Dict[str, Any],
+    ) -> list[int]:
+        """分块筛选本次同步的未识别资源；批大小不限制候选资源总量。"""
+        from app.events.handlers.workflow_handler import WORKFLOW_CONFIG
+        from app.models.sync_log import SyncLog
+        from app.services.pt.pt_resource_service import PTResourceService
+
+        synced_ids = payload.get("pt_resource_ids")
+        if synced_ids is None:
+            sync_log = await db.get(SyncLog, payload.get("sync_log_id"))
+            if sync_log is not None and sync_log.site_id == payload["site_id"]:
+                synced_ids = (sync_log.debug_info or {}).get("synced_resource_ids")
+        if synced_ids is None:
+            logger.warning("同步日志 %s 缺少本次资源ID，跳过自动识别", payload.get("sync_log_id"))
+            return []
+
+        synced_ids = list(dict.fromkeys(synced_ids))
+        batch_size = WORKFLOW_CONFIG["site_sync_auto_identify"]["query_batch_size"]
+        resource_ids = []
+        for offset in range(0, len(synced_ids), batch_size):
+            chunk = synced_ids[offset:offset + batch_size]
+            resources = await PTResourceService.get_unidentified_resources(
+                db, site_id=payload["site_id"], pt_resource_ids=chunk, limit=len(chunk),
+            )
+            resource_ids.extend(resource.id for resource in resources)
+        return resource_ids
+
+    @staticmethod
     async def _deliver_site_sync(db: AsyncSession, event: WorkflowEvent) -> Optional[TaskExecution]:
         from app.events.handlers.workflow_handler import WORKFLOW_CONFIG
-        from app.services.pt.pt_resource_service import PTResourceService
 
         payload = event.payload
         site_id = payload["site_id"]
         site_name = payload.get("site_name", f"站点{site_id}")
         workflow_run_id = event.business_key
-        if (WORKFLOW_CONFIG["site_sync_auto_identify"]["enabled"]
-                and payload.get("resources_new", 0) > 0):
-            resources = await PTResourceService.get_unidentified_resources(
-                db, site_id=site_id,
-                limit=WORKFLOW_CONFIG["site_sync_auto_identify"]["max_resources"],
+        if WORKFLOW_CONFIG["site_sync_auto_identify"]["enabled"]:
+            resource_ids = await WorkflowEventService._get_site_sync_unidentified_resource_ids(
+                db, payload,
             )
-            if resources:
+            if resource_ids:
                 pending = await WorkflowEventService._find_pending_execution(
                     db, TASK_TYPE_PT_RESOURCE_IDENTIFY,
                     related_type=RELATED_TYPE_PT_SITE, related_id=site_id,
                 )
-                resource_ids = [resource.id for resource in resources]
                 if pending:
                     params = dict(pending.handler_params or {})
                     params["pt_resource_ids"] = sorted(
@@ -201,7 +226,7 @@ class WorkflowEventService:
                     return pending
                 execution = TaskExecution(
                     task_type=TASK_TYPE_PT_RESOURCE_IDENTIFY,
-                    task_name=f"[自动] 识别 {site_name} 新资源",
+                    task_name=f"[自动] 识别 {site_name} 同步资源",
                     handler=TASK_TYPE_PT_RESOURCE_IDENTIFY,
                     handler_params={
                         "pt_resource_ids": resource_ids, "site_id": site_id,

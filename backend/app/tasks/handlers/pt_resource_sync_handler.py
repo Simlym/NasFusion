@@ -136,6 +136,7 @@ class PTResourceSyncHandler(BaseTaskHandler):
                 "pages_processed": sync_log.pages_processed,
                 "duration": sync_log.duration,
                 "filters": filters,
+                "pt_resource_ids": (sync_log.debug_info or {}).get("synced_resource_ids", []),
                 "related_type": "sync_log",
                 "related_id": sync_log.id,
             }

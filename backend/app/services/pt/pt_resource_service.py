@@ -331,7 +331,8 @@ class PTResourceService:
 
     @staticmethod
     async def batch_upsert_resources(
-        db: AsyncSession, resources_data: List[dict]
+        db: AsyncSession, resources_data: List[dict],
+        synced_resource_ids: Optional[List[int]] = None,
     ) -> Tuple[int, int]:
         """
         批量创建或更新资源（高性能版本，单次 SELECT + 单次 COMMIT）
@@ -339,6 +340,7 @@ class PTResourceService:
         Args:
             db: 数据库会话
             resources_data: 资源数据字典列表
+            synced_resource_ids: 可选输出列表，收集本批成功写入的资源ID
 
         Returns:
             Tuple[int, int]: (新建数量, 更新数量)
@@ -406,8 +408,17 @@ class PTResourceService:
         if new_resources:
             db.add_all(new_resources)
 
+        # 在提交前取得主键，避免提交后访问过期的 ORM 属性。
+        page_resource_ids = []
+        if synced_resource_ids is not None:
+            await db.flush()
+            page_resource_ids = [existing_map[key].id for key in keys if key in existing_map]
+            page_resource_ids.extend(resource.id for resource in new_resources)
+
         # 5. 单次提交
         await db.commit()
+        if synced_resource_ids is not None:
+            synced_resource_ids.extend(page_resource_ids)
 
         return new_count, updated_count
 
@@ -597,6 +608,8 @@ class PTResourceService:
             sync_log.total_pages = stats["total_pages"]
             sync_log.pages_processed = stats["pages_processed"]  # 添加此行
             sync_log.requests_count = stats["requests_count"]
+            sync_log.sync_params = {"filters": validated_filters}
+            sync_log.debug_info = {"synced_resource_ids": stats["resource_ids"]}
 
             # 更新站点状态
             site.last_sync_at = sync_log.completed_at
@@ -737,6 +750,7 @@ class PTResourceService:
             "total_pages": 0,
             "requests_count": 0,
             "pages_processed": 0,
+            "resource_ids": [],
         }
 
         page = start_page
@@ -779,7 +793,7 @@ class PTResourceService:
                     resource_data["site_id"] = site.id
 
                 page_new, page_updated = await PTResourceService.batch_upsert_resources(
-                    db, resources
+                    db, resources, synced_resource_ids=stats["resource_ids"]
                 )
                 stats["new"] += page_new
                 stats["updated"] += page_updated
@@ -1117,7 +1131,8 @@ class PTResourceService:
         db: AsyncSession,
         site_id: Optional[int] = None,
         category: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
+        pt_resource_ids: Optional[List[int]] = None,
     ) -> List[PTResource]:
         """
         获取未识别的PT资源（未映射到统一资源表的资源）
@@ -1127,6 +1142,7 @@ class PTResourceService:
             site_id: 站点ID（可选，为空则查询所有站点）
             category: 资源分类（可选，如 movie, tv, music, anime, book, game, adult, other）
             limit: 返回数量限制
+            pt_resource_ids: 限定资源ID（空列表不返回资源）
 
         Returns:
             未识别的PT资源列表
@@ -1156,6 +1172,9 @@ class PTResourceService:
         # 按分类过滤
         if category:
             query = query.where(PTResource.category == category)
+
+        if pt_resource_ids is not None:
+            query = query.where(PTResource.id.in_(pt_resource_ids))
 
         # 排序和限制
         query = query.order_by(PTResource.published_at.desc()).limit(limit)
