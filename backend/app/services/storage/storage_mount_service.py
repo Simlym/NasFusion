@@ -12,7 +12,9 @@ from typing import Optional
 from sqlalchemy import select, update, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.download_task import DownloadTask
 from app.models.storage_mount import StorageMount
+from app.models.subscription import Subscription
 from app.constants import MEDIA_TYPES
 
 logger = logging.getLogger(__name__)
@@ -697,7 +699,9 @@ class StorageMountService:
             bool: 是否删除成功
         """
         result = await db.execute(
-            select(StorageMount).where(StorageMount.id == mount_id)
+            select(StorageMount)
+            .where(StorageMount.id == mount_id)
+            .with_for_update()
         )
         mount = result.scalar_one_or_none()
 
@@ -705,6 +709,19 @@ class StorageMountService:
             return False
 
         name = mount.name
+
+        # 先解除业务引用，兼容曾执行过旧版迁移、外键仍为 NO ACTION 的数据库。
+        # 下载历史和订阅本身应保留，后续会回退到自动选择挂载点。
+        await db.execute(
+            update(DownloadTask)
+            .where(DownloadTask.storage_mount_id == mount_id)
+            .values(storage_mount_id=None)
+        )
+        await db.execute(
+            update(Subscription)
+            .where(Subscription.storage_mount_id == mount_id)
+            .values(storage_mount_id=None)
+        )
         await db.delete(mount)
         await db.commit()
         logger.info(f"删除挂载点: {name}")
