@@ -547,6 +547,7 @@ class PTResourceService:
         db.add(sync_log)
         await db.commit()
         await db.refresh(sync_log)
+        site_name = site.name
 
         # 初始化进度
         if task_execution_id:
@@ -612,23 +613,32 @@ class PTResourceService:
             )
 
         except Exception as e:
-            logger.error(f"Sync failed for site {site.name}: {str(e)}")
+            logger.exception(f"Sync failed for site {site_name}: {str(e)}")
+            try:
+                # flush 失败后必须先回滚；回滚会过期 ORM 对象，需要显式重新加载。
+                await db.rollback()
+                await db.refresh(sync_log)
+                await db.refresh(site)
 
-            # 更新同步日志 - 失败
-            sync_log.status = "failed"
-            sync_log.completed_at = now()
-            # 确保 started_at 是时区感知的 datetime，避免与 completed_at 相减时报错
-            started_at_aware = to_system_tz(sync_log.started_at)
-            sync_log.duration = int((sync_log.completed_at - started_at_aware).total_seconds())
-            sync_log.error_message = str(e)
+                sync_log.status = "failed"
+                sync_log.completed_at = now()
+                started_at_aware = to_system_tz(sync_log.started_at)
+                sync_log.duration = int((sync_log.completed_at - started_at_aware).total_seconds())
+                sync_log.error_message = str(e)
 
-            # 更新站点状态
-            site.last_sync_at = sync_log.completed_at
-            site.last_sync_status = "failed"
-            site.last_sync_error = str(e)
-
-            await db.commit()
-            await db.refresh(sync_log)
+                site.last_sync_at = sync_log.completed_at
+                site.last_sync_status = "failed"
+                site.last_sync_error = str(e)
+                await db.commit()
+            except Exception:
+                # 失败日志写入异常不能覆盖原始同步异常。
+                logger.exception(f"Failed to persist sync failure for site {site_name}")
+                try:
+                    await db.rollback()
+                except Exception:
+                    logger.exception("Failed to rollback sync failure logging")
+            # 交给任务调度器记录失败和安排重试，禁止发布同步成功事件。
+            raise
 
         return sync_log
 
@@ -768,17 +778,11 @@ class PTResourceService:
                 for resource_data in resources:
                     resource_data["site_id"] = site.id
 
-                try:
-                    page_new, page_updated = await PTResourceService.batch_upsert_resources(
-                        db, resources
-                    )
-                    stats["new"] += page_new
-                    stats["updated"] += page_updated
-                except Exception as e:
-                    logger.error(f"Error batch processing resources: {str(e)}")
-                    page_new = 0
-                    page_updated = 0
-                    stats["error"] += len(resources)
+                page_new, page_updated = await PTResourceService.batch_upsert_resources(
+                    db, resources
+                )
+                stats["new"] += page_new
+                stats["updated"] += page_updated
 
                 # 页面处理完成，更新进度
                 stats["pages_processed"] = page - start_page + 1
@@ -840,9 +844,8 @@ class PTResourceService:
                 page += 1
 
             except Exception as e:
-                logger.error(f"Error fetching page {page}: {str(e)}")
-                stats["error"] += 1
-                break
+                logger.exception(f"Error syncing page {page}: {str(e)}")
+                raise
 
         return stats
 
