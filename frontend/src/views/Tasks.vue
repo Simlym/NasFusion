@@ -44,17 +44,24 @@
                 <div>
                   <h4>{{ task.task_name }}</h4>
                 </div>
-                <el-tag :type="task.enabled ? 'success' : 'info'" effect="plain">
-                  {{ task.enabled ? '自动运行' : '已停用' }}
-                </el-tag>
+                <el-tooltip :content="task.schedule_type === 'manual' ? '仅在点击立即同步时执行' : task.enabled ? '按照下方调度规则自动执行；当前执行状态显示在卡片内' : '已关闭定时执行，仍可点击立即同步'">
+                  <el-tag :type="task.enabled && task.schedule_type !== 'manual' ? 'success' : 'info'" effect="plain">
+                    {{ task.schedule_type === 'manual' ? '手动运行' : task.enabled ? '定时已开启' : '定时已关闭' }}
+                  </el-tag>
+                </el-tooltip>
               </div>
               <dl class="automation-card-meta">
                 <div><dt>调度</dt><dd>{{ getScheduleDescription(task) }}</dd></div>
                 <div><dt>上次运行</dt><dd>{{ task.last_run_at ? formatDate(task.last_run_at) : '尚未运行' }}</dd></div>
                 <div><dt>下次运行</dt><dd>{{ task.next_run_at ? formatDate(task.next_run_at) : '手动触发' }}</dd></div>
               </dl>
+              <div v-if="getCardExecution(task.id) || submittingTaskIds.has(task.id)" class="automation-sync-status" role="status" aria-live="polite">
+                <span>{{ getSyncStatusLabel(task.id) }}</span>
+                <el-progress v-if="getActiveSync(task.id)?.status === 'running'" :percentage="getActiveSync(task.id)?.progress || 0" :stroke-width="6" />
+                <el-button v-if="getCardExecution(task.id)" link type="primary" @click="handleViewDetail(getCardExecution(task.id)!.id)">查看执行详情</el-button>
+              </div>
               <div class="automation-card-primary-actions">
-                <el-button type="primary" :icon="VideoPlay" :loading="runningId === task.id" @click="handleRunNow(task)">立即同步</el-button>
+                <el-button type="primary" :icon="VideoPlay" :loading="submittingTaskIds.has(task.id) || !!getActiveSync(task.id)" @click="handleRunNow(task)">{{ getActiveSync(task.id) || submittingTaskIds.has(task.id) ? getSyncStatusLabel(task.id) : '立即同步' }}</el-button>
                 <el-button :icon="Clock" @click="handleViewHistory(task)">查看流程</el-button>
               </div>
               <div class="automation-card-manage-actions" aria-label="任务管理操作">
@@ -120,7 +127,7 @@
           </div>
         </div>
         <div class="lq-header-right">
-          <el-button :icon="Refresh" :loading="queueLoading" size="small" @click="loadQueueStatus">刷新</el-button>
+          <el-button :icon="Refresh" :loading="queueLoading" size="small" @click="loadQueueStatus()">刷新</el-button>
         </div>
       </div>
 
@@ -870,6 +877,7 @@
               <el-option label="所有资源(非成人)" value="normal" />
               <el-option label="仅电影资源" value="movie" />
               <el-option label="仅电视资源" value="tvshow" />
+              <el-option label="仅音乐资源" value="music" />
               <el-option label="仅成人资源" value="adult" />
             </el-select>
             <el-text type="info" size="small" style="margin-left: 10px">默认为普通资源</el-text>
@@ -1450,6 +1458,9 @@ const tasksLoading = ref(false)
 const submitting = ref(false)
 const togglingId = ref<number | null>(null)
 const runningId = ref<number | null>(null)
+const submittingTaskIds = ref(new Set<number>())
+// 立即执行接口已返回执行编号，不依赖队列接口是否已升级。
+const submittedExecutions = reactive<Record<number, TaskQueueStatus['running'][number]>>({})
 const countdown = ref(30)
 const isMobile = ref(window.innerWidth <= 768)
 const detailDrawerVisible = ref(false)
@@ -1489,6 +1500,32 @@ const NOISE_TASK_NAMES = new Set(['监听下载完成', '订阅自动检查（�
 const automationTasks = computed(() =>
   scheduledTasks.value.filter(task => task.task_type === 'pt_resource_sync')
 )
+const matchesSyncTask = (item: TaskQueueStatus['running'][number], taskId: number) => {
+  if (item.scheduled_task_id != null) return item.scheduled_task_id === taskId
+  if (submittedExecutions[taskId]?.id === item.id) return true
+  const task = scheduledTasks.value.find(task => task.id === taskId)
+  // 兼容尚未重启的后端；同名计划不做猜测。
+  return !!task && scheduledTasks.value.filter(candidate => candidate.task_name === task.task_name).length === 1
+    && item.task_type === task.task_type
+    && (item.task_name === task.task_name || item.task_name === `${task.task_name} (手动触发)`)
+}
+const getActiveSync = (taskId: number) => {
+  const queued = [...queueStatus.running, ...queueStatus.pending].find(item => matchesSyncTask(item, taskId))
+  if (queued) return queued
+  const submitted = submittedExecutions[taskId]
+  return submitted && ['pending', 'running'].includes(submitted.status) ? submitted : undefined
+}
+const getCardExecution = (taskId: number) => getActiveSync(taskId) || submittedExecutions[taskId]
+const getSyncStatusLabel = (taskId: number) => {
+  if (submittingTaskIds.value.has(taskId)) return '提交中'
+  const execution = getCardExecution(taskId)
+  if (execution?.status === 'completed') return '同步已完成'
+  if (execution?.status === 'failed') return '同步失败'
+  if (execution?.status === 'cancelled') return '同步已取消'
+  if (execution?.status === 'timeout') return '同步超时'
+  if (execution) return execution.status === 'running' ? '同步中' : '等待执行'
+  return '提交中'
+}
 const activeAutomationCount = computed(() =>
   [...queueStatus.running, ...queueStatus.pending].filter(item => AUTOMATION_TASK_TYPES.has(item.task_type)).length
 )
@@ -2066,13 +2103,18 @@ const formatDuration = (duration: number | null | undefined) => {
 }
 
 // ==================== 数据加载 ====================
-const loadQueueStatus = async () => {
-  queueLoading.value = true
+const loadQueueStatus = async (silent = false) => {
+  if (!silent) queueLoading.value = true
   try {
     const { data } = await api.task.getTaskQueueStatus()
     queueStatus.running = data.running
     queueStatus.pending = data.pending
     queueStatus.recent_completed = data.recent_completed
+    await Promise.all(Object.entries(submittedExecutions).map(async ([taskId, execution]) => {
+      if (!['pending', 'running'].includes(execution.status)) return
+      const { data: detail } = await api.task.getTaskExecution(execution.id)
+      submittedExecutions[Number(taskId)] = detail
+    }))
   } catch (error: unknown) {
     ElMessage.error('加载任务队列状态失败: ' + (getErrorMessage(error)))
   } finally {
@@ -2407,14 +2449,25 @@ const handleToggleTask = async (task: ScheduledTask) => {
 }
 
 const handleRunNow = async (task: ScheduledTask) => {
+  if (submittingTaskIds.value.has(task.id) || getActiveSync(task.id)) return
+  submittingTaskIds.value.add(task.id)
   runningId.value = task.id
   try {
     const { data } = await api.task.runScheduledTaskNow(task.id)
+    submittedExecutions[task.id] = {
+      id: data.execution_id,
+      scheduled_task_id: task.id,
+      task_name: task.task_name,
+      task_type: task.task_type,
+      status: 'pending',
+      progress: 0,
+    }
     ElMessage.success(data.message || '任务已提交执行')
-    setTimeout(() => loadQueueStatus(), 1000)
+    await loadQueueStatus(true)
   } catch (error: unknown) {
     ElMessage.error('执行失败: ' + (getErrorMessage(error)))
   } finally {
+    submittingTaskIds.value.delete(task.id)
     runningId.value = null
   }
 }
@@ -2873,11 +2926,11 @@ onMounted(() => {
   // 自动化概览、关注页和实时队列都需要轻量刷新运行状态。
   refreshInterval = window.setInterval(() => {
     if (activeTab.value === 'automation' || activeTab.value === 'attention') {
-      loadAutomationOverview()
+      loadQueueStatus(true)
     } else if (activeTab.value === 'live-queue') {
       loadQueueStatus()
     }
-  }, 30000)
+  }, 5000)
 
   // 启动倒计时
   startCountdown()
@@ -2894,6 +2947,19 @@ onUnmounted(() => {
 .page-container {
   width: 100%;
 }
+
+.automation-sync-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--nf-glass-primary-tint);
+  color: var(--nf-primary);
+  font-size: 13px;
+}
+.automation-sync-status :deep(.el-button) { align-self: flex-start; margin-left: 0; }
 
 /* ==================== 自动化概览 ==================== */
 .automation-layout,

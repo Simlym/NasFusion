@@ -126,12 +126,14 @@ SYNC_MODE_NORMAL = "normal"    # 普通资源（包含所有非成人资源）
 SYNC_MODE_MOVIE = "movie"      # 电影资源
 SYNC_MODE_TVSHOW = "tvshow"    # 电视剧资源
 SYNC_MODE_ADULT = "adult"      # 成人资源
+SYNC_MODE_MUSIC = "music"      # 音乐资源
 
 SYNC_MODES = [
     SYNC_MODE_NORMAL,
     SYNC_MODE_MOVIE,
     SYNC_MODE_TVSHOW,
     SYNC_MODE_ADULT,
+    SYNC_MODE_MUSIC,
 ]
 
 SYNC_MODE_DISPLAY_NAMES = {
@@ -139,4 +141,5 @@ SYNC_MODE_DISPLAY_NAMES = {
     SYNC_MODE_MOVIE: "电影模式",
     SYNC_MODE_TVSHOW: "电视模式",
     SYNC_MODE_ADULT: "成人模式",
+    SYNC_MODE_MUSIC: "音乐模式",
 }

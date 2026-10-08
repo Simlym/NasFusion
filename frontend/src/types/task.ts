@@ -183,6 +183,7 @@ export interface TaskExecution {
 // 任务执行摘要
 export interface TaskExecutionSummary {
   id: number
+  scheduled_task_id?: number | null
   task_name: string
   task_type: string
   status: string

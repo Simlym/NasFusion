@@ -260,7 +260,7 @@ class SyncRequest(BaseModel):
     # ========== 过滤参数 ==========
     mode: Optional[str] = Field(
         default="normal",
-        description="资源模式: normal（普通）/ adult（成人）"
+        description="资源模式: normal/movie/tvshow/adult/music（音乐）"
     )
     categories: Optional[List[str]] = Field(
         None,

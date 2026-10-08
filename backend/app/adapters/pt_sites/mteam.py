@@ -23,10 +23,12 @@ from app.constants import (
     MEDIA_TYPE_MUSIC,
     MEDIA_TYPE_OTHER,
     MEDIA_TYPE_TV,
+    SYNC_MODE_MUSIC,
 )
 
 logger = logging.getLogger(__name__)
 MTEAM_BOOK_CATEGORY_ID = "427"
+MTEAM_MUSIC_CATEGORY_IDS = {"406", "434"}
 
 
 
@@ -471,6 +473,8 @@ class MTeamAdapter(BasePTSiteAdapter):
             for item in items:
                 resource = self._parse_resource_item(item)
                 if resource:
+                    if filters.get("mode") == SYNC_MODE_MUSIC:
+                        resource["category"] = MEDIA_TYPE_MUSIC
                     resources.append(resource)
 
             logger.info(f"Fetched {len(resources)} resources from {self.site_name}, page {page_number}/{total_pages}, total: {total}")
@@ -514,13 +518,12 @@ class MTeamAdapter(BasePTSiteAdapter):
 
             # 映射分类 (使用数据库动态映射)
             category_id = str(item.get("category", ""))
-            if self.category_map is None:
-                # 如果分类映射未加载，使用默认值
-                category = MEDIA_TYPE_BOOK if category_id == MTEAM_BOOK_CATEGORY_ID else MEDIA_TYPE_OTHER
-            else:
-                category = self.category_map.get(category_id) or (
-                    MEDIA_TYPE_BOOK if category_id == MTEAM_BOOK_CATEGORY_ID else MEDIA_TYPE_OTHER
-                )
+            fallback_category = MEDIA_TYPE_OTHER
+            if category_id == MTEAM_BOOK_CATEGORY_ID:
+                fallback_category = MEDIA_TYPE_BOOK
+            elif category_id in MTEAM_MUSIC_CATEGORY_IDS:
+                fallback_category = MEDIA_TYPE_MUSIC
+            category = (self.category_map or {}).get(category_id) or fallback_category
 
             # MTeam 没有子分类概念，暂时留空
             subcategory = None

@@ -115,6 +115,7 @@ class TaskExecutionSummary(BaseResponseSchema):
     """任务执行摘要（用于前端任务队列展示）"""
 
     id: int
+    scheduled_task_id: Optional[int] = None
     task_name: str
     task_type: str
     status: str
