@@ -21,6 +21,7 @@ export interface ScheduledTaskListParams {
 }
 
 export interface TaskExecutionListParams {
+  group_by_workflow?: boolean
   page?: number
   page_size?: number
   task_type?: string

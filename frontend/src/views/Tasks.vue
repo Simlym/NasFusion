@@ -436,9 +436,34 @@
            </el-tag>
         </div>
 
+        <div class="history-batch-toolbar">
+          <el-switch v-model="historyByWorkflow" active-text="按任务批次展示" @change="historyPagination.page = 1; loadHistory()" />
+          <span v-if="historyByWorkflow">按批次分页，筛选命中后显示完整批次；批次内按创建顺序排列。</span>
+        </div>
+        <div v-if="historyByWorkflow" class="history-batches">
+          <section v-for="batch in historyBatches" :key="batch.batch_id" class="history-batch">
+            <div class="history-batch-heading">
+              <strong>{{ batch.is_workflow ? '任务批次' : '独立任务' }}</strong>
+              <code v-if="batch.is_workflow">{{ batch.batch_id }}</code>
+              <span>{{ batch.items.length }} 个任务</span>
+            </div>
+            <ol class="history-batch-tasks">
+              <li v-for="(row, index) in batch.items" :key="row.id">
+                <span class="history-batch-index">{{ index + 1 }}</span>
+                <div class="history-batch-task-main">
+                  <strong>{{ row.task_name }}</strong>
+                  <small>{{ getTaskTypeName(row.task_type) }} · {{ formatDate(row.created_at) }} · 执行 #{{ row.id }}</small>
+                  <small v-if="(row.task_metadata?.workflow_run_ids || row.handler_params?.workflow_run_ids || []).length > 1">合并执行：{{ (row.task_metadata?.workflow_run_ids || row.handler_params?.workflow_run_ids).join('、') }}</small>
+                </div>
+                <el-tag :type="getStatusTagType(row.status)" size="small">{{ getStatusName(row.status) }}</el-tag>
+                <el-button link type="primary" @click="handleViewDetail(row.id)">详情</el-button>
+              </li>
+            </ol>
+          </section>
+        </div>
         <!-- 桌面端：历史记录表格 -->
         <el-table
-          v-if="historyList.length > 0 && !isMobile"
+          v-if="!historyByWorkflow && historyList.length > 0 && !isMobile"
           :data="historyList"
           :style="{ width: '100%' }"
         >
@@ -451,6 +476,10 @@
           </el-table-column>
 
           <el-table-column prop="task_name" label="任务名称" min-width="200" show-overflow-tooltip />
+
+          <el-table-column label="任务批次" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">{{ (row.task_metadata?.workflow_run_ids || row.handler_params?.workflow_run_ids || (row.task_type === 'pt_resource_sync' && row.result?.sync_log_id ? [`site_sync:workflow:${row.result.sync_log_id}`] : [])).join('、') || '独立任务' }}</template>
+          </el-table-column>
 
           <el-table-column prop="task_type" label="类型" width="200">
             <template #default="{ row }">
@@ -503,7 +532,7 @@
         </el-table>
 
         <!-- 移动端：历史记录卡片列表 -->
-        <div v-if="historyList.length > 0 && isMobile" class="history-cards-mobile">
+        <div v-if="!historyByWorkflow && historyList.length > 0 && isMobile" class="history-cards-mobile">
           <div v-for="row in historyList" :key="row.id" class="history-card-mobile" @click="handleViewDetail(row.id)">
             <div class="history-card-top">
               <span class="history-card-name">{{ row.task_name }}</span>
@@ -1363,6 +1392,7 @@ interface ProgressAwareExecution {
 }
 
 interface HistoryParams {
+  group_by_workflow?: boolean
   page: number
   page_size: number
   sort_by: string
@@ -1548,6 +1578,8 @@ const meaningfulRecentExecutions = computed(() =>
 
 // 历史记录
 const historyList = ref<TaskExecution[]>([])
+const historyByWorkflow = ref(true)
+const historyBatches = ref<{ batch_id: string; is_workflow: boolean; items: TaskExecution[] }[]>([])
 const historyPagination = reactive({
   page: 1,
   page_size: 20,
@@ -2250,8 +2282,14 @@ const loadHistory = async () => {
       params.end_date = historyFilters.dateRange[1].toISOString()
     }
 
+    params.group_by_workflow = historyByWorkflow.value
     const { data } = await api.task.getTaskExecutionsList(params)
     historyList.value = data.items
+    historyBatches.value = data.groups || []
+    if (historyByWorkflow.value && !data.groups) {
+      ElMessage.warning('当前后端尚未支持任务批次，请重启后端后刷新页面')
+      historyByWorkflow.value = false
+    }
     historyPagination.total = data.total
   } catch (error: unknown) {
     ElMessage.error('加载历史记录失败: ' + (getErrorMessage(error)))
@@ -2946,6 +2984,24 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   width: 100%;
+}
+
+.history-batch-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.history-batch-toolbar > span { color: var(--nf-text-secondary); font-size: 13px; }
+.history-batches { display: flex; flex-direction: column; gap: 16px; }
+.history-batch { border: 1px solid var(--el-border-color); border-radius: 12px; overflow: hidden; }
+.history-batch-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; background: var(--nf-glass-primary-tint); }
+.history-batch-heading code { overflow-wrap: anywhere; color: var(--nf-primary); }
+.history-batch-heading > span { color: var(--nf-text-secondary); font-size: 13px; }
+.history-batch-tasks { list-style: none; padding: 0; margin: 0; }
+.history-batch-tasks li { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--el-border-color); }
+.history-batch-index { flex-shrink: 0; width: 24px; text-align: center; color: var(--nf-text-secondary); }
+.history-batch-task-main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.history-batch-task-main small { color: var(--nf-text-secondary); }
+@media (max-width: 768px) {
+  .history-batch-tasks li { flex-wrap: wrap; }
+  .history-batch-task-main { flex-basis: calc(100% - 40px); }
+  .history-batch-tasks :deep(.el-button) { min-height: 44px; }
 }
 
 .automation-sync-status {
