@@ -302,6 +302,9 @@ class PTResourceService:
                 "detail_url",    # 详情页链接也需要更新
                 "original_category_id",  # 原始分类ID
                 "subcategory",  # 子分类
+                "category",
+                "image_list",
+                "raw_page_json",
             ]
 
             for field in update_fields:
@@ -353,7 +356,7 @@ class PTResourceService:
             "title", "subtitle", "seeders", "leechers", "completions",
             "promotion_type", "promotion_expire_at", "is_free", "is_discount",
             "is_double_upload", "size_bytes", "download_url", "detail_url",
-            "original_category_id", "subcategory",
+            "original_category_id", "subcategory", "category", "image_list", "raw_page_json",
         ]
         preserve_if_set_fields = {"douban_id", "douban_rating", "imdb_id", "imdb_rating"}
 

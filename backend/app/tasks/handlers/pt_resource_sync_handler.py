@@ -99,6 +99,9 @@ class PTResourceSyncHandler(BaseTaskHandler):
             request_interval=request_interval
         )
 
+        if sync_log.status != "success":
+            raise ValueError(sync_log.error_message or "PT站点资源同步失败")
+
         # 最终进度设为100
         await TaskExecutionService.update_progress(
             db, execution_id, 100,

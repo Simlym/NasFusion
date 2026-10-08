@@ -82,6 +82,7 @@ from app.constants.pt_site import (
     # 同步模式常量
     SYNC_MODE_NORMAL,
     SYNC_MODE_ADULT,
+    SYNC_MODE_MUSIC,
     SYNC_MODES,
     SYNC_MODE_DISPLAY_NAMES,
 )
@@ -952,6 +953,7 @@ __all__ = [
     "MTEAM_DEFAULT_CAPABILITIES",
     "SYNC_MODE_NORMAL",
     "SYNC_MODE_ADULT",
+    "SYNC_MODE_MUSIC",
     "SYNC_MODES",
     "SYNC_MODE_DISPLAY_NAMES",
     # 榜单常量

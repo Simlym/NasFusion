@@ -23,6 +23,7 @@ export interface ScheduledTaskListParams {
 }
 
 export interface TaskExecutionListParams {
+  group_by_workflow?: boolean
   page?: number
   page_size?: number
   task_type?: string
@@ -54,6 +55,10 @@ export function createScheduledTask(data: ScheduledTaskCreate) {
 // 创建PT同步任务（快捷方式）
 export function createPTSyncTask(data: PTSyncTaskCreate) {
   return request.post<ScheduledTask>('/scheduled-tasks/pt-sync', data)
+}
+
+export function ensureBookSyncTask(siteId: number) {
+  return request.post<ScheduledTask>(`/scheduled-tasks/pt-books/${siteId}`)
 }
 
 // 更新调度任务

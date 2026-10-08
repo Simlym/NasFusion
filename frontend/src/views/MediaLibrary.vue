@@ -1,12 +1,12 @@
 <template>
   <div class="page-container">
     <!-- 页面内容区域 -->
-    <keep-alive :include="['MoviesView', 'TVSeriesView', 'AnimeView', 'AdultView']">
+    <keep-alive :include="['MoviesView', 'TVSeriesView', 'AnimeView', 'AdultView', 'BooksView', 'MusicView']">
       <MoviesView v-if="activeTab === 'movies'" />
       <TVSeriesView v-else-if="activeTab === 'tv'" />
       <AnimeView v-else-if="activeTab === 'anime'" />
-      <PlaceholderView v-else-if="activeTab === 'music'" type="音乐" />
-      <PlaceholderView v-else-if="activeTab === 'books'" type="电子书" />
+      <MusicView v-else-if="activeTab === 'music'" />
+      <BooksView v-else-if="activeTab === 'books'" />
       <AdultView v-else-if="activeTab === 'adult'" />
     </keep-alive>
   </div>
@@ -19,7 +19,8 @@ import MoviesView from './Movies.vue'
 import TVSeriesView from './TVSeries.vue'
 import AnimeView from './Anime.vue'
 import AdultView from './Adult.vue'
-import PlaceholderView from '@/components/media/PlaceholderView.vue'
+import BooksView from './Books.vue'
+import MusicView from './Music.vue'
 
 // 定义组件名称，用于 keep-alive 缓存
 defineOptions({

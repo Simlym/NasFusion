@@ -139,7 +139,7 @@ class PTSyncTaskCreate(BaseModel):
     # ========== 过滤参数 ==========
     mode: Optional[str] = Field(
         default="normal",
-        description="资源模式: normal/movie/tvshow/adult"
+        description="资源模式: normal/movie/tvshow/adult/music"
     )
     categories: Optional[List[str]] = Field(
         None,

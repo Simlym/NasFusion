@@ -78,11 +78,24 @@ async def get_task_executions_list(
     end_date: Optional[datetime] = Query(None, description="结束日期"),
     sort_by: str = Query("created_at", description="排序字段"),
     sort_order: str = Query("desc", description="排序方向(asc/desc)"),
+    group_by_workflow: bool = Query(False, description="按工作流批次分页，展示完整批次"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin_user),
 ):
     """获取任务执行历史列表，支持分页、过滤和排序"""
     skip = (page - 1) * page_size
+
+    if group_by_workflow:
+        groups, total = await TaskExecutionService.get_workflow_history(
+            db, page, page_size, status=status, task_type=task_type,
+            task_types=task_types, scheduled_task_id=scheduled_task_id,
+            keyword=keyword, start_date=start_date, end_date=end_date,
+        )
+        serialized = [{**group, "items": [TaskExecutionResponse.model_validate(item)
+                        for item in group["items"]]} for group in groups]
+        return {"groups": serialized, "items": [item for group in serialized for item in group["items"]],
+                "total": total, "page": page, "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size}
 
     executions, total = await TaskExecutionService.get_all(
         db=db,

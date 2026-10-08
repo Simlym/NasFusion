@@ -67,7 +67,7 @@ class TaskExecutionService:
     async def get_all(
         db: AsyncSession,
         skip: int = 0,
-        limit: int = 100,
+        limit: Optional[int] = 100,
         status: Optional[str] = None,
         task_type: Optional[str] = None,
         task_types: Optional[List[str]] = None,
@@ -135,6 +135,48 @@ class TaskExecutionService:
         executions = result.scalars().all()
 
         return list(executions), total_count
+
+    @staticmethod
+    def group_workflow_executions(executions: List[TaskExecution]) -> List[Dict[str, Any]]:
+        """共享下游任务可出现在多个批次；同步任务作为工作流起点。"""
+        from app.constants.durable_event import SITE_SYNC_WORKFLOW_KEY_PREFIX
+        from app.constants.task import TASK_TYPE_PT_RESOURCE_SYNC
+
+        groups: Dict[str, Dict[str, Any]] = {}
+        for execution in executions:
+            ids = set()
+            for source in (execution.task_metadata, execution.handler_params):
+                values = (source or {}).get("workflow_run_ids", [])
+                if isinstance(values, list):
+                    ids.update(value for value in values if isinstance(value, str) and value)
+            sync_log_id = (execution.result or {}).get("sync_log_id")
+            if execution.task_type == TASK_TYPE_PT_RESOURCE_SYNC and sync_log_id:
+                ids.add(f"{SITE_SYNC_WORKFLOW_KEY_PREFIX}{sync_log_id}")
+            for batch_id in sorted(ids) or [f"execution:{execution.id}"]:
+                group = groups.setdefault(batch_id, {
+                    "batch_id": batch_id, "is_workflow": bool(ids), "items": [],
+                })
+                group["items"].append(execution)
+        for group in groups.values():
+            group["items"].sort(key=lambda item: (item.created_at, item.id))
+        return sorted(groups.values(), key=lambda group: (
+            group["items"][0].created_at, group["items"][0].id,
+        ), reverse=True)
+
+    @staticmethod
+    async def get_workflow_history(db: AsyncSession, page: int, page_size: int, **filters):
+        matched, _ = await TaskExecutionService.get_all(db, limit=None, **filters)
+        if not matched:
+            return [], 0
+        matched_ids = {item.id for item in matched}
+        # 筛选命中批次后展示其完整任务链，分页单位为批次。
+        if any(filters.values()):
+            executions, _ = await TaskExecutionService.get_all(db, limit=None)
+        else:
+            executions = matched
+        groups = [group for group in TaskExecutionService.group_workflow_executions(executions)
+                  if any(item.id in matched_ids for item in group["items"])]
+        return groups[(page - 1) * page_size:page * page_size], len(groups)
 
     @staticmethod
     async def get_running_tasks_by_type(

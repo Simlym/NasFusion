@@ -222,6 +222,7 @@ export interface ScheduledTaskListResponse {
 
 // 任务执行列表响应
 export interface TaskExecutionListResponse {
+  groups?: { batch_id: string; is_workflow: boolean; items: TaskExecution[] }[]
   total: number
   items: TaskExecution[]
 }

@@ -112,6 +112,18 @@ async def create_pt_sync_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post("/pt-books/{site_id}", response_model=ScheduledTaskResponse, summary="获取或创建电子书同步任务")
+async def ensure_book_sync_task(
+    site_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user),
+):
+    try:
+        return await ScheduledTaskService.ensure_book_sync_task(db, site_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get("/{task_id}", response_model=ScheduledTaskResponse, summary="获取调度任务详情")
 async def get_scheduled_task(
     task_id: int,

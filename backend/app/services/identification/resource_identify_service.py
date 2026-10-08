@@ -6,12 +6,14 @@ import logging
 import re
 from typing import Optional, Union
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.metadata import DoubanAdapter, TMDBAdapter
 from app.adapters.pt_sites.mteam import MTeamAdapter
 from app.models.pt_resource import PTResource
 from app.models.resource_mapping import ResourceMapping
+from app.models.unified_adult import UnifiedAdult
 from app.models.unified_movie import UnifiedMovie
 from app.models.unified_tv_series import UnifiedTVSeries
 from app.schemas.resource_mapping import ResourceMappingCreate
@@ -335,9 +337,6 @@ class ResourceIdentificationService:
                 try:
                     dmm_info = await mteam_adapter.fetch_dmm_info(dmm_code)
                     if dmm_info:
-                        from app.models.unified_adult import UnifiedAdult
-                        from sqlalchemy import select
-
                         # 提取番号用于去重
                         product_number = dmm_info.get("product_number") or AdultIdentifyService.extract_product_number(
                             pt_resource.title, pt_resource.subtitle or ""

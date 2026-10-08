@@ -62,17 +62,13 @@ class PTResourceDetailService:
         # 3. 调用 MTeam 详情 API
         if not mteam_adapter:
             # 如果没有传入适配器，创建临时适配器
-            from app.adapters.pt_sites import get_adapter
             from app.services.pt.pt_site_service import PTSiteService
-            from app.utils.encryption import encryption_util
+            from app.services.pt.pt_resource_service import PTResourceService
 
             site = await PTSiteService.get_by_id(db, pt_resource.site_id)
-            config = {
-                "domain": site.domain,
-                "auth_passkey": encryption_util.decrypt(site.auth_passkey),
-                "proxy_config": site.proxy_config,
-            }
-            mteam_adapter = get_adapter("mteam", config)
+            if not site:
+                raise ValueError("PT site not found")
+            mteam_adapter = await PTResourceService._get_site_adapter(site, db)
 
         # 调用详情 API（获取原始数据）
         detail_data = await mteam_adapter.get_resource_detail(pt_resource.torrent_id)

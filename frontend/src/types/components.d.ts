@@ -105,6 +105,7 @@ declare module 'vue' {
     PathValidator: typeof import('./../components/common/PathValidator.vue')['default']
     PlaceholderView: typeof import('./../components/media/PlaceholderView.vue')['default']
     ProblemFilter: typeof import('./../components/MediaLibrary/ProblemFilter.vue')['default']
+    PTMediaResourceLibrary: typeof import('./../components/media/PTMediaResourceLibrary.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SitesSettings: typeof import('./../components/settings/SitesSettings.vue')['default']

@@ -122,6 +122,7 @@ SITE_PRESETS: Dict[str, Dict[str, Any]] = {
             "404": MEDIA_TYPE_TV,  # 综艺
             "405": MEDIA_TYPE_ANIME,
             "406": MEDIA_TYPE_MUSIC,
+            "434": MEDIA_TYPE_MUSIC,
             "407": MEDIA_TYPE_OTHER,  # 体育
             "408": MEDIA_TYPE_OTHER,  # 软件
             "409": MEDIA_TYPE_OTHER,  # 学习
