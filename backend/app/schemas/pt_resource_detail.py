@@ -43,6 +43,8 @@ class PTResourceDetailItemBase(BaseModel):
     id: int
     title: str
     subtitle: Optional[str] = None
+    douban_id: Optional[str] = Field(None, alias="doubanId")
+    douban_rating: Optional[float] = Field(None, alias="doubanRating")
     poster_url: Optional[str] = Field(None, alias="posterUrl")
     image_list: List[str] = Field(default_factory=list, alias="imageList")
     published_at: Optional[datetime] = Field(None, alias="publishedAt")

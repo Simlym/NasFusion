@@ -26,6 +26,7 @@ from app.constants import (
 )
 
 logger = logging.getLogger(__name__)
+MTEAM_BOOK_CATEGORY_ID = "427"
 
 
 
@@ -77,6 +78,12 @@ class MTeamAdapter(BasePTSiteAdapter):
         # 下载种子时需要使用 tp cookie，优先使用 auth_passkey，如果没有则使用 auth_cookie
         self.tp_cookie = self.api_key or config.get("auth_cookie", "")
         self.domain = config.get("domain", "kp.m-team.cc")
+        website_host = urlparse(
+            self.domain if "://" in self.domain else f"https://{self.domain}"
+        ).hostname or "m-team.cc"
+        if website_host.startswith(("api.", "kp.", "www.")):
+            website_host = website_host.split(".", 1)[1]
+        self.website_base_url = f"https://kp.{website_host}"
         self.proxy_config = config.get("proxy_config", {})
         self.request_interval = config.get("request_interval", 2)
         self._last_request_time = 0.0
@@ -247,7 +254,7 @@ class MTeamAdapter(BasePTSiteAdapter):
             self.category_map = {
                 "401": MEDIA_TYPE_MOVIE, "419": MEDIA_TYPE_MOVIE, "403": MEDIA_TYPE_TV, "402": MEDIA_TYPE_TV,
                 "404": MEDIA_TYPE_OTHER, "405": MEDIA_TYPE_ANIME, "406": MEDIA_TYPE_MUSIC, "407": MEDIA_TYPE_MUSIC,
-                "408": MEDIA_TYPE_OTHER, "409": MEDIA_TYPE_OTHER, "423": MEDIA_TYPE_GAME, "427": MEDIA_TYPE_BOOK, "434": MEDIA_TYPE_MUSIC
+                "408": MEDIA_TYPE_OTHER, "409": MEDIA_TYPE_OTHER, "423": MEDIA_TYPE_GAME, MTEAM_BOOK_CATEGORY_ID: MEDIA_TYPE_BOOK, "434": MEDIA_TYPE_MUSIC
             }
 
     def _get_headers(self) -> Dict[str, str]:
@@ -509,9 +516,11 @@ class MTeamAdapter(BasePTSiteAdapter):
             category_id = str(item.get("category", ""))
             if self.category_map is None:
                 # 如果分类映射未加载，使用默认值
-                category = MEDIA_TYPE_OTHER
+                category = MEDIA_TYPE_BOOK if category_id == MTEAM_BOOK_CATEGORY_ID else MEDIA_TYPE_OTHER
             else:
-                category = self.category_map.get(category_id, MEDIA_TYPE_OTHER)
+                category = self.category_map.get(category_id) or (
+                    MEDIA_TYPE_BOOK if category_id == MTEAM_BOOK_CATEGORY_ID else MEDIA_TYPE_OTHER
+                )
 
             # MTeam 没有子分类概念，暂时留空
             subcategory = None
@@ -595,7 +604,7 @@ class MTeamAdapter(BasePTSiteAdapter):
                 "imdb_rating": self._parse_rating(item.get("imdbRating")),
                 "douban_rating": self._parse_rating(item.get("doubanRating")),
                 # URL
-                "detail_url": f"https://kp.{self.domain}/detail/{torrent_id}",
+                "detail_url": f"{self.website_base_url}/detail/{torrent_id}",
                 "download_url": download_url,
                 "magnet_link": None,  # 需要单独请求
                 # 原始数据
@@ -604,7 +613,7 @@ class MTeamAdapter(BasePTSiteAdapter):
                 "is_active": status.get("visible", True) and not status.get("banned", False),
                 "last_check_at": now(),
                 "published_at": self._parse_datetime(item.get("createdDate")),
-                "image_list":item.get("imageList", ""),
+                "image_list": item.get("imageList") or [],
             }
 
             return resource

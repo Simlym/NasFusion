@@ -1,41 +1,26 @@
 <template>
   <div class="page-container">
     <div v-if="activeTab === 'automation'" v-loading="tasksLoading || queueLoading" class="tab-content automation-layout">
-      <section class="automation-hero" aria-labelledby="automation-title">
-        <div>
-          <div class="automation-eyebrow">MEDIA AUTOMATION</div>
-          <h2 id="automation-title">资源自动化闭环</h2>
-          <p>只需安排资源同步，新增资源会依次完成识别、订阅匹配、下载、整理和媒体库刷新。</p>
+      <section class="automation-toolbar" aria-label="自动化状态与操作">
+        <div class="automation-toolbar-status">
+          <h2>资源同步计划 <span>{{ automationTasks.length }}</span></h2>
+          <button type="button" class="automation-inline-status" @click="activeTab = 'live-queue'">{{ activeAutomationCount }} 个执行中</button>
+          <button type="button" class="automation-inline-status" :class="{ 'has-attention': attentionCount > 0 }" @click="activeTab = 'attention'">{{ attentionCount }} 个需要关注</button>
         </div>
-        <div class="automation-hero-actions">
-          <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">刷新状态</el-button>
-          <el-button type="primary" :icon="Plus" @click="handleCreate">创建资源同步</el-button>
-        </div>
-      </section>
-
-      <section class="automation-summary" aria-label="自动化状态摘要">
-        <div class="automation-stat">
-          <span class="automation-stat-value">{{ automationTasks.length }}</span>
-          <span class="automation-stat-label">资源同步入口</span>
-        </div>
-        <div class="automation-stat">
-          <span class="automation-stat-value automation-stat-value--running">{{ activeAutomationCount }}</span>
-          <span class="automation-stat-label">流程执行中</span>
-        </div>
-        <div class="automation-stat">
-          <span class="automation-stat-value" :class="{ 'automation-stat-value--danger': attentionCount > 0 }">{{ attentionCount }}</span>
-          <span class="automation-stat-label">需要关注</span>
+        <div class="automation-toolbar-actions">
+          <el-button :icon="Refresh" :loading="tasksLoading || queueLoading" @click="loadAutomationOverview">刷新</el-button>
+          <el-button type="primary" :icon="Plus" @click="handleCreate">创建同步计划</el-button>
         </div>
       </section>
 
-      <section class="workflow-panel" aria-labelledby="workflow-title">
-        <div class="section-heading-row">
+      <details class="workflow-panel workflow-panel--collapsible">
+        <summary class="section-heading-row">
           <div>
             <h3 id="workflow-title">默认处理流程</h3>
             <p>步骤按事件顺序执行；无新增、无匹配或未开启自动下载时会自然结束。</p>
           </div>
-          <el-tag type="success" effect="plain">自动识别已开启</el-tag>
-        </div>
+          <span class="workflow-summary-toggle" aria-hidden="true"></span>
+        </summary>
         <div class="workflow-track">
           <template v-for="(step, index) in automationSteps" :key="step.key">
             <div class="workflow-step">
@@ -48,22 +33,15 @@
             <span v-if="index < automationSteps.length - 1" class="workflow-connector" aria-hidden="true">→</span>
           </template>
         </div>
-      </section>
+      </details>
 
-      <div class="automation-main-grid">
+      <div class="automation-main-grid" :class="{ 'automation-main-grid--tasks-only': !meaningfulRecentExecutions.length }">
         <section class="automation-section" aria-labelledby="sync-entry-title">
-          <div class="section-heading-row">
-            <div>
-              <h3 id="sync-entry-title">资源同步入口</h3>
-              <p>只维护同步计划，后续步骤由工作流接管。</p>
-            </div>
-            <span class="section-count">{{ automationTasks.length }} 个入口</span>
-          </div>
+          <h3 id="sync-entry-title" class="sr-only">资源同步计划</h3>
           <div v-if="automationTasks.length" class="automation-card-grid">
             <article v-for="task in automationTasks" :key="task.id" class="automation-card">
               <div class="automation-card-head">
                 <div>
-                  <span class="automation-card-kicker">资源同步</span>
                   <h4>{{ task.task_name }}</h4>
                 </div>
                 <el-tag :type="task.enabled ? 'success' : 'info'" effect="plain">
@@ -90,7 +68,7 @@
           </el-empty>
         </section>
 
-        <section class="automation-section automation-section--activity" aria-labelledby="recent-flow-title">
+        <section v-if="meaningfulRecentExecutions.length" class="automation-section automation-section--activity" aria-labelledby="recent-flow-title">
           <div class="section-heading-row">
             <div><h3 id="recent-flow-title">最近自动化活动</h3><p>已过滤无业务变化的轮询记录。</p></div>
             <el-button link type="primary" @click="activeTab = 'history'">查看全部</el-button>
@@ -115,6 +93,10 @@
 
     <!-- Tab 内容显示区域 -->
     <div v-else-if="activeTab === 'live-queue'" v-loading="queueLoading" class="tab-content lq-layout">
+      <div class="lq-navigation">
+        <el-button @click="activeTab = 'automation'">← 返回自动化概览</el-button>
+        <h2>执行队列</h2>
+      </div>
 
       <!-- ── 顶部工具栏 ── -->
       <div class="lq-header">
@@ -2918,8 +2900,7 @@ onUnmounted(() => {
 .attention-layout {
   display: flex;
   width: 100%;
-  max-width: 1680px;
-  margin: 0 auto;
+
   flex-direction: column;
   gap: 16px;
 }
@@ -3085,16 +3066,13 @@ onUnmounted(() => {
 }
 
 .automation-card-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .automation-card {
-  flex: 1 1 360px;
-  width: 100%;
-  max-width: 340px;
+  min-width: 0;
   padding: 16px;
   border: 1px solid var(--nf-border-light);
   border-radius: var(--nf-radius-md);
@@ -5724,4 +5702,147 @@ html.ocean .steps-container {
 html.ocean .detail-btn:hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* 自动化页面：轻量层级与自适应计划面板 */
+.automation-layout { gap: 22px; }
+.automation-hero {
+  padding: 8px 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.automation-hero h2 { font-size: 28px; letter-spacing: -0.03em; margin-bottom: 8px; }
+.automation-hero p, .automation-layout .section-heading-row p { font-size: 13px; }
+.automation-hero-actions { flex-shrink: 0; }
+.automation-hero-actions :deep(.el-button) { height: 40px; margin-left: 0; border-radius: 8px; }
+.automation-summary { gap: 16px; }
+.automation-stat {
+  justify-content: flex-start;
+  min-width: 0;
+  min-height: 88px;
+  padding: 18px 22px;
+  font: inherit;
+  text-align: left;
+  background: var(--nf-bg-container);
+}
+button.automation-stat { cursor: pointer; transition: border-color 180ms, background-color 180ms; }
+button.automation-stat:hover { border-color: var(--nf-primary); background: var(--nf-glass-primary-tint); }
+.automation-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  margin-right: 4px;
+  border-radius: 12px;
+  color: var(--nf-primary);
+  background: var(--nf-glass-primary-tint);
+  font-size: 20px;
+}
+.automation-stat--attention .automation-stat-icon { color: var(--nf-warning, var(--el-color-warning)); background: var(--el-color-warning-light-9); }
+.automation-stat-value { font-size: 30px; font-variant-numeric: tabular-nums; }
+.automation-stat-label { color: var(--nf-text-regular, var(--el-text-color-regular)); }
+.automation-stat-hint { margin-left: auto; color: var(--nf-text-secondary); font-size: 12px; white-space: nowrap; }
+.workflow-panel { padding: 20px 24px; background: var(--nf-bg-elevated); }
+.workflow-caption { font-size: 12px; color: var(--nf-text-secondary); white-space: nowrap; }
+.workflow-track { overflow: visible; }
+.workflow-step { flex: 1 1 0; min-width: 0; padding: 14px; border: 1px solid color-mix(in srgb, var(--nf-primary) 16%, var(--nf-border-base)); background: var(--nf-glass-primary-tint); }
+.workflow-step-index { width: 32px; height: 32px; flex-basis: 32px; background: var(--nf-glass-primary-tint); }
+.workflow-step div span { font-size: 12px; line-height: 1.5; }
+.workflow-connector { padding: 0 12px; color: var(--nf-text-secondary); }
+.automation-main-grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; }
+.automation-main-grid > .automation-section:first-child { padding: 0; border: 0; background: transparent; box-shadow: none; min-width: 0; }
+.automation-layout .section-heading-row { align-items: center; margin-bottom: 18px; }
+.automation-layout .section-heading-row h3 { font-size: 17px; margin-bottom: 6px; }
+.automation-card { padding: 20px; border-color: var(--nf-border-base); border-radius: 12px; }
+.automation-card:hover { border-color: color-mix(in srgb, var(--nf-primary) 45%, var(--nf-border-base)); }
+.automation-card-head > div { min-width: 0; }
+.automation-card-head :deep(.el-tag) { flex-shrink: 0; }
+.automation-card h4 { font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; margin-top: 7px; }
+.automation-card-meta { margin: 20px 0; gap: 10px; }
+.automation-card-meta div + div { border: 0; margin: 0; padding: 0; }
+.automation-card-meta dd { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.automation-card-primary-actions :deep(.el-button) { min-height: 38px; border-radius: 8px; }
+.automation-card-manage-actions { margin-top: 16px; padding-top: 10px; }
+.automation-section--activity { padding: 20px 16px; background: var(--nf-bg-container); }
+.automation-section--activity .section-heading-row { padding: 0 4px; gap: 8px; }
+.automation-section--activity .section-heading-row h3 { font-size: 16px; }
+.automation-section--activity .section-heading-row :deep(.el-button) { margin: 0; }
+.automation-activity-list { gap: 2px; }
+.automation-activity { padding: 14px 8px; min-height: 72px; }
+.automation-activity + .automation-activity { border-top-color: var(--nf-border-light); }
+.automation-activity-main { gap: 7px; }
+.automation-activity-main strong { font-size: 13px; font-weight: 500; }
+.automation-activity-main small { font-size: 11px; font-variant-numeric: tabular-nums; }
+.automation-activity .lq-status-dot { border-radius: 50%; background: var(--el-color-success-light-9); color: var(--el-color-success); }
+.automation-activity .lq-status-dot--failed, .automation-activity .lq-status-dot--timeout { background: var(--el-color-danger-light-9); color: var(--el-color-danger); }
+.automation-layout button:focus-visible { outline: 2px solid var(--nf-primary); outline-offset: 3px; }
+@media (max-width: 1400px) {
+  .automation-stat-hint { display: none; }
+  .workflow-connector { padding: 0 6px; }
+}
+@media (max-width: 1100px) {
+  .automation-main-grid { grid-template-columns: 1fr; }
+  .workflow-track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .workflow-connector { display: none; }
+}
+@media (max-width: 768px) {
+  .automation-layout { gap: 18px; }
+  .automation-hero { padding: 0; }
+  .automation-hero h2 { font-size: 24px; }
+  .automation-hero-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .automation-summary { gap: 8px; }
+  .automation-stat { min-height: 68px; padding: 12px 16px; }
+  .automation-stat-hint { display: block; }
+  .automation-card-grid { grid-template-columns: 1fr; }
+  .workflow-track { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; gap: 14px 10px; }
+  .workflow-panel .section-heading-row { align-items: flex-start; }
+  .workflow-caption { display: none; }
+  .automation-card { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-container, .automation-layout *, .automation-layout :deep(.el-loading-spinner) { animation: none !important; transition: none !important; }
+}
+
+
+/* 自动化概览：任务优先，流程保留卡片样式并按需展开。 */
+.automation-layout { gap: 16px; }
+.automation-toolbar, .automation-toolbar-status, .automation-toolbar-actions, .lq-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.automation-toolbar { justify-content: space-between; padding: 4px 0; }
+.automation-toolbar h2, .lq-navigation h2 { margin: 0; color: var(--nf-text-primary); font-size: 18px; }
+.automation-toolbar h2 span { margin-left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--nf-glass-primary-tint); color: var(--nf-primary); font-size: 12px; }
+.automation-toolbar-actions :deep(.el-button) { min-height: 38px; margin: 0; }
+.automation-inline-status { min-height: 38px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--nf-text-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+.automation-inline-status:hover { background: var(--nf-glass-primary-tint); color: var(--nf-primary); }
+.automation-inline-status.has-attention { color: var(--nf-danger); }
+.workflow-panel--collapsible { padding: 0; overflow: hidden; }
+.automation-layout .workflow-panel--collapsible > summary { display: flex; align-items: center; padding: 16px 24px; margin: 0; cursor: pointer; list-style: none; }
+.workflow-panel--collapsible > summary::-webkit-details-marker { display: none; }
+.workflow-panel--collapsible > summary h3 { margin: 0; font-size: 17px; }
+.workflow-panel--collapsible > summary p { display: none; }
+.workflow-panel--collapsible[open] > summary { align-items: flex-start; padding-top: 24px; }
+.workflow-panel--collapsible[open] > summary p { display: block; margin-top: 6px; }
+.workflow-panel--collapsible > .workflow-track { margin: 0 24px 24px; }
+.workflow-summary-toggle { color: var(--nf-primary); white-space: nowrap; font-size: 12px; }
+.workflow-summary-toggle::after { content: '展开流程 ＋'; }
+.workflow-panel--collapsible[open] .workflow-summary-toggle::after { content: '收起流程 −'; }
+.automation-main-grid--tasks-only { grid-template-columns: minmax(0, 1fr); }
+.automation-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.automation-card { min-width: 0; width: auto; max-width: none; }
+.automation-card h4 { margin-top: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.lq-navigation :deep(.el-button) { min-height: 44px; }
+.automation-inline-status:focus-visible, .workflow-panel--collapsible > summary:focus-visible { outline: 2px solid var(--nf-primary); outline-offset: -3px; }
+@media (max-width: 768px) {
+  .automation-toolbar-status { gap: 4px 8px; }
+  .automation-toolbar h2 { width: 100%; margin-bottom: 4px; }
+  .automation-toolbar-actions { width: 100%; }
+  .automation-toolbar-actions :deep(.el-button), .automation-inline-status { min-height: 44px; }
+  .automation-card-grid { grid-template-columns: 1fr; }
+  .automation-layout .workflow-panel--collapsible > summary { padding: 16px; }
+  .workflow-panel--collapsible > .workflow-track { margin: 0 16px 16px; }
+  .workflow-step { padding: 12px; }
+}
+
 </style>

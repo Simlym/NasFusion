@@ -34,6 +34,36 @@ class ScheduledTaskService:
     """调度任务服务"""
 
     @staticmethod
+    async def ensure_book_sync_task(db: AsyncSession, site_id: int) -> ScheduledTask:
+        """电子书页复用每个站点的固定任务，初次使用仅创建手动任务。"""
+        from app.models.pt_site import PTSite
+        from app.adapters.pt_sites.mteam import MTEAM_BOOK_CATEGORY_ID
+
+        site = await db.get(PTSite, site_id)
+        if not site or site.type != "mteam":
+            raise ValueError("请选择有效的 MTeam 站点")
+        task_name = f"MTeam 电子书同步（站点 {site_id}）"
+        existing = await ScheduledTaskService.get_by_name(db, task_name)
+        if existing:
+            params = existing.handler_params or {}
+            if (existing.handler != TASK_TYPE_PT_RESOURCE_SYNC
+                    or params.get("site_id") != site_id
+                    or params.get("categories") != [MTEAM_BOOK_CATEGORY_ID]
+                    or params.get("mode") != "normal"
+                    or params.get("keyword")):
+                raise ValueError("同名任务的同步范围已修改，请在任务管理中检查配置")
+            return existing
+        return await ScheduledTaskService.create_pt_sync_task(db, PTSyncTaskCreate(
+            site_id=site_id,
+            task_name=task_name,
+            schedule_type=SCHEDULE_TYPE_MANUAL,
+            sync_type="full",
+            mode="normal",
+            categories=[MTEAM_BOOK_CATEGORY_ID],
+            description=f"同步 {site.name} 的电子书资源；可在任务管理中设置执行周期。",
+        ))
+
+    @staticmethod
     async def create(
         db: AsyncSession, task_data: ScheduledTaskCreate
     ) -> ScheduledTask:

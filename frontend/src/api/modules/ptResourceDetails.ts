@@ -7,6 +7,8 @@ export interface PTResourceDetailItem {
   id: number
   title: string
   subtitle?: string
+  doubanId?: string
+  doubanRating?: number
   posterUrl?: string
   imageList: string[]
   publishedAt?: string
@@ -38,7 +40,7 @@ export interface PTResourceDetailListResponse {
   items: PTResourceDetailItem[]
   total: number
   page: number
-  pageSize: number
+  page_size: number
 }
 
 export interface PTResourceDetailQuery {
@@ -47,6 +49,8 @@ export interface PTResourceDetailQuery {
   originalCategoryId?: string  // 原始分类ID
   page?: number
   pageSize?: number
+  keyword?: string
+  isFree?: boolean
 }
 
 export interface FetchDetailResponse {
@@ -64,7 +68,9 @@ export function getPTResourceDetailList(params: PTResourceDetailQuery) {
       site_id: params.siteId,
       original_category_id: params.originalCategoryId,
       page: params.page,
-      pageSize: params.pageSize
+      page_size: params.pageSize,
+      keyword: params.keyword,
+      is_free: params.isFree
     }
   })
 }

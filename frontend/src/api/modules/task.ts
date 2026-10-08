@@ -54,6 +54,10 @@ export function createPTSyncTask(data: PTSyncTaskCreate) {
   return request.post<ScheduledTask>('/scheduled-tasks/pt-sync', data)
 }
 
+export function ensureBookSyncTask(siteId: number) {
+  return request.post<ScheduledTask>(`/scheduled-tasks/pt-books/${siteId}`)
+}
+
 // 更新调度任务
 export function updateScheduledTask(id: number, data: Partial<ScheduledTaskCreate>) {
   return request.put<ScheduledTask>(`/scheduled-tasks/${id}`, data)

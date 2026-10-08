@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, or_
 
 from app.core.database import get_db
 from app.models.pt_resource import PTResource
@@ -28,6 +28,8 @@ async def get_pt_resource_details(
     category: Optional[str] = Query(None, description="媒体分类：adult/music/ebook 等"),
     site_id: Optional[int] = Query(None, description="PT站点ID"),
     original_category_id: Optional[str] = Query(None, description="原始分类ID"),
+    keyword: Optional[str] = Query(None, max_length=200, description="标题或副标题搜索"),
+    is_free: Optional[bool] = Query(None, description="仅免费资源"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(get_db),
@@ -53,6 +55,15 @@ async def get_pt_resource_details(
             filters.append(PTResource.site_id == site_id)
         if original_category_id:
             filters.append(PTResource.original_category_id == original_category_id)
+        if keyword and keyword.strip():
+            term = keyword.strip()
+            filters.append(or_(
+                PTResource.title.icontains(term, autoescape=True),
+                PTResource.subtitle.icontains(term, autoescape=True),
+            ))
+        if is_free is not None:
+            filters.append(PTResource.is_free == is_free)
+        filters.append(PTResource.is_active.is_(True))
 
         # 查询总数
         count_query = select(func.count()).select_from(PTResource)
@@ -67,7 +78,7 @@ async def get_pt_resource_details(
             query = query.where(*filters)
         query = (
             query
-            .order_by(desc(PTResource.published_at))
+            .order_by(desc(PTResource.published_at), desc(PTResource.id))
             .offset(skip)
             .limit(page_size)
         )
@@ -80,7 +91,7 @@ async def get_pt_resource_details(
             # 提取图片列表
             image_list = []
             if resource.raw_page_json:
-                image_list = resource.raw_page_json.get("imageList", [])
+                image_list = resource.raw_page_json.get("imageList") or resource.image_list or []
             elif resource.image_list:
                 image_list = resource.image_list
 
@@ -92,6 +103,8 @@ async def get_pt_resource_details(
                     id=resource.id,
                     title=resource.title,
                     subtitle=resource.subtitle,
+                    douban_id=resource.douban_id,
+                    douban_rating=resource.douban_rating,
                     poster_url=poster_url,
                     image_list=image_list,
                     published_at=resource.published_at,
@@ -136,7 +149,7 @@ async def get_pt_resource_detail(
         # 提取图片列表
         image_list = []
         if resource.raw_page_json:
-            image_list = resource.raw_page_json.get("imageList", [])
+            image_list = resource.raw_page_json.get("imageList") or resource.image_list or []
         elif resource.image_list:
             image_list = resource.image_list
 
@@ -155,6 +168,8 @@ async def get_pt_resource_detail(
             id=resource.id,
             title=resource.title,
             subtitle=resource.subtitle,
+            douban_id=resource.douban_id,
+            douban_rating=resource.douban_rating,
             poster_url=poster_url,
             image_list=image_list,
             published_at=resource.published_at,
